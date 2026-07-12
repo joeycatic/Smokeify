@@ -21,6 +21,7 @@ import {
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminPageHeader } from "@/components/admin/ui";
 const formatDate = (value: Date) =>
   new Intl.DateTimeFormat("de-DE", {
     day: "2-digit",
@@ -71,22 +72,28 @@ export default async function AdminFinancePage({
         : "Monthly monitoring across the selected yearly range.";
 
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#08101a] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.32)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.16),_transparent_28%),linear-gradient(135deg,_rgba(8,16,26,0.98),_rgba(10,18,28,0.94))]" />
+    <AdminPage layout="dashboard">
+      <AdminPageHeader
+        eyebrow="Control Layer / Finanzen"
+        title="Umsatzqualität, Kostendruck und Deckungsbeitrag"
+        description={`Operativer Finanzbereich für ${ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]} mit Brutto-/Netto-Transparenz und Periodenvergleich.`}
+        actions={<AdminTimeRangeTabs pathname="/admin/finance" activeDays={days} />}
+      />
+      <section className="hidden">
+        <div className="absolute inset-0 bg-[var(--adm-surface)]" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-200/70">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[var(--adm-success)]/70">
               Control Layer / Finanzen
             </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">
+            <h1 className="mt-3 text-3xl font-semibold text-[var(--adm-text)]">
               Umsatzqualität, Kostendruck und Deckungsbeitrag
             </h1>
-            <p className="mt-3 max-w-3xl text-sm text-slate-300">
+            <p className="mt-3 max-w-3xl text-sm text-[var(--adm-text-muted)]">
               Operativer Finanzbereich für Brutto-/Netto-Transparenz, variable Kosten und
               Periodenvergleich ohne Umbau der restlichen Admin-Abläufe.
             </p>
-            <div className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-100">
+            <div className="mt-4 inline-flex rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text)]">
               {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}
             </div>
           </div>
@@ -95,19 +102,19 @@ export default async function AdminFinancePage({
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
               <Link
                 href="/admin/orders"
-                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               >
                 Bestellungen
               </Link>
               <Link
                 href="/admin/vat"
-                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/15"
+                className="rounded-full border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-3 py-2 text-[var(--adm-success)] transition hover:border-[var(--adm-success)] hover:bg-emerald-400/15"
               >
                 USt-Monitor
               </Link>
               <Link
                 href="/admin/expenses"
-                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               >
                 Ausgaben
               </Link>
@@ -117,7 +124,7 @@ export default async function AdminFinancePage({
       </section>
 
       {currentFinance.paidOrderCount === 0 ? (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-amber-500/20 bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           No recognized paid orders were found between {formatDate(currentStart)} and{" "}
           {formatDate(currentEnd)}.
           {latestRecognizedOrderAt
@@ -127,7 +134,7 @@ export default async function AdminFinancePage({
       ) : null}
 
       {storefront ? (
-        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+        <div className="rounded-xl border border-cyan-500/20 bg-[var(--adm-primary-soft)] px-4 py-3 text-sm text-[var(--adm-primary)]">
           Finanzen sind aktuell auf {ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]} begrenzt.
           Nur explizit zugeordnete Ausgaben und Vorsteuer-Anteile fließen in diese Ansicht ein.
           {scopeCoverage.unallocatedExpenseCount > 0
@@ -137,13 +144,13 @@ export default async function AdminFinancePage({
       ) : null}
 
       {expenseMigrationRequired ? (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-amber-500/20 bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           Ausgaben sind in der aktuellen Datenbank noch nicht vollständig verfügbar. Vorsteuer und
           Kostenebene bleiben bis zur ausstehenden Prisma-Migration deaktiviert.
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <AdminKpiStrip>
         <AdminMetricCard
           label="Gross Revenue"
           value={formatMoney(currentFinance.grossRevenueCents, currency)}
@@ -182,7 +189,7 @@ export default async function AdminFinancePage({
           footnote="direct costs and captured fees only"
           tone="amber"
         />
-      </section>
+      </AdminKpiStrip>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <AdminPanel
@@ -195,7 +202,7 @@ export default async function AdminFinancePage({
               label="Gross revenue"
               value={formatMoney(currentFinance.grossRevenueCents, currency)}
               delta={formatDelta(currentFinance.grossRevenueCents, previousFinance.grossRevenueCents)}
-              deltaToneClassName="text-emerald-300"
+              deltaToneClassName="text-[var(--adm-success)]"
             />
             <AdminDeltaRow
               label="Refunded gross"
@@ -204,13 +211,13 @@ export default async function AdminFinancePage({
                 currentFinance.refundedGrossCents,
                 previousFinance.refundedGrossCents,
               )}
-              deltaToneClassName="text-amber-300"
+              deltaToneClassName="text-[#81560e]"
             />
             <AdminDeltaRow
               label="COGS"
               value={formatMoney(currentFinance.cogsCents, currency)}
               delta={formatDelta(currentFinance.cogsCents, previousFinance.cogsCents)}
-              deltaToneClassName="text-slate-300"
+              deltaToneClassName="text-[var(--adm-text-muted)]"
             />
             <AdminDeltaRow
               label="Payment fees"
@@ -219,7 +226,7 @@ export default async function AdminFinancePage({
                 currentFinance.paymentFeesCents,
                 previousFinance.paymentFeesCents,
               )}
-              deltaToneClassName="text-slate-300"
+              deltaToneClassName="text-[var(--adm-text-muted)]"
             />
             <AdminDeltaRow
               label="Contribution margin"
@@ -228,7 +235,7 @@ export default async function AdminFinancePage({
                 currentFinance.contributionMarginCents,
                 previousFinance.contributionMarginCents,
               )}
-              deltaToneClassName="text-cyan-300"
+              deltaToneClassName="text-[var(--adm-primary)]"
             />
           </div>
         </AdminPanel>
@@ -269,7 +276,7 @@ export default async function AdminFinancePage({
             />
           </div>
           <div className="mt-4 space-y-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               {expenseMigrationRequired
                 ? "Expense storage is not available yet, so input VAT and non-order operating costs are excluded until the migration is applied."
                 : storefront
@@ -278,7 +285,7 @@ export default async function AdminFinancePage({
                     : `${scopeCoverage.unallocatedExpenseCount} expense record(s) remain outside this storefront rollup because they are missing complete allocations.`
                   : "Global finance now includes recorded expense completeness checks, but allocated-profit distribution still lives in Profitability."}
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               Order-level numbers remain traceable because all rollups come from existing order and
               order-item snapshots.
             </div>
@@ -300,7 +307,7 @@ export default async function AdminFinancePage({
                 currentExpenseSummary.totalGrossCents,
                 previousExpenseSummary.totalGrossCents,
               )}
-              deltaToneClassName="text-amber-300"
+              deltaToneClassName="text-[#81560e]"
             />
             <AdminDeltaRow
               label="Expense net"
@@ -309,7 +316,7 @@ export default async function AdminFinancePage({
                 currentExpenseSummary.totalNetCents,
                 previousExpenseSummary.totalNetCents,
               )}
-              deltaToneClassName="text-slate-300"
+              deltaToneClassName="text-[var(--adm-text-muted)]"
             />
             <AdminDeltaRow
               label="Input VAT"
@@ -318,7 +325,7 @@ export default async function AdminFinancePage({
                 currentExpenseSummary.deductibleInputVatCents,
                 previousExpenseSummary.deductibleInputVatCents,
               )}
-              deltaToneClassName="text-emerald-300"
+              deltaToneClassName="text-[var(--adm-success)]"
             />
           </div>
         </AdminPanel>
@@ -335,20 +342,20 @@ export default async function AdminFinancePage({
               {expenseByCategory.slice(0, 6).map((row) => (
                 <div
                   key={row.category}
-                  className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         {formatExpenseCategoryLabel(row.category as ExpenseCategory)}
                       </div>
-                      <div className="text-xs text-slate-500">{row.count} expense record(s)</div>
+                      <div className="text-xs text-[var(--adm-text-faint)]">{row.count} expense record(s)</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-semibold text-cyan-300">
+                      <div className="text-sm font-semibold text-[var(--adm-primary)]">
                         {formatMoney(row.grossAmount, currency)}
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-[var(--adm-text-faint)]">
                         {formatMoney(row.vatAmount, currency)} VAT
                       </div>
                     </div>
@@ -372,27 +379,27 @@ export default async function AdminFinancePage({
             {trend.map((bucket) => (
               <div
                 key={bucket.key}
-                className="rounded-2xl border border-white/10 bg-white/[0.02] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                   {bucket.label}
                 </p>
                 <div className="mt-3 space-y-2 text-sm">
-                  <div className="flex items-center justify-between gap-3 text-slate-300">
+                  <div className="flex items-center justify-between gap-3 text-[var(--adm-text-muted)]">
                     <span>Gross</span>
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-[var(--adm-text)]">
                       {formatMoney(bucket.grossRevenueCents, currency)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-3 text-slate-300">
+                  <div className="flex items-center justify-between gap-3 text-[var(--adm-text-muted)]">
                     <span>Net</span>
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-[var(--adm-text)]">
                       {formatMoney(bucket.netRevenueCents, currency)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-3 text-slate-300">
+                  <div className="flex items-center justify-between gap-3 text-[var(--adm-text-muted)]">
                     <span>Contribution</span>
-                    <span className="font-semibold text-cyan-300">
+                    <span className="font-semibold text-[var(--adm-primary)]">
                       {formatMoney(bucket.contributionMarginCents, currency)}
                     </span>
                   </div>
@@ -402,6 +409,6 @@ export default async function AdminFinancePage({
           </div>
         )}
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

@@ -15,6 +15,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage } from "@/components/admin/ui";
 import type { AdminEnvironmentHealth } from "@/lib/adminEnvironmentHealth";
 
 type FailedWebhookEvent = {
@@ -493,7 +494,7 @@ export default function AdminOpsClient({
   );
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="console">
       <AdminPageIntro
         eyebrow="Admin / Ops"
         title="Operational control surface"
@@ -667,13 +668,13 @@ export default function AdminOpsClient({
               {recoveryConfig.steps.map((step, index) => (
                 <div
                   key={step.stepIndex}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">
                       Reminder {step.stepIndex}
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <label className="flex items-center gap-2 text-sm text-[var(--adm-text-muted)]">
                       <input
                         type="checkbox"
                         checked={step.enabled}
@@ -796,8 +797,8 @@ export default function AdminOpsClient({
           </div>
 
           <div className="space-y-5">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-sm font-semibold text-white">Test send</div>
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+              <div className="text-sm font-semibold text-[var(--adm-text)]">Test send</div>
               <div className="mt-4 grid gap-4">
                 <AdminField label="Recipient">
                   <AdminInput
@@ -827,38 +828,38 @@ export default function AdminOpsClient({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-white">Recovery sessions</div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="text-sm font-semibold text-[var(--adm-text)]">Recovery sessions</div>
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                     Active, suppressed, and completed sessions with direct ops controls.
                   </div>
                 </div>
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-[var(--adm-text-muted)]">
                   Page {checkoutRecovery.sessionPage}
                 </div>
               </div>
               <div className="mt-3 space-y-3">
                 {checkoutRecovery.sessions.length === 0 ? (
-                  <div className="text-sm text-slate-400">No recovery sessions found.</div>
+                  <div className="text-sm text-[var(--adm-text-muted)]">No recovery sessions found.</div>
                 ) : (
                   checkoutRecovery.sessions.map((session) => (
                     <div
                       key={session.id}
-                      className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                      className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-semibold text-white">
+                          <div className="text-sm font-semibold text-[var(--adm-text)]">
                             {session.customerEmail || "No email"} · {formatMoney(session.totalCents)}
                           </div>
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                             {session.storefront || "Unknown storefront"} ·{" "}
                             {session.isGuest ? "Guest" : "Logged in"} · created{" "}
                             {formatDate(session.createdAt)}
                           </div>
-                          <div className="mt-1 text-xs text-slate-400">
+                          <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                             State {session.state}
                             {session.suppressionReason
                               ? ` · ${session.suppressionReason}`
@@ -867,7 +868,7 @@ export default function AdminOpsClient({
                                 : ""}
                           </div>
                           {session.nextStep ? (
-                            <div className="mt-2 text-xs text-cyan-200">
+                            <div className="mt-2 text-xs text-[var(--adm-primary)]">
                               Next {session.nextStep.stepLabel} ·{" "}
                               {session.nextStep.isDueNow
                                 ? "due now"
@@ -875,7 +876,7 @@ export default function AdminOpsClient({
                             </div>
                           ) : null}
                           {session.lastAttempt ? (
-                            <div className="mt-2 text-xs text-slate-400">
+                            <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                               Last attempt {session.lastAttempt.stepIndex} · {session.lastAttempt.status}
                               {session.lastAttempt.skipReason || session.lastAttempt.errorMessage
                                 ? ` · ${session.lastAttempt.skipReason || session.lastAttempt.errorMessage}`
@@ -945,14 +946,14 @@ export default function AdminOpsClient({
                 )}
               </div>
               <div className="mt-4 flex items-center justify-between gap-3">
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-[var(--adm-text-faint)]">
                   Completed sessions: {checkoutRecovery.metrics.completedSessions}
                 </div>
                 <div className="flex gap-2">
                   {checkoutRecovery.sessionPage > 1 ? (
                     <Link
                       href={`${pathname}?recoveryPage=${checkoutRecovery.sessionPage - 1}`}
-                      className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                     >
                       Previous
                     </Link>
@@ -962,7 +963,7 @@ export default function AdminOpsClient({
                   {checkoutRecovery.hasMoreSessions ? (
                     <Link
                       href={`${pathname}?recoveryPage=${checkoutRecovery.sessionPage + 1}`}
-                      className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                     >
                       Next
                     </Link>
@@ -971,21 +972,21 @@ export default function AdminOpsClient({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-sm font-semibold text-white">Due candidates</div>
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+              <div className="text-sm font-semibold text-[var(--adm-text)]">Due candidates</div>
               <div className="mt-3 space-y-3">
                 {checkoutRecovery.dueCandidates.length === 0 ? (
-                  <div className="text-sm text-slate-400">No due reminders right now.</div>
+                  <div className="text-sm text-[var(--adm-text-muted)]">No due reminders right now.</div>
                 ) : (
                   checkoutRecovery.dueCandidates.map((candidate) => (
                     <div
                       key={`${candidate.sessionId}-${candidate.stepIndex}`}
-                      className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                      className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                     >
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         {candidate.stepLabel} · {formatMoney(candidate.totalCents)}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {candidate.customerEmail || "No email"} · {candidate.customerType} ·{" "}
                         {candidate.storefront || "Unknown storefront"} · due {formatDate(candidate.scheduledFor)}
                       </div>
@@ -995,22 +996,22 @@ export default function AdminOpsClient({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-sm font-semibold text-white">Recent attempt outcomes</div>
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+              <div className="text-sm font-semibold text-[var(--adm-text)]">Recent attempt outcomes</div>
               <div className="mt-3 space-y-3">
                 {checkoutRecovery.recentAttempts.slice(0, 6).map((attempt) => (
                   <div
                     key={attempt.id}
-                    className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                    className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                   >
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">
                       {attempt.stepLabel} · {attempt.status}
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       {attempt.customerEmail || "No email"} · scheduled {formatDate(attempt.scheduledFor)}
                     </div>
                     {attempt.skipReason || attempt.errorMessage ? (
-                      <div className="mt-2 text-xs text-amber-200">
+                      <div className="mt-2 text-xs text-[#81560e]">
                         {attempt.skipReason || attempt.errorMessage}
                       </div>
                     ) : null}
@@ -1019,19 +1020,19 @@ export default function AdminOpsClient({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-sm font-semibold text-white">Top skip/failure reasons</div>
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+              <div className="text-sm font-semibold text-[var(--adm-text)]">Top skip/failure reasons</div>
               <div className="mt-3 space-y-2">
                 {checkoutRecovery.topSkipReasons.length === 0 ? (
-                  <div className="text-sm text-slate-400">No skip or failure reasons recorded yet.</div>
+                  <div className="text-sm text-[var(--adm-text-muted)]">No skip or failure reasons recorded yet.</div>
                 ) : (
                   checkoutRecovery.topSkipReasons.map((reason) => (
                     <div
                       key={reason.reason}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3 text-sm"
+                      className="flex items-center justify-between rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm"
                     >
-                      <span className="text-slate-300">{reason.reason}</span>
-                      <span className="font-semibold text-white">{reason.count}</span>
+                      <span className="text-[var(--adm-text-muted)]">{reason.reason}</span>
+                      <span className="font-semibold text-[var(--adm-text)]">{reason.count}</span>
                     </div>
                   ))
                 )}
@@ -1050,27 +1051,27 @@ export default function AdminOpsClient({
           {environmentHealth.subsystems.map((subsystem) => (
             <div
               key={subsystem.key}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+              className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
             >
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 {subsystem.label}
               </div>
-              <div className="mt-2 text-sm font-semibold text-white">
+              <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">
                 {subsystem.ready ? "Ready" : "Blocked"}
               </div>
-              <div className="mt-2 text-xs text-slate-400">
+              <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                 {subsystem.message ?? "Healthy"}
               </div>
             </div>
           ))}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
               Last successful automation
             </div>
-            <div className="mt-2 text-sm font-semibold text-white">
+            <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">
               {formatDate(environmentHealth.lastSuccessfulAutomationRunAt)}
             </div>
-            <div className="mt-2 text-xs text-slate-400">
+            <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
               Last migration block {formatDate(environmentHealth.lastMigrationBlockAt)}
             </div>
           </div>
@@ -1093,19 +1094,19 @@ export default function AdminOpsClient({
               failedWebhookEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">{event.type}</div>
-                      <div className="mt-1 break-all text-xs text-slate-500">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">{event.type}</div>
+                      <div className="mt-1 break-all text-xs text-[var(--adm-text-faint)]">
                         {event.eventId}
                       </div>
-                      <div className="mt-2 text-xs text-slate-400">
+                      <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                         Failed {formatDate(event.createdAt)}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs font-semibold text-rose-100">
+                    <div className="rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-3 py-2 text-xs font-semibold text-[var(--adm-error)]">
                       Manual review
                     </div>
                   </div>
@@ -1138,15 +1139,15 @@ export default function AdminOpsClient({
                 return (
                   <div
                     key={job.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                    className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold text-white">{job.handler}</div>
-                        <div className="mt-1 text-xs text-slate-500">
+                        <div className="text-sm font-semibold text-[var(--adm-text)]">{job.handler}</div>
+                        <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                           Status {job.status} · Attempts {job.attemptCount}/{job.maxAttempts}
                         </div>
-                        <div className="mt-2 text-xs text-slate-400">
+                        <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                           Created {formatDate(job.createdAt)} · Run after {formatDate(job.runAfter)}
                         </div>
                       </div>
@@ -1169,12 +1170,12 @@ export default function AdminOpsClient({
                         ) : null}
                       </div>
                     </div>
-                    <div className="mt-3 text-xs text-slate-400">
+                    <div className="mt-3 text-xs text-[var(--adm-text-muted)]">
                       Triggered by {job.createdByEmail || "system"} · Completed{" "}
                       {formatDate(job.completedAt)}
                     </div>
                     {job.lastError ? (
-                      <div className="mt-3 text-sm text-red-200">{job.lastError}</div>
+                      <div className="mt-3 text-sm text-[var(--adm-error)]">{job.lastError}</div>
                     ) : null}
                   </div>
                 );
@@ -1205,12 +1206,12 @@ export default function AdminOpsClient({
               automationSchedules.map((schedule) => (
                 <div
                   key={schedule.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">{schedule.label}</div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">{schedule.label}</div>
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {schedule.handler} · {schedule.cronExpression}
                       </div>
                     </div>
@@ -1225,12 +1226,12 @@ export default function AdminOpsClient({
                           : "Pause"}
                     </AdminButton>
                   </div>
-                  <div className="mt-3 text-xs text-slate-400">
+                  <div className="mt-3 text-xs text-[var(--adm-text-muted)]">
                     Status {schedule.status} · Last success {formatDate(schedule.lastSucceededAt)} ·
                     Last failure {formatDate(schedule.lastFailedAt)}
                   </div>
                   {schedule.lastError ? (
-                    <div className="mt-3 text-sm text-red-200">{schedule.lastError}</div>
+                    <div className="mt-3 text-sm text-[var(--adm-error)]">{schedule.lastError}</div>
                   ) : null}
                 </div>
               ))
@@ -1253,26 +1254,26 @@ export default function AdminOpsClient({
               jobRuns.map((run) => (
                 <div
                   key={run.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         {run.summary || run.jobType}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">{run.jobType}</div>
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{run.jobType}</div>
                     </div>
-                    <div className="text-right text-xs text-slate-400">
+                    <div className="text-right text-xs text-[var(--adm-text-muted)]">
                       <div>{run.status}</div>
                       <div>{formatDate(run.startedAt)}</div>
                     </div>
                   </div>
-                  <div className="mt-3 text-xs text-slate-400">
+                  <div className="mt-3 text-xs text-[var(--adm-text-muted)]">
                     Triggered by {run.triggeredByEmail || "system"} · Finished{" "}
                     {formatDate(run.finishedAt)}
                   </div>
                   {run.errorMessage ? (
-                    <div className="mt-3 text-sm text-red-200">{run.errorMessage}</div>
+                    <div className="mt-3 text-sm text-[var(--adm-error)]">{run.errorMessage}</div>
                   ) : null}
                 </div>
               ))
@@ -1280,6 +1281,6 @@ export default function AdminOpsClient({
           </div>
         </AdminPanel>
       </div>
-    </div>
+    </AdminPage>
   );
 }

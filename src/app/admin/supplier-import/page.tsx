@@ -11,7 +11,7 @@ export default async function SupplierImportPage() {
 
   const data = await getSupplierImportWorkspaceData();
   return (
-    <div className="admin-route-frame text-slate-100">
+    <div className="admin-route-frame text-[var(--adm-text)]">
       <SupplierImportClient initialData={data} />
     </div>
   );

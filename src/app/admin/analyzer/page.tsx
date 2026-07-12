@@ -38,7 +38,7 @@ export default async function AdminAnalyzerPage() {
   const initialQueue = await getInitialSmokeifyAnalyzerQueue();
 
   return (
-    <div className="w-full text-slate-100">
+    <div className="w-full text-[var(--adm-text)]">
       <AdminAnalyzerClient initialQueue={initialQueue} />
     </div>
   );

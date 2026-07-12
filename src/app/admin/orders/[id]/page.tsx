@@ -17,7 +17,7 @@ export default async function AdminOrderDetailPage({
   if (!detail) notFound();
 
   return (
-    <div className="w-full text-slate-100">
+    <div className="w-full text-[var(--adm-text)]">
       <AdminOrderDetailClient
         detail={detail}
         actionPermissions={getOrderAdminActionPermissions(session.user.role)}

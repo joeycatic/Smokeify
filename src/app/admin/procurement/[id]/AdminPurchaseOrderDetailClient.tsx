@@ -14,6 +14,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminPrimaryGrid } from "@/components/admin/ui";
 
 type SupplierSummary = {
   id: string;
@@ -107,11 +108,11 @@ type Props = {
 };
 
 const STATUS_TONE: Record<PurchaseOrderDetail["status"], string> = {
-  DRAFT: "border-white/10 bg-white/[0.05] text-slate-200",
-  SUBMITTED: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
-  PARTIALLY_RECEIVED: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-  RECEIVED: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-  CANCELED: "border-red-400/20 bg-red-400/10 text-red-200",
+  DRAFT: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)]",
+  SUBMITTED: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
+  PARTIALLY_RECEIVED: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  RECEIVED: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+  CANCELED: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
 };
 
 const formatDate = (value: string | null) =>
@@ -363,7 +364,7 @@ export default function AdminPurchaseOrderDetailClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="editor">
       <AdminPageIntro
         eyebrow="Admin / Procurement"
         title={`PO #${purchaseOrder.purchaseOrderNumber}`}
@@ -372,7 +373,7 @@ export default function AdminPurchaseOrderDetailClient({
           <div className="flex flex-wrap gap-2">
             <Link
               href="/admin/procurement"
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.05]"
+              className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
             >
               Back to queue
             </Link>
@@ -389,7 +390,7 @@ export default function AdminPurchaseOrderDetailClient({
           </div>
         }
         metrics={
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <AdminKpiStrip>
             <AdminMetricCard label="Status" value={purchaseOrder.status.replaceAll("_", " ")} />
             <AdminMetricCard
               label="Units"
@@ -406,14 +407,14 @@ export default function AdminPurchaseOrderDetailClient({
               value={purchaseOrder.expectedDeliveryAt ? formatDate(purchaseOrder.expectedDeliveryAt) : "—"}
               detail={`Supplier ${purchaseOrder.supplierName}`}
             />
-          </div>
+          </AdminKpiStrip>
         }
       />
 
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow="Header"
           title="Purchase-order details"
@@ -490,7 +491,7 @@ export default function AdminPurchaseOrderDetailClient({
             {draft.lines.map((line, index) => (
               <div
                 key={`po-line-${index}`}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
                 <div className="grid gap-3 lg:grid-cols-[2.2fr_0.8fr_0.9fr_auto]">
                   <AdminField label={`Line ${index + 1}`}>
@@ -614,19 +615,19 @@ export default function AdminPurchaseOrderDetailClient({
               {purchaseOrder.items.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         {item.productTitle}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {item.variantTitle}
                         {item.skuSnapshot ? ` · SKU ${item.skuSnapshot}` : ""}
                       </div>
                     </div>
-                    <div className="text-right text-xs text-slate-400">
+                    <div className="text-right text-xs text-[var(--adm-text-muted)]">
                       <div>
                         {item.receivedQuantity}/{item.orderedQuantity} received
                       </div>
@@ -668,7 +669,7 @@ export default function AdminPurchaseOrderDetailClient({
             </div>
           )}
         </AdminPanel>
-      </div>
+      </AdminPrimaryGrid>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <AdminPanel
@@ -696,19 +697,19 @@ export default function AdminPurchaseOrderDetailClient({
               purchaseOrder.receipts.map((receipt) => (
                 <div
                   key={receipt.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         Received {formatDate(receipt.receivedAt)}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         By {receipt.createdByEmail ?? "Unknown operator"}
                       </div>
                     </div>
                     {receipt.reversedAt ? (
-                      <span className="rounded-full border border-red-400/20 bg-red-400/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-red-200">
+                      <span className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--adm-error)]">
                         Reversed
                       </span>
                     ) : userRole === "ADMIN" ? (
@@ -722,23 +723,23 @@ export default function AdminPurchaseOrderDetailClient({
                     ) : null}
                   </div>
                   {receipt.note ? (
-                    <div className="mt-3 text-sm text-slate-300">{receipt.note}</div>
+                    <div className="mt-3 text-sm text-[var(--adm-text-muted)]">{receipt.note}</div>
                   ) : null}
-                  <div className="mt-3 space-y-2 text-sm text-slate-300">
+                  <div className="mt-3 space-y-2 text-sm text-[var(--adm-text-muted)]">
                     {receipt.items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2"
                       >
                         <div>
                           {item.productTitle} · {item.variantTitle}
                         </div>
-                        <div className="font-semibold text-white">+{item.quantityReceived}</div>
+                        <div className="font-semibold text-[var(--adm-text)]">+{item.quantityReceived}</div>
                       </div>
                     ))}
                   </div>
                   {receipt.reversedAt ? (
-                    <div className="mt-3 text-xs text-red-200">
+                    <div className="mt-3 text-xs text-[var(--adm-error)]">
                       Reversed {formatDate(receipt.reversedAt)} by{" "}
                       {receipt.reversedByEmail ?? "Unknown operator"}
                       {receipt.reversalNote ? ` · ${receipt.reversalNote}` : ""}
@@ -765,22 +766,22 @@ export default function AdminPurchaseOrderDetailClient({
               purchaseOrder.events.map((event) => (
                 <div
                   key={event.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">
                       {event.summary ?? event.eventType}
                     </div>
-                    <div className="text-xs text-slate-500">{formatDate(event.createdAt)}</div>
+                    <div className="text-xs text-[var(--adm-text-faint)]">{formatDate(event.createdAt)}</div>
                   </div>
-                  <div className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
+                  <div className="mt-2 text-xs uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
                     {event.eventType}
                   </div>
-                  <div className="mt-2 text-xs text-slate-400">
+                  <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                     {event.actorEmail ?? "Unknown operator"}
                   </div>
                   {event.note ? (
-                    <div className="mt-3 text-sm text-slate-300">{event.note}</div>
+                    <div className="mt-3 text-sm text-[var(--adm-text-muted)]">{event.note}</div>
                   ) : null}
                 </div>
               ))
@@ -788,6 +789,6 @@ export default function AdminPurchaseOrderDetailClient({
           </div>
         </AdminPanel>
       </div>
-    </div>
+    </AdminPage>
   );
 }

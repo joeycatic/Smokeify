@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/AdminWorkspace";
 import { buildAdminSearchHref } from "@/lib/adminTimeRange";
 import type { listCatalogHygieneIssues } from "@/lib/adminCatalogHygiene";
+import { AdminPage } from "@/components/admin/ui";
 
 type Data = Awaited<ReturnType<typeof listCatalogHygieneIssues>>;
 
@@ -46,7 +47,7 @@ export default function AdminCatalogHygieneClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="queue">
       <AdminPageIntro
         eyebrow="Admin / Catalog / Hygiene"
         title="Catalog hygiene queue"
@@ -54,7 +55,7 @@ export default function AdminCatalogHygieneClient({
         actions={
           <Link
             href="/admin/catalog"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+            className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
           >
             Open catalog
           </Link>
@@ -143,19 +144,19 @@ export default function AdminCatalogHygieneClient({
       >
         <div className="space-y-3">
           {initialData.rows.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
               No products match the current hygiene filters.
             </div>
           ) : (
             initialData.rows.map((row) => (
               <div
                 key={row.productId}
-                className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4"
               >
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-white">{row.title}</div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">{row.title}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       /products/{row.handle} · {row.status} · {row.storefronts.join(" + ")}
                       {row.supplier ? ` · ${row.supplier}` : ""}
                     </div>
@@ -165,8 +166,8 @@ export default function AdminCatalogHygieneClient({
                           key={`${row.productId}-${issue.type}`}
                           className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
                             issue.type === "compliance_blocked"
-                              ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
-                              : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                              ? "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
+                              : "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
                           }`}
                           title={issue.detail}
                         >
@@ -178,14 +179,14 @@ export default function AdminCatalogHygieneClient({
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href={`/admin/catalog/${row.productId}`}
-                      className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                     >
                       Open product
                     </Link>
                     {row.issues.some((issue) => issue.type === "compliance_blocked") ? (
                       <Link
                         href={`/admin/compliance?q=${encodeURIComponent(row.title)}`}
-                        className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/15"
+                        className="inline-flex h-8 items-center justify-center rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 text-sm font-semibold text-[#81560e] transition hover:bg-amber-400/15"
                       >
                         Open compliance
                       </Link>
@@ -198,7 +199,7 @@ export default function AdminCatalogHygieneClient({
         </div>
 
         <div className="mt-5 flex items-center justify-between gap-3">
-          <div className="text-sm text-slate-400">Page {filters.page}</div>
+          <div className="text-sm text-[var(--adm-text-muted)]">Page {filters.page}</div>
           <div className="flex gap-2">
             {filters.page > 1 ? (
               <Link
@@ -210,7 +211,7 @@ export default function AdminCatalogHygieneClient({
                   supplierPresence: filters.supplierPresence || undefined,
                   page: String(filters.page - 1),
                 })}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
               >
                 Previous
               </Link>
@@ -227,7 +228,7 @@ export default function AdminCatalogHygieneClient({
                   supplierPresence: filters.supplierPresence || undefined,
                   page: String(filters.page + 1),
                 })}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
               >
                 Next
               </Link>
@@ -235,6 +236,6 @@ export default function AdminCatalogHygieneClient({
           </div>
         </div>
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

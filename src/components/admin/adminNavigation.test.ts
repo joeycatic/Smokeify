@@ -12,18 +12,18 @@ describe("adminNavigation", () => {
     const workspaces = getVisibleAdminWorkspaces("STAFF");
     const workspaceIds = workspaces.map((workspace) => workspace.id);
 
-    expect(workspaceIds).toContain("dashboard");
+    expect(workspaceIds).toContain("overview");
     expect(workspaceIds).toContain("catalog");
     expect(workspaceIds).toContain("orders");
     expect(workspaceIds).toContain("customers");
     expect(workspaceIds).not.toContain("finance");
-    expect(workspaces.find((workspace) => workspace.id === "action-center")?.items).toEqual(
+    expect(workspaces.find((workspace) => workspace.id === "system")?.items).toEqual(
       expect.arrayContaining([expect.objectContaining({ href: "/admin/alerts" })]),
     );
-    expect(workspaces.find((workspace) => workspace.id === "action-center")?.items).not.toEqual(
+    expect(workspaces.find((workspace) => workspace.id === "system")?.items).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ href: "/admin/page-previews" })]),
     );
-    expect(workspaces.find((workspace) => workspace.id === "action-center")?.items).not.toEqual(
+    expect(workspaces.find((workspace) => workspace.id === "system")?.items).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ href: "/admin/scripts" })]),
     );
   });
@@ -47,16 +47,39 @@ describe("adminNavigation", () => {
     const workspace = getActiveAdminWorkspace("/admin/pricing", workspaces);
     const item = getActiveAdminNavItem("/admin/pricing", workspaces, workspace);
 
-    expect(workspace?.id).toBe("growth");
+    expect(workspace?.id).toBe("finance");
     expect(item?.label).toBe("Pricing");
   });
 
-  it("exposes page previews in the admin action center", () => {
+  it("exposes page previews in the system workspace", () => {
     const workspaces = getVisibleAdminWorkspaces("ADMIN");
     const workspace = getActiveAdminWorkspace("/admin/page-previews", workspaces);
     const item = getActiveAdminNavItem("/admin/page-previews", workspaces, workspace);
 
-    expect(workspace?.id).toBe("action-center");
+    expect(workspace?.id).toBe("system");
     expect(item?.label).toBe("Page Previews");
+  });
+
+  it("assigns every route to exactly one workspace", () => {
+    const workspaces = getVisibleAdminWorkspaces("ADMIN");
+    const hrefs = workspaces.flatMap((workspace) => workspace.items.map((item) => item.href));
+
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+    expect(hrefs).toContain("/admin/returns");
+    expect(hrefs).toContain("/admin/analyzer");
+    expect(hrefs).toContain("/admin/recommendations");
+  });
+
+  it.each([
+    ["/admin/orders/order_123", "orders", "Order Detail"],
+    ["/admin/procurement/po_123", "orders", "Purchase Order"],
+    ["/admin/catalog/product_123", "catalog", "Product Detail"],
+    ["/admin/compliance/product_123", "catalog", "Compliance Detail"],
+    ["/admin/users/user_123", "system", "User Detail"],
+  ])("keeps %s in its parent workspace", (pathname, workspaceId, title) => {
+    const workspaces = getVisibleAdminWorkspaces("ADMIN");
+
+    expect(getActiveAdminWorkspace(pathname, workspaces)?.id).toBe(workspaceId);
+    expect(getAdminHiddenRouteTitle(pathname)).toBe(title);
   });
 });

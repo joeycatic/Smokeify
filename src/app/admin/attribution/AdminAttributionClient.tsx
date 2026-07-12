@@ -10,6 +10,7 @@ import {
   AdminPageIntro,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminPrimaryGrid } from "@/components/admin/ui";
 import { STOREFRONT_LABELS, type StorefrontCode } from "@/lib/storefronts";
 import type { NewsletterAttributionDiagnostics } from "@/lib/adminNewsletter";
 import type { listUnresolvedOrderAttributionRows } from "@/lib/adminAttribution";
@@ -71,7 +72,7 @@ export default function AdminAttributionClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="queue">
       <AdminPageIntro
         eyebrow="Admin / Attribution"
         title="Storefront attribution remediation"
@@ -112,7 +113,7 @@ export default function AdminAttributionClient({
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
+      <AdminPrimaryGrid rail="wide">
         <AdminPanel
           eyebrow="Diagnostics"
           title="Evidence mix"
@@ -129,16 +130,16 @@ export default function AdminAttributionClient({
             ].map(([label, value]) => (
               <div
                 key={String(label)}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
               >
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   {label}
                 </div>
-                <div className="mt-2 text-2xl font-semibold text-white">{String(value)}</div>
+                <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{String(value)}</div>
               </div>
             ))}
           </div>
-          <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+          <div className="mt-4 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 py-3 text-sm text-[var(--adm-primary)]">
             Exact matches can be applied here immediately. Ambiguous rows stay in the queue until
             better evidence exists or an operator assigns them deliberately with a reason.
           </div>
@@ -156,30 +157,30 @@ export default function AdminAttributionClient({
           ) : (
             <div className="space-y-2">
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                   Smokeify-attributed recipients:{" "}
-                  <span className="font-semibold text-white">
+                  <span className="font-semibold text-[var(--adm-text)]">
                     {newsletterDiagnostics.byStorefront.MAIN.attributedRecipientCount}
                   </span>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                   GrowVault-attributed recipients:{" "}
-                  <span className="font-semibold text-white">
+                  <span className="font-semibold text-[var(--adm-text)]">
                     {newsletterDiagnostics.byStorefront.GROW.attributedRecipientCount}
                   </span>
                 </div>
               </div>
-              <div className="max-h-[18rem] overflow-auto rounded-2xl border border-white/10 bg-black/20">
-                <table className="min-w-full text-left text-sm text-slate-200">
-                  <thead className="bg-white/[0.04] text-[11px] uppercase tracking-[0.18em] text-slate-500">
+              <div className="max-h-[18rem] overflow-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)]">
+                <table className="min-w-full text-left text-sm text-[var(--adm-text)]">
+                  <thead className="bg-[var(--adm-surface-2)] text-[11px] uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     <tr>
                       <th className="px-4 py-3">Recipient</th>
                     </tr>
                   </thead>
                   <tbody>
                     {newsletterDiagnostics.unresolvedRecipients.slice(0, 80).map((email) => (
-                      <tr key={email} className="border-t border-white/10">
-                        <td className="px-4 py-3 font-mono text-xs text-slate-300">{email}</td>
+                      <tr key={email} className="border-t border-[var(--adm-border)]">
+                        <td className="px-4 py-3 font-mono text-xs text-[var(--adm-text-muted)]">{email}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -188,7 +189,7 @@ export default function AdminAttributionClient({
             </div>
           )}
         </AdminPanel>
-      </div>
+      </AdminPrimaryGrid>
 
       <AdminPanel
         eyebrow="Queue"
@@ -200,9 +201,9 @@ export default function AdminAttributionClient({
             No unresolved orders are waiting for storefront attribution.
           </AdminNotice>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-white/10">
-            <table className="min-w-full text-left text-sm text-slate-200">
-              <thead className="bg-white/[0.04] text-[11px] uppercase tracking-[0.18em] text-slate-500">
+          <div className="overflow-x-auto rounded-xl border border-[var(--adm-border)]">
+            <table className="min-w-full text-left text-sm text-[var(--adm-text)]">
+              <thead className="bg-[var(--adm-surface-2)] text-[11px] uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 <tr>
                   <th className="px-4 py-3">Order</th>
                   <th className="px-4 py-3">Observed source</th>
@@ -216,35 +217,35 @@ export default function AdminAttributionClient({
                   const candidateStorefront = row.candidate.storefront;
                   const isSaving = savingOrderId === row.id;
                   return (
-                    <tr key={row.id} className="border-t border-white/10 align-top">
+                    <tr key={row.id} className="border-t border-[var(--adm-border)] align-top">
                       <td className="px-4 py-4">
                         <div className="space-y-1">
-                          <Link href={`/admin/orders/${row.id}`} className="font-semibold text-white hover:text-cyan-200">
+                          <Link href={`/admin/orders/${row.id}`} className="font-semibold text-[var(--adm-text)] hover:text-[var(--adm-primary)]">
                             #{row.orderNumber}
                           </Link>
-                          <div className="text-xs text-slate-400">{formatDateTime(row.createdAt)}</div>
-                          <div className="text-xs text-slate-500">{row.customerEmail ?? "No email"}</div>
+                          <div className="text-xs text-[var(--adm-text-muted)]">{formatDateTime(row.createdAt)}</div>
+                          <div className="text-xs text-[var(--adm-text-faint)]">{row.customerEmail ?? "No email"}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-xs text-slate-300">
+                      <td className="px-4 py-4 text-xs text-[var(--adm-text-muted)]">
                         <div>{row.sourceHost ?? "No host"}</div>
-                        <div className="mt-1 break-all text-slate-500">{row.sourceOrigin ?? "No origin"}</div>
+                        <div className="mt-1 break-all text-[var(--adm-text-faint)]">{row.sourceOrigin ?? "No origin"}</div>
                       </td>
                       <td className="px-4 py-4">
                         <div className="space-y-2">
                           <span
                             className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                               row.candidate.exact
-                                ? "bg-emerald-400/15 text-emerald-200"
-                                : "bg-amber-400/15 text-amber-200"
+                                ? "bg-emerald-400/15 text-[var(--adm-success)]"
+                                : "bg-amber-400/15 text-[#81560e]"
                             }`}
                           >
                             {row.candidate.exact ? "Exact" : "Needs review"} · {row.candidate.sourceType}
                           </span>
-                          <div className="text-sm text-white">
+                          <div className="text-sm text-[var(--adm-text)]">
                             {candidateStorefront ? STOREFRONT_LABELS[candidateStorefront] : "No exact storefront"}
                           </div>
-                          <div className="text-xs text-slate-400">{row.candidate.detail}</div>
+                          <div className="text-xs text-[var(--adm-text-muted)]">{row.candidate.detail}</div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -292,6 +293,6 @@ export default function AdminAttributionClient({
           </div>
         )}
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

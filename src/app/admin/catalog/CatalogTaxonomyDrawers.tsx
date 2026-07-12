@@ -147,7 +147,7 @@ export function CategoryManagementDrawer({
 
           <Link
             href="/admin/categories"
-            className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-white/[0.06]"
+            className="block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-surface-2)]"
           >
             Advanced category maintenance
           </Link>
@@ -251,11 +251,11 @@ export function CategoryManagementDrawer({
                       ))}
                   </AdminSelect>
                 </AdminField>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Node Type
                   </div>
-                  <div className="mt-2 text-sm text-slate-200">
+                  <div className="mt-2 text-sm text-[var(--adm-text)]">
                     {selectedCategory.parentId ? "Child category" : "Top-level category"}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -334,7 +334,7 @@ export function CategoryManagementDrawer({
                       key={child.id}
                       type="button"
                       onClick={() => onSelectCategory(child.id)}
-                      className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-300 transition hover:border-white/20 hover:bg-white/[0.06]"
+                      className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-1 text-xs text-[var(--adm-text-muted)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                     >
                       {child.name}
                     </button>
@@ -442,7 +442,7 @@ export function CollectionManagementDrawer({
 
           <Link
             href="/admin/collections"
-            className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-white/[0.06]"
+            className="block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-surface-2)]"
           >
             Advanced collection maintenance
           </Link>
@@ -578,15 +578,15 @@ function EntityButton({
     <button
       type="button"
       onClick={onClick}
-      className={`admin-lift flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
+      className={`admin-lift flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
         selected
-          ? "border-cyan-400/30 bg-cyan-400/10"
-          : "border-white/10 bg-white/[0.03] hover:bg-white/[0.05]"
+          ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)]"
+          : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:bg-[var(--adm-surface-2)]"
       }`}
     >
       <div>
-        <div className="text-sm font-semibold text-slate-100">{label}</div>
-        <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
+        <div className="text-sm font-semibold text-[var(--adm-text)]">{label}</div>
+        <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{subtitle}</div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {storefronts.map((storefront) => (
             <span
@@ -600,7 +600,7 @@ function EntityButton({
           ))}
         </div>
       </div>
-      <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+      <span className="rounded-full border border-[var(--adm-border)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[var(--adm-text-muted)]">
         {badge}
       </span>
     </button>
@@ -609,11 +609,11 @@ function EntityButton({
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
         {label}
       </div>
-      <div className="mt-2 text-sm text-slate-200">{value}</div>
+      <div className="mt-2 text-sm text-[var(--adm-text)]">{value}</div>
     </div>
   );
 }

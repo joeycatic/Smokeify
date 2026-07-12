@@ -28,9 +28,9 @@ type Props = {
 };
 
 const STATUS_STYLES: Record<ReviewStatus, string> = {
-  APPROVED: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-  PENDING: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-  REJECTED: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+  APPROVED: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+  PENDING: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  REJECTED: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
 };
 
 const formatDateTime = (value: string) =>
@@ -45,7 +45,7 @@ function RatingStars({ rating }: { rating: number }) {
       {Array.from({ length: 5 }, (_, index) => {
         const filled = index < rating;
         return (
-          <span key={index} className={filled ? "text-amber-300" : "text-slate-700"}>
+          <span key={index} className={filled ? "text-[#81560e]" : "text-[var(--adm-text-muted)]"}>
             ★
           </span>
         );
@@ -114,7 +114,7 @@ export default function AdminReviewsClient({ initialReviews }: Props) {
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className="rounded-xl border border-rose-500/20 bg-[#fae7e3] px-4 py-3 text-sm text-[var(--adm-error)]">
           {error}
         </div>
       ) : null}
@@ -130,7 +130,7 @@ export default function AdminReviewsClient({ initialReviews }: Props) {
         return (
           <article
             key={review.id}
-            className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]"
+            className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]"
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
@@ -140,10 +140,10 @@ export default function AdminReviewsClient({ initialReviews }: Props) {
                   >
                     {review.status}
                   </span>
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                  <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)]">
                     {reviewerLabel}
                   </span>
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                  <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)]">
                     {formatDateTime(review.createdAt)}
                   </span>
                 </div>
@@ -151,7 +151,7 @@ export default function AdminReviewsClient({ initialReviews }: Props) {
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <Link
                     href={`/admin/catalog/${review.productId}`}
-                    className="text-base font-semibold text-white transition hover:text-cyan-200"
+                    className="text-base font-semibold text-[var(--adm-text)] transition hover:text-[var(--adm-primary)]"
                   >
                     {review.productTitle}
                   </Link>
@@ -159,30 +159,30 @@ export default function AdminReviewsClient({ initialReviews }: Props) {
                     href={`/products/${review.productHandle}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm text-cyan-300 transition hover:text-cyan-200"
+                    className="text-sm text-[var(--adm-primary)] transition hover:text-[var(--adm-primary)]"
                   >
                     Open storefront
                   </Link>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[var(--adm-text-muted)]">
                   <RatingStars rating={review.rating} />
                   <span>{review.rating}/5</span>
-                  <span className="text-slate-500">
+                  <span className="text-[var(--adm-text-faint)]">
                     Last updated {formatDateTime(review.updatedAt)}
                   </span>
                 </div>
 
                 {review.title ? (
-                  <h3 className="mt-4 text-base font-semibold text-white">{review.title}</h3>
+                  <h3 className="mt-4 text-base font-semibold text-[var(--adm-text)]">{review.title}</h3>
                 ) : null}
 
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--adm-text-muted)]">
                   {review.body?.trim() || "No review body provided."}
                 </p>
 
                 {review.userEmail ? (
-                  <p className="mt-3 text-xs text-slate-500">Account: {review.userEmail}</p>
+                  <p className="mt-3 text-xs text-[var(--adm-text-faint)]">Account: {review.userEmail}</p>
                 ) : null}
               </div>
 
@@ -198,7 +198,7 @@ export default function AdminReviewsClient({ initialReviews }: Props) {
                       className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
                         active
                           ? STATUS_STYLES[status]
-                          : "border-white/10 bg-white/[0.04] text-slate-100 hover:border-white/20 hover:bg-white/[0.08]"
+                          : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                       } disabled:cursor-not-allowed disabled:opacity-70`}
                     >
                       {isSaving && !active ? "Saving..." : status}

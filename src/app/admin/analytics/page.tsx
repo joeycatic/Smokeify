@@ -33,7 +33,7 @@ export default async function AdminAnalyticsPage({
   );
 
   return (
-    <div className="w-full text-slate-100">
+    <div className="w-full text-[var(--adm-text)]">
       <AdminAnalyticsClient
         initialOverview={initialOverview}
         initialRange={range}

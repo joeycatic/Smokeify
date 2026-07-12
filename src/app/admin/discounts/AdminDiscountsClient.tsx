@@ -12,6 +12,7 @@ import {
   AdminPanel,
   AdminSelect,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminPrimaryGrid } from "@/components/admin/ui";
 
 type DiscountCoupon = {
   id: string | null;
@@ -241,11 +242,11 @@ export default function AdminDiscountsClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="editor">
       <AdminPageIntro
         eyebrow="Admin / Discounts"
         title="Promotion code console"
-        description="Create and manage local Viva checkout discount codes from a compact dark operations surface instead of the old stacked form page."
+        description="Create and manage local Viva checkout discount codes with the editor beside the active-code queue."
         actions={
           <AdminButton tone="secondary" onClick={() => void loadDiscounts()} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
@@ -268,7 +269,7 @@ export default function AdminDiscountsClient() {
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+      <AdminPrimaryGrid rail="wide">
         <AdminPanel
           eyebrow="Create"
           title="New promotion code"
@@ -368,7 +369,7 @@ export default function AdminDiscountsClient() {
               <DiscountSection
                 title="Active codes"
                 badge={`${activeDiscounts.length}`}
-                badgeTone="text-emerald-200 border-emerald-400/20 bg-emerald-400/10"
+                badgeTone="text-[var(--adm-success)] border-[var(--adm-success)] bg-[var(--adm-primary-soft)]"
                 discounts={activeDiscounts}
                 nowTs={nowTs}
                 onToggle={updateDiscount}
@@ -376,7 +377,7 @@ export default function AdminDiscountsClient() {
               <DiscountSection
                 title="Inactive codes"
                 badge={`${inactiveDiscounts.length}`}
-                badgeTone="text-slate-300 border-white/10 bg-white/[0.04]"
+                badgeTone="text-[var(--adm-text-muted)] border-[var(--adm-border)] bg-[var(--adm-surface-2)]"
                 discounts={inactiveDiscounts}
                 nowTs={nowTs}
                 onToggle={updateDiscount}
@@ -384,8 +385,8 @@ export default function AdminDiscountsClient() {
             </div>
           )}
         </AdminPanel>
-      </div>
-    </div>
+      </AdminPrimaryGrid>
+    </AdminPage>
   );
 }
 
@@ -405,9 +406,9 @@ function DiscountSection({
   onToggle: (id: string, active: boolean) => Promise<void>;
 }) {
   return (
-    <div className="admin-data-grid-scroll rounded-[24px] border border-white/10 bg-[#070a0f]">
-      <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-4 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+    <div className="admin-data-grid-scroll rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
+      <div className="flex items-center justify-between border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
           {title}
         </div>
         <span
@@ -417,7 +418,7 @@ function DiscountSection({
         </span>
       </div>
       {discounts.length === 0 ? (
-        <div className="px-4 py-6 text-sm text-slate-500">No codes in this state.</div>
+        <div className="px-4 py-6 text-sm text-[var(--adm-text-faint)]">No codes in this state.</div>
       ) : (
         <>
           <div className="space-y-3 md:hidden">
@@ -429,26 +430,26 @@ function DiscountSection({
               return (
                 <div
                   key={discount.id}
-                  className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300"
+                  className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-sm text-[var(--adm-text-muted)]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-semibold text-white">{discount.code}</div>
+                      <div className="font-semibold text-[var(--adm-text)]">{discount.code}</div>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <span
                           className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                             discount.active
-                              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                              : "border-white/10 bg-white/[0.04] text-slate-400"
+                              ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                              : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                           }`}
                         >
                           {discount.active ? "Active" : "Inactive"}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">
                           {discount.coupon.percentOff !== null ? "Percent" : "Amount"}
                         </span>
                         {expiringSoonForRow ? (
-                          <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                          <span className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#81560e]">
                             Expiring soon
                           </span>
                         ) : null}
@@ -482,7 +483,7 @@ function DiscountSection({
             })}
           </div>
           <div className="hidden md:block">
-            <div className="grid min-w-[760px] grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 border-b border-white/10 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="grid min-w-[760px] grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 border-b border-[var(--adm-border)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
               <div>Code</div>
               <div>Value</div>
               <div>Usage</div>
@@ -498,49 +499,49 @@ function DiscountSection({
                 return (
                   <div
                     key={discount.id}
-                    className="grid min-w-[760px] grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                    className="grid min-w-[760px] grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-3 px-4 py-4 text-sm text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-surface)]"
                   >
                     <div>
-                      <div className="font-semibold text-white">{discount.code}</div>
+                      <div className="font-semibold text-[var(--adm-text)]">{discount.code}</div>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <span
                           className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                             discount.active
-                              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                              : "border-white/10 bg-white/[0.04] text-slate-400"
+                              ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                              : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                           }`}
                         >
                           {discount.active ? "Active" : "Inactive"}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">
                           {discount.coupon.percentOff !== null ? "Percent" : "Amount"}
                         </span>
                         {expiringSoonForRow ? (
-                          <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                          <span className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#81560e]">
                             Expiring soon
                           </span>
                         ) : null}
                       </div>
                     </div>
                     <div>
-                      <div className="font-semibold text-white">
+                      <div className="font-semibold text-[var(--adm-text)]">
                         {discount.coupon.percentOff !== null
                           ? formatPercent(discount.coupon.percentOff)
                           : formatAmount(discount.coupon.amountOff, discount.coupon.currency)}
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-[var(--adm-text-faint)]">
                         {discount.coupon.duration ?? "once"}
                       </div>
                     </div>
                     <div>
-                      <div className="font-semibold text-white">{discount.timesRedeemed}</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="font-semibold text-[var(--adm-text)]">{discount.timesRedeemed}</div>
+                      <div className="text-xs text-[var(--adm-text-faint)]">
                         Max {discount.maxRedemptions ?? "unlimited"}
                       </div>
                     </div>
                     <div>
-                      <div className="font-semibold text-white">{formatDate(discount.expiresAt)}</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="font-semibold text-[var(--adm-text)]">{formatDate(discount.expiresAt)}</div>
+                      <div className="text-xs text-[var(--adm-text-faint)]">
                         {expiringSoonForRow ? "Within 14 days" : "Healthy"}
                       </div>
                     </div>
@@ -571,11 +572,11 @@ function MobileValue({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
         {label}
       </div>
-      <div className="mt-2 text-sm font-semibold text-white">{children}</div>
+      <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">{children}</div>
     </div>
   );
 }

@@ -91,13 +91,13 @@ export function CatalogToolbar({
   activeFilterLabels,
 }: ToolbarProps) {
   return (
-    <div className="space-y-4 rounded-[24px] border border-white/10 bg-[#0b1016] p-4">
+    <div className="space-y-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
             Find products
           </p>
-          <p className="mt-2 text-sm text-slate-300">
+          <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
             Search, filter, and save views without leaving the index.
           </p>
         </div>
@@ -184,45 +184,45 @@ export function CatalogToolbar({
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <div className="rounded-2xl border border-white/10 bg-[#0c1118] p-4">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
           <div className="flex flex-wrap items-center gap-2">
             {activeFilterLabels.length ? (
               activeFilterLabels.map((label) => (
                 <span
                   key={label}
-                  className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200"
+                  className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--adm-primary)]"
                 >
                   {label}
                 </span>
               ))
             ) : (
-              <span className="rounded-full border border-dashed border-white/10 px-3 py-1 text-xs text-slate-500">
+              <span className="rounded-full border border-dashed border-[var(--adm-border)] px-3 py-1 text-xs text-[var(--adm-text-faint)]">
                 No quick filters applied
               </span>
             )}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {filterPresets.length === 0 ? (
-              <span className="rounded-full border border-dashed border-white/10 px-3 py-2 text-xs text-slate-500">
+              <span className="rounded-full border border-dashed border-[var(--adm-border)] px-3 py-2 text-xs text-[var(--adm-text-faint)]">
                 No saved views yet
               </span>
             ) : (
               filterPresets.map((preset) => (
                 <div
                   key={preset.name}
-                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-1"
                 >
                   <button
                     type="button"
                     onClick={() => onApplyPreset(preset)}
-                    className="rounded-full px-2 py-1 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.07]"
+                    className="rounded-full px-2 py-1 text-xs font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                   >
                     {preset.name}
                   </button>
                   <button
                     type="button"
                     onClick={() => onRemovePreset(preset.name)}
-                    className="rounded-full px-2 py-1 text-xs text-slate-500 transition hover:bg-red-400/10 hover:text-red-200"
+                    className="rounded-full px-2 py-1 text-xs text-[var(--adm-text-faint)] transition hover:bg-[#fae7e3] hover:text-[var(--adm-error)]"
                     aria-label={`Delete preset ${preset.name}`}
                   >
                     x
@@ -232,7 +232,7 @@ export function CatalogToolbar({
             )}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#0c1118] p-4">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <AdminField label="Save current view" optional="Stored in this browser">
               <AdminInput
@@ -247,10 +247,10 @@ export function CatalogToolbar({
               </AdminButton>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--adm-text-faint)]">
             <span>
-              Sorting by <span className="text-slate-200">{getSortLabel(sortKey)}</span> in{" "}
-              <span className="text-slate-200">{sortDirection}</span> order
+              Sorting by <span className="text-[var(--adm-text)]">{getSortLabel(sortKey)}</span> in{" "}
+              <span className="text-[var(--adm-text)]">{sortDirection}</span> order
             </span>
             <span>{filterPresets.length}/8 presets used</span>
           </div>
@@ -334,15 +334,15 @@ export function CatalogTablePanel({
       title="Product index"
       description="Focused product rows with horizontal access to the full merchandising dataset on desktop."
       actions={
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--adm-text-faint)]">
           <span>
-            Showing <span className="text-slate-200">{products.length}</span> of{" "}
-            <span className="text-slate-200">{totalCount}</span>
+            Showing <span className="text-[var(--adm-text)]">{products.length}</span> of{" "}
+            <span className="text-[var(--adm-text)]">{totalCount}</span>
           </span>
-          <span className="rounded-full border border-white/10 px-3 py-1">
+          <span className="rounded-full border border-[var(--adm-border)] px-3 py-1">
             Shift + wheel for sideways scroll
           </span>
-          <span className="rounded-full border border-white/10 px-3 py-1">
+          <span className="rounded-full border border-[var(--adm-border)] px-3 py-1">
             Page {currentPage} / {totalPages}
           </span>
         </div>
@@ -355,7 +355,7 @@ export function CatalogTablePanel({
           label="Active products"
           value={statusCounts.active}
           total={products.length}
-          colorClass="bg-cyan-400"
+          colorClass="bg-[var(--adm-primary)]"
         />
         <MetricBar
           label="Draft products"
@@ -403,13 +403,13 @@ export function CatalogTablePanel({
       </div>
 
       <div
-        className="hidden overflow-x-auto overscroll-x-contain rounded-[26px] border border-white/10 bg-[#05080d] pb-2 md:block"
+        className="hidden overflow-x-auto overscroll-x-contain rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] pb-2 md:block"
         onWheel={handleTableWheelScroll}
         tabIndex={0}
         aria-label="Scrollable product table"
       >
         <table className="min-w-[1380px] text-left text-sm xl:min-w-[1480px]">
-          <thead className="sticky top-0 z-10 bg-[#0a1017]/95 text-[11px] uppercase tracking-[0.22em] text-slate-500 backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-[var(--adm-surface)] text-[11px] uppercase tracking-[0.22em] text-[var(--adm-text-faint)] backdrop-blur">
             <tr>
               <th className="px-4 py-4">
                 <input
@@ -426,8 +426,8 @@ export function CatalogTablePanel({
                     onClick={() => onSort(column)}
                     className={`inline-flex items-center gap-2 transition ${
                       sortKey === column
-                        ? "text-cyan-200"
-                        : "text-slate-500 hover:text-slate-300"
+                        ? "text-[var(--adm-primary)]"
+                        : "text-[var(--adm-text-faint)] hover:text-[var(--adm-text-muted)]"
                     }`}
                   >
                     <span>{getSortLabel(column)}</span>
@@ -447,9 +447,9 @@ export function CatalogTablePanel({
             {products.map((product) => (
               <tr
                 key={product.id}
-                className={`relative border-t border-white/6 transition before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-full before:content-[''] ${
+                className={`relative border-t border-[var(--adm-border)] transition before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-full before:content-[''] ${
                   selectedIds.includes(product.id)
-                    ? "bg-cyan-400/[0.07]"
+                    ? "bg-[var(--adm-primary)]/[0.07]"
                     : "bg-transparent"
                 } ${getProductRowTone(product)}`}
               >
@@ -463,7 +463,7 @@ export function CatalogTablePanel({
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex min-w-[320px] items-start gap-4">
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1016]">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
                       {product.imageUrl ? (
                         <Image
                           src={product.imageUrl}
@@ -473,7 +473,7 @@ export function CatalogTablePanel({
                           className="object-cover"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                           No image
                         </div>
                       )}
@@ -482,7 +482,7 @@ export function CatalogTablePanel({
                     <div className="min-w-0 flex-1">
                       <Link
                         href={`/admin/catalog/${product.id}`}
-                        className="inline-flex items-center gap-2 font-semibold text-slate-100 transition hover:text-cyan-200"
+                        className="inline-flex items-center gap-2 font-semibold text-[var(--adm-text)] transition hover:text-[var(--adm-primary)]"
                       >
                         <span
                           className={`h-2.5 w-2.5 rounded-full ${getStatusDotTone(product.status)}`}
@@ -490,9 +490,9 @@ export function CatalogTablePanel({
                         />
                         <span className="truncate">{product.title}</span>
                       </Link>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--adm-text-faint)]">
                         <span>/{product.handle}</span>
-                        <span className="text-slate-700">•</span>
+                        <span className="text-[var(--adm-text-muted)]">•</span>
                         <span>{product._count.variants} variants</span>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
@@ -512,19 +512,19 @@ export function CatalogTablePanel({
                         {product.insights &&
                         product.insights.views30d >= 20 &&
                         product.insights.conversionRate30d < 0.02 ? (
-                          <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 font-semibold text-amber-200">
+                          <span className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-2.5 py-1 font-semibold text-[#81560e]">
                             Weak CVR
                           </span>
                         ) : null}
                         {product.insights &&
                         product.insights.returnRate30d >= 0.15 &&
                         product.insights.purchases30d >= 5 ? (
-                          <span className="rounded-full border border-rose-400/20 bg-rose-400/10 px-2.5 py-1 font-semibold text-rose-200">
+                          <span className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-2.5 py-1 font-semibold text-[var(--adm-error)]">
                             Return pressure
                           </span>
                         ) : null}
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[var(--adm-text-faint)]">
                         {product.storefronts.map((storefront) => (
                           <span
                             key={`${product.id}-${storefront}`}
@@ -536,12 +536,12 @@ export function CatalogTablePanel({
                           </span>
                         ))}
                         {product.supplierName ? (
-                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
+                          <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-2 py-1">
                             {product.supplierName}
                           </span>
                         ) : null}
                         {product.sellerName ? (
-                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
+                          <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-2 py-1">
                             Seller: {product.sellerName}
                           </span>
                         ) : null}
@@ -551,10 +551,10 @@ export function CatalogTablePanel({
                             className={`rounded-full border px-2 py-1 font-semibold ${
                               product.complianceStatus === "APPROVED" &&
                               (product.complianceManualBlockers?.length ?? 0) === 0
-                                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                                ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
                                 : product.complianceStatus === "BLOCKED"
-                                  ? "border-rose-400/20 bg-rose-400/10 text-rose-200"
-                                  : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+                                  ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
+                                  : "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
                             }`}
                           >
                             Compliance {product.complianceStatus.replace("_", " ")}
@@ -573,66 +573,66 @@ export function CatalogTablePanel({
                     {product.status}
                   </span>
                 </td>
-                <td className="px-4 py-4 text-slate-300">
+                <td className="px-4 py-4 text-[var(--adm-text-muted)]">
                   <div className="flex min-w-[150px] flex-col gap-2">
-                    <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-slate-300">
+                    <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-2.5 py-1 text-[11px] text-[var(--adm-text-muted)]">
                       {product.mainCategory?.name ?? "Unassigned"}
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-[var(--adm-text-faint)]">
                       {product._count.variants} variants
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-slate-300">
+                <td className="px-4 py-4 text-[var(--adm-text-muted)]">
                   {product.insights ? (
                     <div className="min-w-[180px] space-y-1.5">
                       <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="text-slate-500">Views / orders</span>
-                        <span className="font-medium text-slate-100">
+                        <span className="text-[var(--adm-text-faint)]">Views / orders</span>
+                        <span className="font-medium text-[var(--adm-text)]">
                           {product.insights.views30d} / {product.insights.purchases30d}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="text-slate-500">CVR</span>
-                        <span className="font-medium text-slate-100">
+                        <span className="text-[var(--adm-text-faint)]">CVR</span>
+                        <span className="font-medium text-[var(--adm-text)]">
                           {formatPercent(product.insights.conversionRate30d, 1)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="text-slate-500">Add to cart</span>
-                        <span className="font-medium text-slate-100">
+                        <span className="text-[var(--adm-text-faint)]">Add to cart</span>
+                        <span className="font-medium text-[var(--adm-text)]">
                           {formatPercent(product.insights.addToCartRate30d, 1)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-500">No product demand data yet</span>
+                    <span className="text-xs text-[var(--adm-text-faint)]">No product demand data yet</span>
                   )}
                 </td>
-                <td className="px-4 py-4 text-slate-300">
+                <td className="px-4 py-4 text-[var(--adm-text-muted)]">
                   {product.insights ? (
                     <div className="min-w-[160px] space-y-1.5">
-                      <div className="text-sm font-semibold text-slate-100">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         {new Intl.NumberFormat("de-DE", {
                           style: "currency",
                           currency: "EUR",
                         }).format(product.insights.revenue30dCents / 100)}
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-[var(--adm-text-faint)]">
                         Margin{" "}
-                        <span className="font-medium text-slate-300">
+                        <span className="font-medium text-[var(--adm-text-muted)]">
                           {formatPercent(product.insights.marginRate30d, 1)}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-[var(--adm-text-faint)]">
                         Returns{" "}
-                        <span className="font-medium text-slate-300">
+                        <span className="font-medium text-[var(--adm-text-muted)]">
                           {formatPercent(product.insights.returnRate30d, 1)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-500">No sales data yet</span>
+                    <span className="text-xs text-[var(--adm-text-faint)]">No sales data yet</span>
                   )}
                 </td>
                 <td className="px-4 py-4">
@@ -644,27 +644,27 @@ export function CatalogTablePanel({
                     >
                       {product.availableInventory} available
                     </span>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-[var(--adm-text-faint)]">
                       {typeof product.insights?.stockCoverDays === "number"
                         ? `${Math.round(product.insights.stockCoverDays)} days cover`
                         : "No velocity baseline yet"}
                     </div>
                     {typeof product.insights?.stockCoverDays === "number" &&
                     product.insights.stockCoverDays < 14 ? (
-                      <div className="text-[11px] font-semibold text-amber-200">
+                      <div className="text-[11px] font-semibold text-[#81560e]">
                         Replenish soon
                       </div>
                     ) : null}
                   </div>
                 </td>
-                <td className="px-4 py-4 text-xs text-slate-400">
+                <td className="px-4 py-4 text-xs text-[var(--adm-text-muted)]">
                   {formatDate(product.updatedAt)}
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center justify-end gap-2">
                     <Link
                       href={`/admin/catalog/${product.id}`}
-                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15"
                     >
                       <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                       Open
@@ -684,7 +684,7 @@ export function CatalogTablePanel({
                     </AdminIconButton>
                     <AdminIconButton
                       type="button"
-                      className="border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/15 hover:text-red-100"
+                      className="border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)] hover:bg-[#fae7e3] hover:text-[var(--adm-error)]"
                       onClick={() => onPrepareDelete(product.id, product.title)}
                       disabled={deletingId === product.id}
                       aria-label={`Delete ${product.title}`}
@@ -718,10 +718,10 @@ export function CatalogTablePanel({
         </table>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--adm-text-faint)]">
         <div>
-          Showing <span className="text-slate-100">{products.length}</span> rows on this page out of{" "}
-          <span className="text-slate-100">{totalCount}</span> total products
+          Showing <span className="text-[var(--adm-text)]">{products.length}</span> rows on this page out of{" "}
+          <span className="text-[var(--adm-text)]">{totalCount}</span> total products
         </div>
         <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
           <PaginationLink
@@ -730,7 +730,7 @@ export function CatalogTablePanel({
           >
             Prev
           </PaginationLink>
-          <span className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+          <span className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[var(--adm-text-faint)]">
             Page {currentPage} / {totalPages}
           </span>
           <PaginationLink
@@ -826,16 +826,16 @@ export function CatalogBulkTray({
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-6 sm:px-4 sm:pb-0">
-      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-[24px] border border-white/10 bg-[#06090d]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-[28px]">
+      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur sm:rounded-xl">
         <div className="flex flex-col items-start justify-between gap-4 px-4 py-4 sm:px-5">
           <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                 Bulk selection
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--adm-text)]">
                 <span>{selectedIds.length} selected</span>
-                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-primary)]">
                   Ready for bulk actions
                 </span>
               </div>
@@ -869,7 +869,7 @@ export function CatalogBulkTray({
         </div>
 
         {bulkOpen ? (
-          <div className="max-h-[min(70dvh,38rem)] overflow-y-auto border-t border-white/10 px-4 py-4 sm:px-5 sm:py-5">
+          <div className="max-h-[min(70dvh,38rem)] overflow-y-auto border-t border-[var(--adm-border)] px-4 py-4 sm:px-5 sm:py-5">
             <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
               <AdminField label="Status">
                 <AdminSelect
@@ -983,7 +983,7 @@ export function CatalogBulkTray({
                   placeholder="Optional group"
                   disabled={bulkProductGroupClear}
                 />
-                <label className="mt-2 inline-flex items-center gap-2 text-xs text-slate-500">
+                <label className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--adm-text-faint)]">
                   <input
                     type="checkbox"
                     checked={bulkProductGroupClear}
@@ -1044,7 +1044,7 @@ function CatalogMobileCard({
 
   return (
     <div
-      className={`rounded-[24px] border border-white/10 bg-[#05080d] p-4 ${
+      className={`rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 ${
         selected ? "ring-1 ring-cyan-400/40" : ""
       }`}
     >
@@ -1056,7 +1056,7 @@ function CatalogMobileCard({
           aria-label={`Select ${product.title}`}
           className="mt-1"
         />
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1016]">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
@@ -1066,7 +1066,7 @@ function CatalogMobileCard({
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
               No image
             </div>
           )}
@@ -1076,7 +1076,7 @@ function CatalogMobileCard({
           <div className="flex flex-wrap items-start justify-between gap-2">
             <Link
               href={`/admin/catalog/${product.id}`}
-              className="min-w-0 flex-1 font-semibold text-slate-100 transition hover:text-cyan-200"
+              className="min-w-0 flex-1 font-semibold text-[var(--adm-text)] transition hover:text-[var(--adm-primary)]"
             >
               <span className="flex items-center gap-2">
                 <span
@@ -1095,11 +1095,11 @@ function CatalogMobileCard({
             </span>
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--adm-text-faint)]">
             <span>/{product.handle}</span>
-            <span className="text-slate-700">•</span>
+            <span className="text-[var(--adm-text-muted)]">•</span>
             <span>{product._count.variants} variants</span>
-            <span className="text-slate-700">•</span>
+            <span className="text-[var(--adm-text-muted)]">•</span>
             <span>{formatDate(product.updatedAt)}</span>
           </div>
 
@@ -1115,7 +1115,7 @@ function CatalogMobileCard({
               </span>
             ))}
             {product.supplierName ? (
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-slate-300">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-2 py-1 text-[var(--adm-text-muted)]">
                 {product.supplierName}
               </span>
             ) : null}
@@ -1177,7 +1177,7 @@ function CatalogMobileCard({
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           href={`/admin/catalog/${product.id}`}
-          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+          className="inline-flex h-8 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15"
         >
           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
           Open
@@ -1197,7 +1197,7 @@ function CatalogMobileCard({
         </AdminIconButton>
         <AdminIconButton
           type="button"
-          className="border-red-400/20 bg-red-400/10 text-red-200 hover:bg-red-400/15 hover:text-red-100"
+          className="border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)] hover:bg-[#fae7e3] hover:text-[var(--adm-error)]"
           onClick={onPrepareDelete}
           disabled={deleting}
           aria-label={`Delete ${product.title}`}
@@ -1226,12 +1226,12 @@ function MetricBar({
   colorClass: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-      <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+      <div className="flex items-center justify-between gap-3 text-xs text-[var(--adm-text-faint)]">
         <span>{label}</span>
         <span className="shrink-0">{value}</span>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.05]">
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--adm-surface-2)]">
         <div
           className={`h-full rounded-full transition-[width] ${colorClass}`}
           style={{ width: `${total ? (value / total) * 100 : 0}%` }}
@@ -1251,12 +1251,12 @@ function MobileStat({
   detail?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0b1016] px-3 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
         {label}
       </div>
-      <div className="mt-2 text-sm font-semibold text-slate-100">{value}</div>
-      {detail ? <div className="mt-1 text-xs text-slate-500">{detail}</div> : null}
+      <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">{value}</div>
+      {detail ? <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{detail}</div> : null}
     </div>
   );
 }
@@ -1275,10 +1275,10 @@ function PaginationLink({
       href={href}
       aria-disabled={disabled}
       scroll={false}
-      className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition ${
+      className={`inline-flex h-8 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition ${
         disabled
-          ? "cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-600"
-          : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-white/20 hover:bg-white/[0.05]"
+          ? "cursor-not-allowed border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-faint)]"
+          : "border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
       }`}
       tabIndex={disabled ? -1 : 0}
     >

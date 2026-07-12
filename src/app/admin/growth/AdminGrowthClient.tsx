@@ -12,6 +12,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminPageHeader, AdminPrimaryGrid } from "@/components/admin/ui";
 
 type Overview = {
   config: {
@@ -117,20 +118,12 @@ export default function AdminGrowthClient({
   };
 
   return (
-    <div className="admin-route-frame text-slate-100">
-      <div className="relative overflow-hidden rounded-[28px] border border-lime-300/15 bg-[radial-gradient(circle_at_top_right,rgba(163,230,53,.12),transparent_35%),repeating-linear-gradient(135deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_10px),#07100b] p-5 shadow-[0_32px_90px_rgba(0,0,0,.38)] sm:p-7">
-        <div className="absolute inset-y-0 left-0 w-1.5 bg-lime-300" />
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[.24em] text-lime-300">
-          Growth Control / GrowVault
-        </p>
-        <h1 className="mt-3 text-3xl font-black tracking-[-.045em] text-white sm:text-5xl">
-          Demand Engine
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-          Capture, Recovery, Merchandising, Starter-Setups, Content und Restock in einem
-          kontrollierten Betriebsraum.
-        </p>
-      </div>
+    <AdminPage layout="editor" className="admin-route-frame text-[var(--adm-text)]">
+      <AdminPageHeader
+        eyebrow="Growth Control / GrowVault"
+        title="Demand Engine"
+        description="Capture, Recovery, Merchandising, Starter-Setups, Content und Restock in einem kontrollierten Betriebsraum."
+      />
 
       {notice ? (
         <div className="mt-5">
@@ -143,24 +136,24 @@ export default function AdminGrowthClient({
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <AdminKpiStrip>
         <AdminMetricCard label="Abonnenten" value={String(overview.metrics.activeSubscribers)} detail="aktiv" tone="emerald" />
         <AdminMetricCard label="Welcome" value={String(overview.metrics.activeWelcome)} detail={`${overview.metrics.welcomeSent} Mails versendet`} tone="violet" />
         <AdminMetricCard label="Cross-Sells" value={`${overview.metrics.crossSellCoverage}%`} detail={`${overview.metrics.crossSells} Zuordnungen`} tone="amber" />
         <AdminMetricCard label="Restock" value={String(overview.metrics.pendingBackInStock)} detail="offene Anfragen" tone="slate" />
         <AdminMetricCard label="Content" value={`${overview.metrics.publishedArticles}/${overview.metrics.articles}`} detail="veröffentlicht" tone="emerald" />
-      </div>
+      </AdminKpiStrip>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1fr]">
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow="01 / Lifecycle"
           title="Capture und Automationen"
           description="Flows bleiben bis zum kontrollierten Aktivieren pausiert."
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="rounded-2xl border border-white/10 bg-white/[.03] p-4">
-              <span className="text-sm font-semibold text-white">Welcome-Serie</span>
-              <span className="mt-1 block text-xs text-slate-400">Sofort, Tag 2, Tag 5</span>
+            <label className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <span className="text-sm font-semibold text-[var(--adm-text)]">Welcome-Serie</span>
+              <span className="mt-1 block text-xs text-[var(--adm-text-muted)]">Sofort, Tag 2, Tag 5</span>
               <input
                 className="mt-4 h-5 w-5 accent-lime-300"
                 type="checkbox"
@@ -174,9 +167,9 @@ export default function AdminGrowthClient({
                 }
               />
             </label>
-            <label className="rounded-2xl border border-white/10 bg-white/[.03] p-4">
-              <span className="text-sm font-semibold text-white">Checkout-Recovery</span>
-              <span className="mt-1 block text-xs text-slate-400">60 Minuten und 24 Stunden</span>
+            <label className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <span className="text-sm font-semibold text-[var(--adm-text)]">Checkout-Recovery</span>
+              <span className="mt-1 block text-xs text-[var(--adm-text-muted)]">60 Minuten und 24 Stunden</span>
               <input
                 className="mt-4 h-5 w-5 accent-lime-300"
                 type="checkbox"
@@ -253,7 +246,7 @@ export default function AdminGrowthClient({
             >
               Welcome jetzt prüfen
             </AdminButton>
-            <Link href="/admin/ops" className="inline-flex min-h-10 items-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-200 hover:border-lime-300/30">
+            <Link href="/admin/ops" className="inline-flex min-h-8 items-center rounded-xl border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text)] hover:border-lime-300/30">
               Recovery in Ops
             </Link>
           </div>
@@ -265,15 +258,15 @@ export default function AdminGrowthClient({
           description="Regelbasierte Vorschläge mit manuellen Produkt-Overrides."
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[.03] p-4">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
               <div className="font-mono text-xs uppercase tracking-[.18em] text-lime-300">Cross-Sell Coverage</div>
-              <div className="mt-3 text-4xl font-black text-white">{overview.metrics.crossSellCoverage}%</div>
-              <p className="mt-2 text-xs leading-5 text-slate-400">Manuelle Zuordnungen bleiben bestehen; nur leere Produkte werden ergänzt.</p>
+              <div className="mt-3 text-4xl font-black text-[var(--adm-text)]">{overview.metrics.crossSellCoverage}%</div>
+              <p className="mt-2 text-xs leading-5 text-[var(--adm-text-muted)]">Manuelle Zuordnungen bleiben bestehen; nur leere Produkte werden ergänzt.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[.03] p-4">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
               <div className="font-mono text-xs uppercase tracking-[.18em] text-lime-300">Preset Engine</div>
-              <div className="mt-3 text-4xl font-black text-white">{overview.metrics.presets}</div>
-              <p className="mt-2 text-xs leading-5 text-slate-400">Budget, Balanced und Premium mit wählbarer Fläche.</p>
+              <div className="mt-3 text-4xl font-black text-[var(--adm-text)]">{overview.metrics.presets}</div>
+              <p className="mt-2 text-xs leading-5 text-[var(--adm-text-muted)]">Budget, Balanced und Premium mit wählbarer Fläche.</p>
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
@@ -292,17 +285,17 @@ export default function AdminGrowthClient({
             >
               Vorschläge generieren
             </AdminButton>
-            <Link href="/admin/recommendations" className="inline-flex min-h-10 items-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-200 hover:border-lime-300/30">
+            <Link href="/admin/recommendations" className="inline-flex min-h-8 items-center rounded-xl border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text)] hover:border-lime-300/30">
               Regeln öffnen
             </Link>
-            <Link href="/admin/catalog" className="inline-flex min-h-10 items-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-200 hover:border-lime-300/30">
+            <Link href="/admin/catalog" className="inline-flex min-h-8 items-center rounded-xl border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text)] hover:border-lime-300/30">
               Overrides pflegen
             </Link>
           </div>
         </AdminPanel>
-      </div>
+      </AdminPrimaryGrid>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
+      <AdminPrimaryGrid rail="narrow">
         <AdminPanel
           eyebrow="03 / Editorial"
           title="Content-SEO CMS"
@@ -369,10 +362,10 @@ export default function AdminGrowthClient({
                     scheduledAt: item.scheduledAt ? new Date(item.scheduledAt).toISOString().slice(0, 16) : "",
                   });
                 }}
-                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[.025] px-4 py-3 text-left hover:border-lime-300/25"
+                className="flex w-full items-center justify-between rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3 text-left hover:border-lime-300/25"
               >
-                <span><span className="block text-sm font-semibold text-white">{item.title}</span><span className="mt-1 block font-mono text-[11px] text-slate-500">/{item.slug}</span></span>
-                <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-slate-300">{item.status}</span>
+                <span><span className="block text-sm font-semibold text-[var(--adm-text)]">{item.title}</span><span className="mt-1 block font-mono text-[11px] text-[var(--adm-text-faint)]">/{item.slug}</span></span>
+                <span className="rounded-full border border-[var(--adm-border)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[var(--adm-text-muted)]">{item.status}</span>
               </button>
             ))}
           </div>
@@ -391,17 +384,17 @@ export default function AdminGrowthClient({
                 <Link
                   key={row.productId}
                   href={`/admin/catalog/${row.productId}`}
-                  className="grid grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-xl border border-white/10 bg-white/[.025] px-3 py-3 hover:border-lime-300/25"
+                  className="grid grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-3 hover:border-lime-300/25"
                 >
                   <span className="font-mono text-xs text-lime-300">{String(index + 1).padStart(2, "0")}</span>
-                  <span className="truncate text-sm font-semibold text-white">{row.productTitle ?? row.productId}</span>
+                  <span className="truncate text-sm font-semibold text-[var(--adm-text)]">{row.productTitle ?? row.productId}</span>
                   <span className="rounded-full bg-lime-300/10 px-2.5 py-1 text-xs font-bold text-lime-200">{row._count._all}</span>
                 </Link>
               ))}
             </div>
           )}
         </AdminPanel>
-      </div>
-    </div>
+      </AdminPrimaryGrid>
+    </AdminPage>
   );
 }

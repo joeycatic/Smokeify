@@ -16,7 +16,7 @@ export default async function AdminEmailTestingPage({
   const initialStorefront = storefrontScopeToStorefront(storefrontScope) ?? "MAIN";
 
   return (
-    <div className="admin-route-frame text-slate-100">
+    <div className="admin-route-frame text-[var(--adm-text)]">
       <AdminEmailTestingClient
         initialStorefront={initialStorefront}
         newsletterAudienceSummary={audienceSummary}

@@ -13,7 +13,12 @@ import {
   getGrowvaultSharedMerchandisingFeed,
 } from "@/lib/growvaultSharedStorefront";
 import { getGrowvaultWishlistAdminAnalytics } from "@/lib/growvaultWishlistAdmin";
+import { getGrowvaultChatbotConfig } from "@/lib/growvaultChatbot";
+import { getGrowvaultChatbotAnalytics } from "@/lib/growvaultChatbotAdmin";
+import { hasAdminScope } from "@/lib/adminPermissions";
 import { parseAdminTimeRangeDays } from "@/lib/adminTimeRange";
+import GrowvaultChatbotPanel from "./GrowvaultChatbotPanel";
+import { AdminPage } from "@/components/admin/ui";
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("de-DE", {
@@ -32,10 +37,10 @@ const formatDateTime = (value: string) =>
   }).format(new Date(value));
 
 const statusToneClass = {
-  ok: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
-  warn: "border-amber-400/20 bg-amber-400/10 text-amber-100",
-  fail: "border-rose-400/20 bg-rose-400/10 text-rose-100",
-  unknown: "border-white/10 bg-white/[0.03] text-slate-200",
+  ok: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+  warn: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  fail: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
+  unknown: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]",
 } as const;
 
 function WishlistProductList({
@@ -53,18 +58,18 @@ function WishlistProductList({
         <Link
           key={row.productId}
           href={`/admin/catalog/${row.productId}?storefront=GROW`}
-          className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-white/20 hover:bg-white/[0.05]"
+          className="block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-white">{row.title}</div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+              <div className="truncate text-sm font-semibold text-[var(--adm-text)]">{row.title}</div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--adm-text-muted)]">
                 <span>{row.currentWishlists} aktuell gemerkt</span>
                 <span>{row.addEvents} Add-Events</span>
                 <span>{row.removeEvents} Remove-Events</span>
               </div>
             </div>
-            <div className="shrink-0 text-right text-xs text-slate-400">
+            <div className="shrink-0 text-right text-xs text-[var(--adm-text-muted)]">
               <div>Netto {row.netEvents >= 0 ? `+${row.netEvents}` : row.netEvents}</div>
               <div className="mt-1">
                 {row.lastActivityAt ? formatDate(row.lastActivityAt) : "Keine Aktivität"}
@@ -91,23 +96,23 @@ function WishlistUserList({
       {rows.map((row) => (
         <div
           key={row.userId}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4"
+          className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4"
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-white">
+              <div className="truncate text-sm font-semibold text-[var(--adm-text)]">
                 {row.name ?? row.email ?? `User ${row.userId.slice(0, 8)}`}
               </div>
-              <div className="mt-1 truncate text-xs text-slate-500">
+              <div className="mt-1 truncate text-xs text-[var(--adm-text-faint)]">
                 {row.email ?? "Keine E-Mail verfügbar"}
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--adm-text-muted)]">
                 <span>{row.currentWishlistItems} aktuell auf Wishlist</span>
                 <span>{row.addEvents} Adds</span>
                 <span>{row.removeEvents} Removes</span>
               </div>
             </div>
-            <div className="shrink-0 text-right text-xs text-slate-400">
+            <div className="shrink-0 text-right text-xs text-[var(--adm-text-muted)]">
               <div>Netto {row.netEvents >= 0 ? `+${row.netEvents}` : row.netEvents}</div>
               <div className="mt-1">
                 {row.lastActivityAt ? formatDate(row.lastActivityAt) : "Keine Aktivität"}
@@ -125,22 +130,31 @@ export default async function AdminGrowvaultPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await requireAdminScope("analytics.read"))) notFound();
+  const admin = await requireAdminScope("analytics.read");
+  if (!admin) notFound();
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const days = parseAdminTimeRangeDays(resolvedSearchParams?.days);
 
-  const [dashboardData, diagnostics, merchandising, wishlistAnalytics] = await Promise.all([
+  const [dashboardData, diagnostics, merchandising, wishlistAnalytics, chatbotConfig, chatbotAnalytics] = await Promise.all([
     getAdminStorefrontDashboardData({ storefront: "GROW", days }),
     getGrowvaultSharedDiagnosticsFeed(),
     getGrowvaultSharedMerchandisingFeed(),
     getGrowvaultWishlistAdminAnalytics(days),
+    getGrowvaultChatbotConfig(),
+    getGrowvaultChatbotAnalytics(days),
   ]);
 
   return (
-    <div className="w-full text-slate-100">
-      <div className="space-y-5">
+    <AdminPage layout="dashboard">
         <AdminStorefrontDashboard data={dashboardData} pathname="/admin/growvault" />
+
+        <GrowvaultChatbotPanel
+          initialConfig={chatbotConfig}
+          analytics={chatbotAnalytics.analytics}
+          analyticsError={chatbotAnalytics.error ?? null}
+          canManage={hasAdminScope(admin.user.role, "ops.write")}
+        />
 
         <AdminPanel
           eyebrow="Wishlist"
@@ -208,8 +222,8 @@ export default async function AdminGrowvaultPage({
 
           <div className="mt-5">
             <div className="mb-3">
-              <h3 className="text-sm font-semibold text-white">Letzte Wishlist-Aktionen</h3>
-              <p className="mt-1 text-sm text-slate-400">
+              <h3 className="text-sm font-semibold text-[var(--adm-text)]">Letzte Wishlist-Aktionen</h3>
+              <p className="mt-1 text-sm text-[var(--adm-text-muted)]">
                 Zeitraum ab {formatDate(wishlistAnalytics.analytics.window.startsAt)}.
               </p>
             </div>
@@ -220,7 +234,7 @@ export default async function AdminGrowvaultPage({
                 {wishlistAnalytics.analytics.recentActivity.map((row) => (
                   <div
                     key={row.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4"
+                    className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4"
                   >
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
@@ -234,31 +248,31 @@ export default async function AdminGrowvaultPage({
                           >
                             {row.action === "ADD" ? "Add" : "Remove"}
                           </span>
-                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                          <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-muted)]">
                             {row.source}
                           </span>
                         </div>
-                        <div className="mt-3 text-sm font-semibold text-white">
+                        <div className="mt-3 text-sm font-semibold text-[var(--adm-text)]">
                           {row.name ?? row.email ?? `User ${row.userId.slice(0, 8)}`}
                         </div>
-                        <div className="mt-1 text-xs text-slate-500">
+                        <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                           {row.email ?? "Keine E-Mail verfügbar"}
                         </div>
-                        <div className="mt-3 text-sm text-slate-300">
+                        <div className="mt-3 text-sm text-[var(--adm-text-muted)]">
                           {row.productHandle ? (
                             <Link
                               href={`/admin/catalog/${row.productId}?storefront=GROW`}
-                              className="font-semibold text-white underline-offset-4 hover:underline"
+                              className="font-semibold text-[var(--adm-text)] underline-offset-4 hover:underline"
                             >
                               {row.productTitle}
                             </Link>
                           ) : (
-                            <span className="font-semibold text-white">{row.productTitle}</span>
+                            <span className="font-semibold text-[var(--adm-text)]">{row.productTitle}</span>
                           )}{" "}
                           wurde {row.action === "ADD" ? "gemerkt" : "entfernt"}.
                         </div>
                       </div>
-                      <div className="shrink-0 text-xs text-slate-400">
+                      <div className="shrink-0 text-xs text-[var(--adm-text-muted)]">
                         {formatDateTime(row.createdAt)}
                       </div>
                     </div>
@@ -281,7 +295,7 @@ export default async function AdminGrowvaultPage({
                 className={`rounded-2xl border p-4 ${statusToneClass[status.status]}`}
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-current/15 bg-black/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]">
+                  <span className="rounded-full border border-current/20 bg-[var(--adm-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]">
                     {status.status}
                   </span>
                   <span className="text-xs opacity-75">
@@ -321,22 +335,21 @@ export default async function AdminGrowvaultPage({
             {merchandising.slots.map((slot) => (
               <div
                 key={slot.slotKey}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   {slot.slotKey}
                 </p>
-                <p className="mt-2 text-sm font-semibold text-white">
+                <p className="mt-2 text-sm font-semibold text-[var(--adm-text)]">
                   {slot.copy?.title ?? slot.slotKey}
                 </p>
-                <p className="mt-2 text-sm text-slate-400">
+                <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
                   {slot.productHandles.length} Produkt-Handle(s) im Live-Feed.
                 </p>
               </div>
             ))}
           </div>
         </AdminPanel>
-      </div>
-    </div>
+    </AdminPage>
   );
 }

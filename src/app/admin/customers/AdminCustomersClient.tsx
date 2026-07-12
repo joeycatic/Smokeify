@@ -4,6 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { HorizontalBarsChart } from "@/components/admin/AdminCharts";
+import {
+  AdminKpiStrip,
+  AdminPage,
+  AdminPageHeader,
+  AdminSplitView,
+  AdminStat,
+} from "@/components/admin/ui";
 import type {
   Customer,
   CustomerCohort,
@@ -29,17 +36,17 @@ const SEGMENT_META: Record<
   },
   repeat: {
     label: "Repeat",
-    tone: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+    tone: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
     description: "Customer has already ordered at least twice.",
   },
   high_value: {
     label: "High value",
-    tone: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+    tone: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
     description: "Strong gross revenue contribution.",
   },
   churn_risk: {
     label: "Churn risk",
-    tone: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+    tone: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
     description: "Repeat buyer without a recent order.",
   },
   discount_driven: {
@@ -49,7 +56,7 @@ const SEGMENT_META: Record<
   },
   return_risk: {
     label: "Return risk",
-    tone: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+    tone: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
     description: "Return volume is high relative to order count.",
   },
   vip: {
@@ -198,13 +205,13 @@ const formatCohortStatusLabel = (value: AdminCustomerCohortStatus | null | undef
 const getTaskStatusTone = (value: AdminCustomerTaskStatus) => {
   switch (value) {
     case "IN_BEARBEITUNG":
-      return "border-cyan-400/20 bg-cyan-400/10 text-cyan-100";
+      return "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]";
     case "WIEDERVORLAGE":
-      return "border-amber-400/20 bg-amber-400/10 text-amber-100";
+      return "border-[#e2a136] bg-[#fff4dd] text-[#81560e]";
     case "ERLEDIGT":
-      return "border-emerald-400/20 bg-emerald-400/10 text-emerald-100";
+      return "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]";
     default:
-      return "border-white/10 bg-white/[0.03] text-slate-200";
+      return "border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text)]";
   }
 };
 
@@ -723,52 +730,38 @@ export default function AdminCustomersClient({
   };
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-              Admin / Customers
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">
-              CRM intelligence and retention control
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm text-slate-400">
-              CLV, churn risk, discount dependence, loyalty balance, and direct actions for the
-              existing CRM without rebuilding the underlying customer system.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-100">
-                {storefrontLabel}
-              </div>
-            </div>
-          </div>
+    <AdminPage layout="master-detail">
+      <AdminPageHeader
+        eyebrow="Admin / Customers"
+        title="Customer directory and retention"
+        description={`CLV, churn risk, loyalty, and CRM actions for ${storefrontLabel}.`}
+        actions={
           <button
             type="button"
             onClick={() => setRefreshNonce((prev) => prev + 1)}
-            className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+            className="inline-flex h-8 items-center rounded-[10px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-[13px] font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
             disabled={loading}
           >
             {loading ? "Refreshing..." : "Refresh customers"}
           </button>
-        </div>
-
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <MetricCard label="Customers" value={String(summary.totalCustomers)} />
-          <MetricCard label="Net revenue" value={formatEur(summary.totalNetRevenueCents)} />
-          <MetricCard label="VIP / high touch" value={String(summary.vipCustomers)} />
-          <MetricCard label="Churn risk" value={String(summary.churnRiskCustomers)} />
-          <MetricCard label="Avg. CLV" value={formatEur(summary.averageClvCents)} />
-        </div>
-      </section>
+        }
+      >
+        <AdminKpiStrip>
+          <AdminStat label="Customers" value={summary.totalCustomers} />
+          <AdminStat label="Net revenue" value={formatEur(summary.totalNetRevenueCents)} />
+          <AdminStat label="VIP / high touch" value={summary.vipCustomers} />
+          <AdminStat label="Churn risk" value={summary.churnRiskCustomers} deltaTone="warning" />
+          <AdminStat label="Avg. CLV" value={formatEur(summary.averageClvCents)} />
+        </AdminKpiStrip>
+      </AdminPageHeader>
 
       {error ? (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-xl border border-red-500/20 bg-[#fae7e3] px-4 py-3 text-sm text-[var(--adm-error)]">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <div className="rounded-xl border border-emerald-500/20 bg-[var(--adm-primary-soft)] px-4 py-3 text-sm text-[var(--adm-success)]">
           {notice}
         </div>
       ) : null}
@@ -782,7 +775,7 @@ export default function AdminCustomersClient({
           {summary.segmentBars.length === 0 ? (
             <EmptyPanelCopy message="No segment data available yet." />
           ) : (
-            <HorizontalBarsChart data={summary.segmentBars} colorClassName="bg-cyan-400" />
+            <HorizontalBarsChart data={summary.segmentBars} colorClassName="bg-[var(--adm-primary)]" />
           )}
         </Panel>
 
@@ -836,26 +829,26 @@ export default function AdminCustomersClient({
             value={cohortName}
             onChange={(event) => setCohortName(event.target.value)}
             placeholder="Cohort name"
-            className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+            className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
           />
           <input
             type="text"
             value={cohortDescription}
             onChange={(event) => setCohortDescription(event.target.value)}
             placeholder="Description (optional)"
-            className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+            className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
           />
           <button
             type="button"
             onClick={saveCohort}
             disabled={customerMutationId === "cohort"}
-            className="inline-flex h-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:text-cyan-300"
+            className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15 disabled:cursor-not-allowed disabled:text-[var(--adm-primary)]"
           >
             {customerMutationId === "cohort" ? "Saving..." : "Save current cohort"}
           </button>
         </div>
         {sidebarLoading ? (
-          <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+          <div className="mt-4 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 py-3 text-sm text-[var(--adm-primary)]">
             CRM cohorts and owners are still loading for this workspace.
           </div>
         ) : null}
@@ -879,21 +872,21 @@ export default function AdminCustomersClient({
                     nextSegment: cohort.filters.segment ?? "all",
                   });
                 }}
-                className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 text-left transition hover:bg-white/[0.05]"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-left transition hover:bg-[var(--adm-surface-2)]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-slate-100">{cohort.name}</div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">{cohort.name}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       {cohort.customerCount} customers · updated {formatDate(cohort.updatedAt)}
                     </div>
                   </div>
-                  <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-semibold text-slate-200">
+                  <span className="rounded-full border border-[var(--adm-border)] px-2.5 py-1 text-[10px] font-semibold text-[var(--adm-text)]">
                     {formatCohortStatusLabel(cohort.status)}
                   </span>
                 </div>
                 {cohort.description ? (
-                  <p className="mt-2 text-sm text-slate-400">{cohort.description}</p>
+                  <p className="mt-2 text-sm text-[var(--adm-text-muted)]">{cohort.description}</p>
                 ) : null}
                 {canWriteCrm ? (
                   <div
@@ -907,7 +900,7 @@ export default function AdminCustomersClient({
                           status: event.target.value as AdminCustomerCohortStatus,
                         })
                       }
-                      className="h-9 rounded-2xl border border-white/10 bg-[#090d12] px-3 text-xs text-slate-100 outline-none"
+                      className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs text-[var(--adm-text)] outline-none"
                     >
                       {CUSTOMER_COHORT_STATUSES.map((status) => (
                         <option key={status} value={status}>
@@ -922,7 +915,7 @@ export default function AdminCustomersClient({
                           assigneeUserId: event.target.value || null,
                         })
                       }
-                      className="h-9 rounded-2xl border border-white/10 bg-[#090d12] px-3 text-xs text-slate-100 outline-none"
+                      className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs text-[var(--adm-text)] outline-none"
                     >
                       <option value="">No owner</option>
                       {owners.map((owner) => (
@@ -931,7 +924,7 @@ export default function AdminCustomersClient({
                         </option>
                       ))}
                     </select>
-                    <div className="sm:col-span-2 text-[11px] text-slate-500">
+                    <div className="sm:col-span-2 text-[11px] text-[var(--adm-text-faint)]">
                       {cohort.assigneeEmail ? `Owner: ${cohort.assigneeEmail}` : "Not assigned"}
                     </div>
                   </div>
@@ -942,14 +935,14 @@ export default function AdminCustomersClient({
         </div>
       </Panel>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_380px]">
+      <AdminSplitView>
       <Panel
         eyebrow="Directory"
         title="Customer records"
         description="Filter by type, segment, and intent. Select a row to open the intelligence drawer."
       >
           <div className="mb-4 flex flex-col items-stretch gap-3">
-            <div className="flex overflow-hidden rounded-full border border-white/10 bg-white/[0.03] text-xs font-semibold">
+            <div className="flex overflow-hidden rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] text-xs font-semibold">
               {(["all", "registered", "guest"] as const).map((value) => (
                 <button
                   key={value}
@@ -964,8 +957,8 @@ export default function AdminCustomersClient({
                   }}
                   className={`px-4 py-2 transition ${
                     tab === value
-                      ? "bg-cyan-300 text-slate-950"
-                      : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+                      ? "bg-cyan-300 text-white"
+                      : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"
                   }`}
                 >
                   {value === "all" ? "All" : value === "registered" ? "Registered" : "Guest"}
@@ -1023,14 +1016,14 @@ export default function AdminCustomersClient({
                   })
                 }
                 placeholder="Search by email, name, segment, group..."
-                className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20 sm:min-w-[240px]"
+                className="h-8 min-w-0 flex-1 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)] sm:min-w-[240px]"
               />
-              <span className="text-xs text-slate-500">{totalCount} results</span>
+              <span className="text-xs text-[var(--adm-text-faint)]">{totalCount} results</span>
             </div>
           </div>
 
           {customers.length === 0 ? (
-            <div className="rounded-[24px] border border-white/10 bg-[#090d12] px-4 py-10 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-10 text-center text-sm text-[var(--adm-text-faint)]">
               {loading ? "Loading..." : "No customers found."}
             </div>
           ) : (
@@ -1044,10 +1037,10 @@ export default function AdminCustomersClient({
                       key={`${key}-${index}`}
                       type="button"
                       onClick={() => setSelectedKey(key)}
-                      className={`w-full rounded-[24px] border px-4 py-4 text-left text-sm text-slate-300 transition ${
+                      className={`w-full rounded-xl border px-4 py-4 text-left text-sm text-[var(--adm-text-muted)] transition ${
                         isSelected
-                          ? "border-cyan-400/20 bg-cyan-400/[0.07]"
-                          : "border-white/10 bg-[#090d12] hover:bg-white/[0.03]"
+                          ? "border-[var(--adm-primary)] bg-[var(--adm-primary)]/[0.07]"
+                          : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:bg-[var(--adm-surface)]"
                       }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1055,22 +1048,22 @@ export default function AdminCustomersClient({
                           <span
                             className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                               customer.type === "registered"
-                                ? "bg-emerald-400/10 text-emerald-300"
-                                : "bg-amber-400/10 text-amber-300"
+                                ? "bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                                : "bg-[#fff4dd] text-[#81560e]"
                             }`}
                           >
                             {customer.type === "registered" ? "Registered" : "Guest"}
                           </span>
-                          <div className="mt-3 break-all font-medium text-slate-100">{customer.email}</div>
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="mt-3 break-all font-medium text-[var(--adm-text)]">{customer.email}</div>
+                          <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                             {customer.name ?? "Unknown"} · last active {formatDate(customer.lastOrderAt)}
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-semibold text-slate-100">
+                          <div className="text-sm font-semibold text-[var(--adm-text)]">
                             {formatEur(customer.netRevenueCents)}
                           </div>
-                          <div className="mt-1 text-xs text-slate-500">{customer.orderCount} orders</div>
+                          <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{customer.orderCount} orders</div>
                         </div>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-1">
@@ -1078,7 +1071,7 @@ export default function AdminCustomersClient({
                           <SegmentBadge key={segment} segment={segment} />
                         ))}
                         {customer.segments.length > 3 ? (
-                          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">
+                          <span className="rounded-full border border-[var(--adm-border)] px-2 py-1 text-[10px] text-[var(--adm-text-muted)]">
                             +{customer.segments.length - 3}
                           </span>
                         ) : null}
@@ -1092,8 +1085,8 @@ export default function AdminCustomersClient({
                 })}
               </div>
 
-              <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#090d12] md:block">
-                <div className="grid min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] gap-x-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <div className="admin-data-grid-scroll hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] md:block">
+                <div className="grid min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] gap-x-4 border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                   <div>Type</div>
                   <div>Email</div>
                   <div>Segments</div>
@@ -1111,24 +1104,24 @@ export default function AdminCustomersClient({
                         key={`${key}-${index}`}
                         type="button"
                         onClick={() => setSelectedKey(key)}
-                        className={`grid w-full min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] items-center gap-x-4 px-4 py-3 text-left text-sm text-slate-300 transition ${
-                          isSelected ? "bg-cyan-400/[0.07]" : "hover:bg-white/[0.03]"
+                        className={`grid w-full min-w-[760px] grid-cols-[auto_1.15fr_0.75fr_120px_110px_110px] items-center gap-x-4 px-4 py-3 text-left text-sm text-[var(--adm-text-muted)] transition ${
+                          isSelected ? "bg-[var(--adm-primary)]/[0.07]" : "hover:bg-[var(--adm-surface)]"
                         }`}
                       >
                         <div>
                           <span
                             className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                               customer.type === "registered"
-                                ? "bg-emerald-400/10 text-emerald-300"
-                                : "bg-amber-400/10 text-amber-300"
+                                ? "bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                                : "bg-[#fff4dd] text-[#81560e]"
                             }`}
                           >
                             {customer.type === "registered" ? "Registered" : "Guest"}
                           </span>
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate font-medium text-slate-100">{customer.email}</div>
-                          <div className="truncate text-xs text-slate-500">
+                          <div className="truncate font-medium text-[var(--adm-text)]">{customer.email}</div>
+                          <div className="truncate text-xs text-[var(--adm-text-faint)]">
                             {customer.name ?? "Unknown"} · last active {formatDate(customer.lastOrderAt)}
                           </div>
                         </div>
@@ -1137,16 +1130,16 @@ export default function AdminCustomersClient({
                             <SegmentBadge key={segment} segment={segment} />
                           ))}
                           {customer.segments.length > 2 ? (
-                            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">
+                            <span className="rounded-full border border-[var(--adm-border)] px-2 py-1 text-[10px] text-[var(--adm-text-muted)]">
                               +{customer.segments.length - 2}
                             </span>
                           ) : null}
                         </div>
                         <div className="text-right tabular-nums">{customer.orderCount}</div>
-                        <div className="text-right tabular-nums font-medium text-slate-100">
+                        <div className="text-right tabular-nums font-medium text-[var(--adm-text)]">
                           {formatEur(customer.netRevenueCents)}
                         </div>
-                        <div className="text-right text-slate-500">{formatEur(customer.aovCents)}</div>
+                        <div className="text-right text-[var(--adm-text-faint)]">{formatEur(customer.aovCents)}</div>
                       </button>
                     );
                   })}
@@ -1156,7 +1149,7 @@ export default function AdminCustomersClient({
           )}
 
           {totalPages > 1 ? (
-            <div className="mt-4 flex flex-col items-start justify-between gap-3 text-xs text-slate-400 sm:flex-row sm:items-center">
+            <div className="mt-4 flex flex-col items-start justify-between gap-3 text-xs text-[var(--adm-text-muted)] sm:flex-row sm:items-center">
               <span>
                 Page {page} / {totalPages}
               </span>
@@ -1169,7 +1162,7 @@ export default function AdminCustomersClient({
                     replaceRouteState({ nextPage });
                   }}
                   disabled={page <= 1}
-                  className="inline-flex h-9 items-center rounded-full border border-white/10 px-4 font-semibold text-slate-100 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-slate-600"
+                  className="inline-flex h-9 items-center rounded-full border border-[var(--adm-border)] px-4 font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)] disabled:cursor-not-allowed disabled:text-[var(--adm-text-faint)]"
                 >
                   Previous
                 </button>
@@ -1181,7 +1174,7 @@ export default function AdminCustomersClient({
                     replaceRouteState({ nextPage });
                   }}
                   disabled={page >= totalPages}
-                  className="inline-flex h-9 items-center rounded-full border border-white/10 px-4 font-semibold text-slate-100 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-slate-600"
+                  className="inline-flex h-9 items-center rounded-full border border-[var(--adm-border)] px-4 font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)] disabled:cursor-not-allowed disabled:text-[var(--adm-text-faint)]"
                 >
                   Next
                 </button>
@@ -1201,13 +1194,13 @@ export default function AdminCustomersClient({
         >
           {selectedCustomer ? (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-lg font-semibold text-white">
+                    <p className="text-lg font-semibold text-[var(--adm-text)]">
                       {selectedCustomer.name ?? "Unknown customer"}
                     </p>
-                    <p className="mt-1 text-sm text-slate-400">
+                    <p className="mt-1 text-sm text-[var(--adm-text-muted)]">
                       {selectedCustomer.type === "registered"
                         ? "Registered account"
                         : "Guest checkout customer"}
@@ -1219,7 +1212,7 @@ export default function AdminCustomersClient({
                         <SegmentBadge key={segment} segment={segment} />
                       ))
                     ) : (
-                      <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-500">
+                      <span className="rounded-full border border-[var(--adm-border)] px-3 py-1 text-xs text-[var(--adm-text-faint)]">
                         No active segments
                       </span>
                     )}
@@ -1241,7 +1234,7 @@ export default function AdminCustomersClient({
                 </div>
               </div>
 
-              <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-slate-300">
+              <div className="space-y-2 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 text-sm text-[var(--adm-text-muted)]">
                 <InfoRow label="First order" value={formatDate(selectedCustomer.firstOrderAt)} />
                 <InfoRow label="Last order" value={formatDate(selectedCustomer.lastOrderAt)} />
                 <InfoRow label="Open orders" value={String(selectedCustomer.openOrderCount)} />
@@ -1279,14 +1272,14 @@ export default function AdminCustomersClient({
               </div>
 
               <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                   Quick actions
                 </p>
                 <div className="grid gap-2">
                   {selectedCustomer.type === "registered" ? (
                     <Link
                       href={`/admin/users/${selectedCustomer.id}`}
-                      className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                     >
                       Open customer profile
                     </Link>
@@ -1297,7 +1290,7 @@ export default function AdminCustomersClient({
                       setQuery(selectedCustomer.email);
                       setPage(1);
                     }}
-                    className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
+                    className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                   >
                     Filter CRM by this email
                   </button>
@@ -1308,14 +1301,14 @@ export default function AdminCustomersClient({
                         setSegmentFilter(selectedCustomer.segments[0]);
                         setPage(1);
                       }}
-                      className="inline-flex h-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15"
                     >
                       Open {SEGMENT_META[selectedCustomer.segments[0]].label} segment
                     </button>
                   ) : null}
                   <Link
                     href={`/admin/orders?customer=${encodeURIComponent(selectedCustomer.email)}`}
-                    className="inline-flex h-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/15"
+                    className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-success)] transition hover:bg-emerald-400/15"
                   >
                     Open customer orders
                   </Link>
@@ -1323,8 +1316,8 @@ export default function AdminCustomersClient({
               </div>
 
               {actionSummary ? (
-                <div className="space-y-3 rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="space-y-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Suggested next step
                   </p>
                   {actionSummary.hasReactivationPotential ? (
@@ -1357,17 +1350,17 @@ export default function AdminCustomersClient({
               ) : null}
 
               {selectedCustomer.type === "registered" && canWriteCrm ? (
-                <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                <div className="space-y-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                         CRM tasks
                       </p>
-                      <p className="mt-1 text-sm text-slate-400">
+                      <p className="mt-1 text-sm text-[var(--adm-text-muted)]">
                         Create follow-up work, assign owners, and track reactivation or retention actions.
                       </p>
                     </div>
-                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
+                    <span className="rounded-full border border-[var(--adm-border)] px-3 py-1 text-xs text-[var(--adm-text-muted)]">
                       {tasksLoading ? "Loading..." : `${tasks.length} task(s)`}
                     </span>
                   </div>
@@ -1378,7 +1371,7 @@ export default function AdminCustomersClient({
                         value={taskTitle}
                         onChange={(event) => setTaskTitle(event.target.value)}
                         placeholder="Win-back outreach"
-                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                        className="h-8 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
                       />
                     </FieldShell>
                     <FieldShell label="Playbook">
@@ -1387,7 +1380,7 @@ export default function AdminCustomersClient({
                         onChange={(event) =>
                           setTaskPlaybook(event.target.value as AdminCustomerTaskPlaybook)
                         }
-                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                        className="h-8 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none focus:border-[var(--adm-border-strong)]"
                       >
                         {CUSTOMER_TASK_PLAYBOOKS.map((playbook) => (
                           <option key={playbook} value={playbook}>
@@ -1400,7 +1393,7 @@ export default function AdminCustomersClient({
                       <select
                         value={taskOwnerId}
                         onChange={(event) => setTaskOwnerId(event.target.value)}
-                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                        className="h-8 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none focus:border-[var(--adm-border-strong)]"
                       >
                         <option value="">Unassigned</option>
                         {owners.map((owner) => (
@@ -1416,7 +1409,7 @@ export default function AdminCustomersClient({
                         onChange={(event) =>
                           setTaskStatus(event.target.value as AdminCustomerTaskStatus)
                         }
-                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                        className="h-8 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none focus:border-[var(--adm-border-strong)]"
                       >
                         {CUSTOMER_TASK_STATUSES.map((status) => (
                           <option key={status} value={status}>
@@ -1430,7 +1423,7 @@ export default function AdminCustomersClient({
                         type="date"
                         value={taskDueAt}
                         onChange={(event) => setTaskDueAt(event.target.value)}
-                        className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none focus:border-white/20"
+                        className="h-8 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none focus:border-[var(--adm-border-strong)]"
                       />
                     </FieldShell>
                     <FieldShell label="Description" className="md:col-span-2">
@@ -1439,7 +1432,7 @@ export default function AdminCustomersClient({
                         onChange={(event) => setTaskDescription(event.target.value)}
                         rows={3}
                         placeholder="Context, next action, offer or support note..."
-                        className="w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                        className="w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
                       />
                     </FieldShell>
                   </div>
@@ -1449,7 +1442,7 @@ export default function AdminCustomersClient({
                       type="button"
                       onClick={createTask}
                       disabled={customerMutationId === `task-create:${selectedCustomer.id}`}
-                      className="inline-flex h-10 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:text-cyan-300"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15 disabled:cursor-not-allowed disabled:text-[var(--adm-primary)]"
                     >
                       {customerMutationId === `task-create:${selectedCustomer.id}`
                         ? "Creating..."
@@ -1464,29 +1457,29 @@ export default function AdminCustomersClient({
                       tasks.map((task) => (
                         <div
                           key={task.id}
-                          className="rounded-2xl border border-white/10 bg-[#090d12] px-4 py-4"
+                          className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <div className="text-sm font-semibold text-slate-100">{task.title}</div>
+                              <div className="text-sm font-semibold text-[var(--adm-text)]">{task.title}</div>
                               <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold">
                                 <span
                                   className={`rounded-full border px-2.5 py-1 ${getTaskStatusTone(task.status)}`}
                                 >
                                   {formatTaskStatusLabel(task.status)}
                                 </span>
-                                <span className="rounded-full border border-white/10 px-2.5 py-1 text-slate-200">
+                                <span className="rounded-full border border-[var(--adm-border)] px-2.5 py-1 text-[var(--adm-text)]">
                                   {formatTaskPlaybookLabel(task.playbook)}
                                 </span>
                               </div>
                             </div>
-                            <div className="text-right text-xs text-slate-500">
+                            <div className="text-right text-xs text-[var(--adm-text-faint)]">
                               <div>{task.ownerName ?? task.ownerEmail ?? "Unassigned"}</div>
                               <div>{task.dueAt ? `Due ${formatDate(task.dueAt)}` : "No due date"}</div>
                             </div>
                           </div>
                           {task.description ? (
-                            <p className="mt-3 text-sm text-slate-300">{task.description}</p>
+                            <p className="mt-3 text-sm text-[var(--adm-text-muted)]">{task.description}</p>
                           ) : null}
                           <div className="mt-4 grid gap-2 md:grid-cols-3">
                             <select
@@ -1496,7 +1489,7 @@ export default function AdminCustomersClient({
                                   status: event.target.value as AdminCustomerTaskStatus,
                                 })
                               }
-                              className="h-9 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-xs text-slate-100 outline-none"
+                              className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs text-[var(--adm-text)] outline-none"
                             >
                               {CUSTOMER_TASK_STATUSES.map((status) => (
                                 <option key={status} value={status}>
@@ -1511,7 +1504,7 @@ export default function AdminCustomersClient({
                                   ownerId: event.target.value || null,
                                 })
                               }
-                              className="h-9 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-xs text-slate-100 outline-none"
+                              className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs text-[var(--adm-text)] outline-none"
                             >
                               <option value="">Unassigned</option>
                               {owners.map((owner) => (
@@ -1528,7 +1521,7 @@ export default function AdminCustomersClient({
                                 })
                               }
                               disabled={customerMutationId === `task:${task.id}`}
-                              className="inline-flex h-9 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:text-emerald-300"
+                              className="inline-flex h-9 items-center justify-center rounded-xl border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-3 text-xs font-semibold text-[var(--adm-success)] transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:text-[var(--adm-success)]"
                             >
                               {task.status === "ERLEDIGT" ? "Reopen" : "Mark done"}
                             </button>
@@ -1541,8 +1534,8 @@ export default function AdminCustomersClient({
               ) : null}
 
               {"crmFlags" in selectedCustomer && selectedCustomer.crmFlags.length ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     CRM flags
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -1559,8 +1552,8 @@ export default function AdminCustomersClient({
               ) : null}
 
               {selectedCustomer.type === "registered" ? (
-                <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="space-y-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     CRM actions
                   </p>
                   <textarea
@@ -1568,20 +1561,20 @@ export default function AdminCustomersClient({
                     onChange={(event) => setNoteDraft(event.target.value)}
                     rows={4}
                     placeholder="Internal notes"
-                    className="w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                    className="w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
                   />
                   <input
                     type="text"
                     value={flagDraft}
                     onChange={(event) => setFlagDraft(event.target.value)}
                     placeholder="Flags, comma separated"
-                    className="h-10 w-full rounded-2xl border border-white/10 bg-[#090d12] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                    className="h-8 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
                   />
                   <button
                     type="button"
                     onClick={saveCustomerCrm}
                     disabled={customerMutationId === selectedCustomer.id}
-                    className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:text-slate-500"
+                    className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)] disabled:cursor-not-allowed disabled:text-[var(--adm-text-faint)]"
                   >
                     {customerMutationId === selectedCustomer.id ? "Saving..." : "Save notes and flags"}
                   </button>
@@ -1589,8 +1582,8 @@ export default function AdminCustomersClient({
               ) : null}
 
               {selectedCustomer.type === "registered" ? (
-                <div className="space-y-3 rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="space-y-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Store credit workflow
                   </p>
                   <div className="grid gap-3">
@@ -1600,27 +1593,27 @@ export default function AdminCustomersClient({
                       value={storeCreditAmount}
                       onChange={(event) => setStoreCreditAmount(event.target.value)}
                       placeholder="Amount in EUR"
-                      className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                      className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
                     />
                     <input
                       type="text"
                       value={storeCreditReason}
                       onChange={(event) => setStoreCreditReason(event.target.value)}
                       placeholder="Reason"
-                      className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                      className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
                     />
                     <input
                       type="password"
                       value={storeCreditPassword}
                       onChange={(event) => setStoreCreditPassword(event.target.value)}
                       placeholder="Admin password"
-                      className="h-10 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20"
+                      className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)]"
                     />
                     <button
                       type="button"
                       onClick={issueStoreCredit}
                       disabled={customerMutationId === selectedCustomer.id}
-                      className="inline-flex h-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:text-emerald-300"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-success)] transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:text-[var(--adm-success)]"
                     >
                       {customerMutationId === selectedCustomer.id ? "Issuing..." : "Issue store credit"}
                     </button>
@@ -1629,11 +1622,11 @@ export default function AdminCustomersClient({
               ) : null}
 
               {"notes" in selectedCustomer && selectedCustomer.notes ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Notes / support context
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--adm-text-muted)]">
                     {selectedCustomer.notes}
                   </p>
                 </div>
@@ -1643,8 +1636,8 @@ export default function AdminCustomersClient({
             <EmptyPanelCopy message="Select a customer to inspect CRM signals." />
           )}
         </Panel>
-      </div>
-    </div>
+      </AdminSplitView>
+    </AdminPage>
   );
 }
 
@@ -1660,37 +1653,26 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+    <section className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
       <div className="mb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
           {eyebrow}
         </p>
-        <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-slate-400">{description}</p>
+        <h2 className="mt-2 text-lg font-semibold text-[var(--adm-text)]">{title}</h2>
+        <p className="mt-1 text-sm text-[var(--adm-text-muted)]">{description}</p>
       </div>
       {children}
     </section>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#090d12] p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
         {label}
       </p>
-      <p className="mt-2 text-lg font-semibold text-white">{value}</p>
+      <p className="mt-2 text-lg font-semibold text-[var(--adm-text)]">{value}</p>
     </div>
   );
 }
@@ -1722,8 +1704,8 @@ function SegmentFilterChip({
       onClick={onClick}
       className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
         active
-          ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-100"
-          : "border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+          ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
+          : "border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"
       }`}
     >
       {label}
@@ -1749,19 +1731,19 @@ function CustomerSummaryList({
           key={`${getCustomerKey(customer)}-${index}`}
           type="button"
           onClick={() => onSelect(customer)}
-          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition hover:bg-white/[0.05]"
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-left transition hover:bg-[var(--adm-surface-2)]"
         >
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-100">{customer.email}</p>
-            <p className="truncate text-xs text-slate-500">
+            <p className="truncate text-sm font-semibold text-[var(--adm-text)]">{customer.email}</p>
+            <p className="truncate text-xs text-[var(--adm-text-faint)]">
               {customer.name ?? "Unknown"} · {customer.orderCount} orders · {formatDate(customer.lastOrderAt)}
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <div className="text-sm font-semibold text-cyan-300">
+            <div className="text-sm font-semibold text-[var(--adm-primary)]">
               {formatEur(customer.netRevenueCents)}
             </div>
-            <div className="text-[11px] text-slate-500">{customer.segments[0] ? SEGMENT_META[customer.segments[0]].label : "Healthy"}</div>
+            <div className="text-[11px] text-[var(--adm-text-faint)]">{customer.segments[0] ? SEGMENT_META[customer.segments[0]].label : "Healthy"}</div>
           </div>
         </button>
       ))}
@@ -1772,15 +1754,15 @@ function CustomerSummaryList({
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-right text-slate-100">{value}</span>
+      <span className="text-[var(--adm-text-faint)]">{label}</span>
+      <span className="text-right text-[var(--adm-text)]">{value}</span>
     </div>
   );
 }
 
 function ActionNote({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
       {children}
     </div>
   );
@@ -1788,7 +1770,7 @@ function ActionNote({ children }: { children: React.ReactNode }) {
 
 function EmptyPanelCopy({ message }: { message: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-6 text-sm text-[var(--adm-text-faint)]">
       {message}
     </div>
   );
@@ -1805,7 +1787,7 @@ function FieldShell({
 }) {
   return (
     <div className={className}>
-      <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
         {label}
       </label>
       <div className="mt-1">{children}</div>

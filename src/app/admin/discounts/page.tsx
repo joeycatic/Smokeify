@@ -6,7 +6,7 @@ export default async function AdminDiscountsPage() {
   if (!(await requireAdminScope("discounts.manage"))) notFound();
 
   return (
-    <div className="admin-route-frame text-slate-100">
+    <div className="admin-route-frame text-[var(--adm-text)]">
       <AdminDiscountsClient />
     </div>
   );

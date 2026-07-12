@@ -6,7 +6,7 @@ export default async function AdminCategoriesPage() {
   if (!(await requireAdminScope("catalog.write"))) notFound();
 
   return (
-    <div className="admin-route-frame text-slate-100">
+    <div className="admin-route-frame text-[var(--adm-text)]">
       <AdminCategoriesClient />
     </div>
   );

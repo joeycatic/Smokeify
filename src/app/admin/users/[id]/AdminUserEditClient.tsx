@@ -8,6 +8,7 @@ import {
   CheckCircleIcon,
   EnvelopeIcon,
 } from "@heroicons/react/24/outline";
+import { AdminKpiStrip, AdminPage, AdminPageHeader, AdminPrimaryGrid, AdminStat } from "@/components/admin/ui";
 
 type CustomerGroup = "NORMAL" | "VIP" | "WHOLESALE" | "BLOCKED";
 type UserRole = "USER" | "ADMIN" | "STAFF";
@@ -105,31 +106,31 @@ type PersistedUserDraft = {
 const USER_DRAFT_STORAGE_PREFIX = "admin-user-draft:";
 
 const PANEL_CLASS =
-  "rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] shadow-[0_22px_70px_rgba(0,0,0,0.35)]";
+  "rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] shadow-[0_22px_70px_rgba(0,0,0,0.35)]";
 const INPUT_CLASS =
-  "h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10";
+  "h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10";
 const TEXTAREA_CLASS =
-  "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10";
+  "w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 py-3 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10";
 const PRIMARY_BUTTON =
-  "inline-flex h-11 items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300";
+  "inline-flex h-9 items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-white transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-[var(--adm-text-muted)]";
 const SECONDARY_BUTTON =
-  "inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:border-white/5 disabled:text-slate-500";
+  "inline-flex h-9 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] disabled:cursor-not-allowed disabled:border-[var(--adm-border)] disabled:text-[var(--adm-text-faint)]";
 const MUTED_BUTTON =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#070a0f] px-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/30 hover:text-cyan-200";
+  "inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-primary)] hover:text-[var(--adm-primary)]";
 
 const GROUP_META: Record<CustomerGroup, { label: string; className: string }> = {
-  NORMAL: { label: "Normal", className: "border-white/10 bg-white/[0.04] text-slate-300" },
-  VIP: { label: "VIP", className: "border-amber-400/20 bg-amber-400/10 text-amber-200" },
+  NORMAL: { label: "Normal", className: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]" },
+  VIP: { label: "VIP", className: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]" },
   WHOLESALE: {
     label: "Wholesale",
-    className: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+    className: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
   },
-  BLOCKED: { label: "Blocked", className: "border-rose-400/20 bg-rose-400/10 text-rose-200" },
+  BLOCKED: { label: "Blocked", className: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]" },
 };
 
 const ROLE_META: Record<UserRole, { label: string; className: string }> = {
-  USER: { label: "User", className: "border-white/10 bg-white/[0.04] text-slate-300" },
-  STAFF: { label: "Staff", className: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200" },
+  USER: { label: "User", className: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]" },
+  STAFF: { label: "Staff", className: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]" },
   ADMIN: {
     label: "Admin",
     className: "border-violet-400/20 bg-violet-400/10 text-violet-200",
@@ -137,13 +138,13 @@ const ROLE_META: Record<UserRole, { label: string; className: string }> = {
 };
 
 const ORDER_STATUS_META: Record<string, string> = {
-  pending: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-  processing: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+  pending: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  processing: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
   shipped: "border-sky-400/20 bg-sky-400/10 text-sky-200",
-  delivered: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-  cancelled: "border-rose-400/20 bg-rose-400/10 text-rose-200",
-  canceled: "border-rose-400/20 bg-rose-400/10 text-rose-200",
-  refunded: "border-white/10 bg-white/[0.04] text-slate-300",
+  delivered: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+  cancelled: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
+  canceled: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
+  refunded: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]",
 };
 
 const ANALYZER_STOREFRONT_META: Record<
@@ -152,7 +153,7 @@ const ANALYZER_STOREFRONT_META: Record<
 > = {
   Smokeify: {
     label: "Smokeify",
-    className: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+    className: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
   },
   Growvault: {
     label: "Growvault",
@@ -161,16 +162,16 @@ const ANALYZER_STOREFRONT_META: Record<
 };
 
 const ANALYZER_HEALTH_META: Record<string, string> = {
-  HEALTHY: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-  WARNING: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-  CRITICAL: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+  HEALTHY: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+  WARNING: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  CRITICAL: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
 };
 
 const ANALYZER_REVIEW_META: Record<string, string> = {
-  UNREVIEWED: "border-white/10 bg-white/[0.04] text-slate-300",
-  REVIEWED_OK: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+  UNREVIEWED: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]",
+  REVIEWED_OK: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
   REVIEWED_INCORRECT: "border-orange-400/20 bg-orange-400/10 text-orange-200",
-  REVIEWED_UNSAFE: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+  REVIEWED_UNSAFE: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
   NEEDS_PROMPT_FIX: "border-violet-400/20 bg-violet-400/10 text-violet-200",
   NEEDS_RECOMMENDATION_FIX: "border-sky-400/20 bg-sky-400/10 text-sky-200",
   PRIVACY_REVIEW: "border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-200",
@@ -446,15 +447,28 @@ export default function AdminUserEditClient({
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="admin-reveal relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,14,20,0.96),rgba(15,23,42,0.9))] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.4)] sm:p-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.1),transparent_22%)]" />
+    <AdminPage layout="editor">
+      <AdminPageHeader
+        eyebrow="Admin / Users / Detail"
+        title={displayName}
+        description="Identity, access governance, customer context, activity, and destructive controls."
+        actions={<><Link href="/admin/users" className={MUTED_BUTTON}>All users</Link><button type="button" onClick={handleSave} disabled={saving || !hasUnsavedChanges} className={PRIMARY_BUTTON}>{saving ? "Saving..." : "Save changes"}</button></>}
+      >
+        <AdminKpiStrip>
+          <AdminStat label="Role" value={roleMeta.label} />
+          <AdminStat label="Customer group" value={groupMeta.label} />
+          <AdminStat label="Recent orders" value={recentOrders.length} />
+          <AdminStat label="Marketing" value={form.newsletterOptIn ? "Opted in" : "Not subscribed"} />
+        </AdminKpiStrip>
+      </AdminPageHeader>
+      <section className="hidden">
+        <div className="absolute inset-0 bg-[var(--adm-surface)]" />
         <div className="relative space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
               <Link
                 href="/admin/users"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                className="inline-flex h-8 w-10 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               >
                 <ArrowLeftIcon className="h-4 w-4" />
               </Link>
@@ -472,17 +486,17 @@ export default function AdminUserEditClient({
 
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex min-w-0 items-start gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.06] text-xl font-semibold text-white shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-xl font-semibold text-[var(--adm-text)] shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
                   User profile
                 </p>
-                <h1 className="mt-2 truncate text-3xl font-semibold text-white">
+                <h1 className="mt-2 truncate text-3xl font-semibold text-[var(--adm-text)]">
                   {displayName}
                 </h1>
-                <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                <p className="mt-2 max-w-3xl text-sm text-[var(--adm-text-muted)]">
                   Edit customer identity, shipping profile, internal notes, and trigger a password
                   reset email without leaving the user record.
                 </p>
@@ -492,8 +506,8 @@ export default function AdminUserEditClient({
                   <Badge
                     className={
                       account.newsletterOptIn
-                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                        : "border-white/10 bg-white/[0.04] text-slate-300"
+                        ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                        : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                     }
                   >
                     {account.newsletterOptIn ? "Marketing opt-in" : "No marketing opt-in"}
@@ -527,13 +541,13 @@ export default function AdminUserEditClient({
             {infoCards.map((card) => (
               <div
                 key={card.label}
-                className="rounded-[24px] border border-white/10 bg-black/20 p-4 backdrop-blur"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4 backdrop-blur"
               >
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                   {card.label}
                 </div>
-                <div className="mt-2 text-sm font-semibold text-white">{card.value}</div>
-                <div className="mt-2 text-xs text-slate-400">{card.detail}</div>
+                <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">{card.value}</div>
+                <div className="mt-2 text-xs text-[var(--adm-text-muted)]">{card.detail}</div>
               </div>
             ))}
           </div>
@@ -555,7 +569,7 @@ export default function AdminUserEditClient({
       {notice ? <Banner tone="success">{notice}</Banner> : null}
       {error ? <Banner tone="error">{error}</Banner> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.9fr)]">
+      <AdminPrimaryGrid rail="narrow">
         <div className="space-y-6">
           <SectionCard title="Identity and contact" description="Core account identifiers and customer-facing name fields.">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -666,13 +680,13 @@ export default function AdminUserEditClient({
                   ))}
                 </select>
                 {actorRole !== "ADMIN" ? (
-                  <div className="mt-2 text-xs text-slate-500">
+                  <div className="mt-2 text-xs text-[var(--adm-text-faint)]">
                     Only admins can change the customer group.
                   </div>
                 ) : null}
               </Field>
               <Field label="Marketing opt-in">
-                <label className="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-sm text-slate-200">
+                <label className="flex min-h-9 items-center gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 text-sm text-[var(--adm-text)]">
                   <input
                     type="checkbox"
                     checked={form.newsletterOptIn}
@@ -680,7 +694,7 @@ export default function AdminUserEditClient({
                     className="h-4 w-4 accent-cyan-300"
                   />
                   <span>{form.newsletterOptIn ? "Subscribed" : "Not subscribed"}</span>
-                  <span className="ml-auto text-xs text-slate-500">
+                  <span className="ml-auto text-xs text-[var(--adm-text-faint)]">
                     {account.newsletterOptInAt
                       ? `Since ${formatDateTime(account.newsletterOptInAt)}`
                       : "No timestamp"}
@@ -705,7 +719,7 @@ export default function AdminUserEditClient({
             description="Plant analyzer activity connected to this account across Smokeify and Growvault."
           >
             {analyzerBridgeError ? (
-              <div className="rounded-[22px] border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+              <div className="rounded-[22px] border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
                 Growvault runs could not be loaded: {analyzerBridgeError}
               </div>
             ) : null}
@@ -729,30 +743,30 @@ export default function AdminUserEditClient({
                   {recentOrders.map((order) => (
                     <div
                       key={order.id}
-                      className="rounded-[22px] border border-white/10 bg-[#070a0f] p-4"
+                      className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <Link
                             href={`/admin/orders/${order.id}`}
-                            className="text-sm font-semibold text-cyan-200 underline-offset-4 hover:underline"
+                            className="text-sm font-semibold text-[var(--adm-primary)] underline-offset-4 hover:underline"
                           >
                             Order #{order.orderNumber}
                           </Link>
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                             {formatDateTime(order.createdAt)}
                           </div>
                         </div>
                         <Badge
                           className={
                             ORDER_STATUS_META[order.status] ??
-                            "border-white/10 bg-white/[0.04] text-slate-300"
+                            "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                           }
                         >
                           {order.status}
                         </Badge>
                       </div>
-                      <div className="mt-4 text-sm font-semibold text-white">
+                      <div className="mt-4 text-sm font-semibold text-[var(--adm-text)]">
                         {formatMoney(order.amountTotal)}
                       </div>
                     </div>
@@ -761,7 +775,7 @@ export default function AdminUserEditClient({
 
                 <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[36rem] text-left text-sm">
-                    <thead className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    <thead className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                       <tr>
                         <th className="pb-3 pr-4">Order</th>
                         <th className="pb-3 pr-4">Status</th>
@@ -775,7 +789,7 @@ export default function AdminUserEditClient({
                           <td className="py-3 pr-4">
                             <Link
                               href={`/admin/orders/${order.id}`}
-                              className="font-semibold text-cyan-200 underline-offset-4 hover:underline"
+                              className="font-semibold text-[var(--adm-primary)] underline-offset-4 hover:underline"
                             >
                               #{order.orderNumber}
                             </Link>
@@ -784,16 +798,16 @@ export default function AdminUserEditClient({
                             <Badge
                               className={
                                 ORDER_STATUS_META[order.status] ??
-                                "border-white/10 bg-white/[0.04] text-slate-300"
+                                "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                               }
                             >
                               {order.status}
                             </Badge>
                           </td>
-                          <td className="py-3 pr-4 text-slate-200">
+                          <td className="py-3 pr-4 text-[var(--adm-text)]">
                             {formatMoney(order.amountTotal)}
                           </td>
-                          <td className="py-3 text-slate-400">{formatDateTime(order.createdAt)}</td>
+                          <td className="py-3 text-[var(--adm-text-muted)]">{formatDateTime(order.createdAt)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -866,42 +880,42 @@ export default function AdminUserEditClient({
           </SectionCard>
 
           <div className={`${PANEL_CLASS} overflow-hidden`}>
-            <div className="border-b border-white/10 px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="border-b border-[var(--adm-border)] px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                 Save status
               </p>
             </div>
-            <div className="space-y-3 p-5 text-sm text-slate-300">
-              <div className="flex items-start gap-3 rounded-[20px] border border-white/10 bg-[#070a0f] p-4">
+            <div className="space-y-3 p-5 text-sm text-[var(--adm-text-muted)]">
+              <div className="flex items-start gap-3 rounded-[20px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
                 <div
                   className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                     hasUnsavedChanges
-                      ? "bg-amber-400/10 text-amber-200"
-                      : "bg-emerald-400/10 text-emerald-200"
+                      ? "bg-[#fff4dd] text-[#81560e]"
+                      : "bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
                   }`}
                 >
                   <CheckCircleIcon className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="font-semibold text-white">
+                  <div className="font-semibold text-[var(--adm-text)]">
                     {hasUnsavedChanges ? "Changes pending" : "Record synchronized"}
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                     {hasUnsavedChanges
                       ? "This browser session contains local edits that are not persisted yet."
                       : "The last successful save matches the current form state."}
                   </div>
                 </div>
               </div>
-              <div className="rounded-[20px] border border-white/10 bg-[#070a0f] p-4 text-xs text-slate-500">
+              <div className="rounded-[20px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 text-xs text-[var(--adm-text-faint)]">
                 Password reset emails use the currently saved account email. If you edit the email
                 field, save first so the reset message goes to the correct address.
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </AdminPrimaryGrid>
+    </AdminPage>
   );
 }
 
@@ -910,7 +924,7 @@ function AnalyzerRunRow({ run }: { run: AnalyzerRun }) {
   const issueLabels = run.issues.map((issue) => issue.label).filter(Boolean);
 
   return (
-    <div className="rounded-[22px] border border-white/10 bg-[#070a0f] p-4">
+    <div className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -918,7 +932,7 @@ function AnalyzerRunRow({ run }: { run: AnalyzerRun }) {
             <Badge
               className={
                 ANALYZER_HEALTH_META[run.healthStatus] ??
-                "border-white/10 bg-white/[0.04] text-slate-300"
+                "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
               }
             >
               {run.healthStatus}
@@ -926,16 +940,16 @@ function AnalyzerRunRow({ run }: { run: AnalyzerRun }) {
             <Badge
               className={
                 ANALYZER_REVIEW_META[run.reviewStatus] ??
-                "border-white/10 bg-white/[0.04] text-slate-300"
+                "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
               }
             >
               {run.reviewStatus}
             </Badge>
           </div>
-          <div className="mt-3 text-sm font-semibold text-white">
+          <div className="mt-3 text-sm font-semibold text-[var(--adm-text)]">
             {run.species || "Unknown plant"}
           </div>
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--adm-text-faint)]">
             <span>{formatDateTime(run.createdAt)}</span>
             <span>Confidence {formatPercent(run.confidence)}</span>
             {run.latencyMs ? <span>{run.latencyMs}ms</span> : null}
@@ -948,17 +962,17 @@ function AnalyzerRunRow({ run }: { run: AnalyzerRun }) {
               {issueLabels.slice(0, 6).map((label) => (
                 <span
                   key={`${run.id}:${label}`}
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300"
+                  className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)]"
                 >
                   {label}
                 </span>
               ))}
             </div>
           ) : (
-            <div className="mt-3 text-xs text-slate-500">No stored issue labels.</div>
+            <div className="mt-3 text-xs text-[var(--adm-text-faint)]">No stored issue labels.</div>
           )}
         </div>
-        <div className="shrink-0 text-right text-xs text-slate-500">
+        <div className="shrink-0 text-right text-xs text-[var(--adm-text-faint)]">
           <div className="font-mono">{run.id}</div>
           <div className="mt-2">
             Feedback: {run.feedbackCount}
@@ -970,7 +984,7 @@ function AnalyzerRunRow({ run }: { run: AnalyzerRun }) {
             ) : null}
           </div>
           {run.safetyFlags.length > 0 ? (
-            <div className="mt-1 font-semibold text-rose-200">
+            <div className="mt-1 font-semibold text-[var(--adm-error)]">
               {run.safetyFlags.length} safety flag
               {run.safetyFlags.length === 1 ? "" : "s"}
             </div>
@@ -1008,14 +1022,14 @@ function Banner({
 }) {
   const toneClass =
     tone === "success"
-      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+      ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
       : tone === "error"
-        ? "border-rose-400/20 bg-rose-400/10 text-rose-100"
-        : "border-cyan-400/20 bg-cyan-400/10 text-cyan-100";
+        ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
+        : "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]";
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-3 rounded-[24px] border px-4 py-3 text-sm ${toneClass}`}
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${toneClass}`}
     >
       <span>{children}</span>
       {action}
@@ -1034,11 +1048,11 @@ function SectionCard({
 }) {
   return (
     <section className={`${PANEL_CLASS} overflow-hidden`}>
-      <div className="border-b border-white/10 px-5 py-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+      <div className="border-b border-[var(--adm-border)] px-5 py-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
           {title}
         </p>
-        <p className="mt-2 text-sm text-slate-400">{description}</p>
+        <p className="mt-2 text-sm text-[var(--adm-text-muted)]">{description}</p>
       </div>
       <div className="space-y-4 p-5">{children}</div>
     </section>
@@ -1054,7 +1068,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
         {label}
       </div>
       {children}
@@ -1064,7 +1078,7 @@ function Field({
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-[#070a0f] px-4 py-8 text-center text-sm text-slate-500">
+    <div className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-center text-sm text-[var(--adm-text-faint)]">
       {children}
     </div>
   );
@@ -1081,14 +1095,14 @@ function SnapshotRow({
 }) {
   const valueClass =
     tone === "success"
-      ? "text-emerald-200"
+      ? "text-[var(--adm-success)]"
       : tone === "warning"
-        ? "text-amber-200"
-        : "text-slate-100";
+        ? "text-[#81560e]"
+        : "text-[var(--adm-text)]";
 
   return (
-    <div className="rounded-[20px] border border-white/10 bg-[#070a0f] px-4 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+    <div className="rounded-[20px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
         {label}
       </div>
       <div className={`mt-2 text-sm font-semibold ${valueClass}`}>{value}</div>
@@ -1108,28 +1122,28 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
   const hasChanges = rawChanges && Object.keys(rawChanges).length > 0;
 
   return (
-    <div className="rounded-[22px] border border-white/10 bg-[#070a0f] p-4">
+    <div className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+            <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)]">
               {entry.action}
             </span>
             {entry.summary ? (
-              <span className="text-sm text-slate-300">{entry.summary}</span>
+              <span className="text-sm text-[var(--adm-text-muted)]">{entry.summary}</span>
             ) : null}
           </div>
-          <div className="mt-2 text-xs text-slate-500">
+          <div className="mt-2 text-xs text-[var(--adm-text-faint)]">
             {entry.actorEmail ? `Actor: ${entry.actorEmail}` : "Actor email not stored"}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500">{formatDateTime(entry.createdAt)}</span>
+          <span className="text-xs text-[var(--adm-text-faint)]">{formatDateTime(entry.createdAt)}</span>
           {hasChanges ? (
             <button
               type="button"
               onClick={() => setOpen((current) => !current)}
-              className="text-xs font-semibold text-cyan-200"
+              className="text-xs font-semibold text-[var(--adm-primary)]"
             >
               {open ? "Hide details" : "Show details"}
             </button>
@@ -1138,21 +1152,21 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
       </div>
 
       {open && hasChanges ? (
-        <div className="mt-4 overflow-hidden rounded-[18px] border border-white/10">
+        <div className="mt-4 overflow-hidden rounded-[18px] border border-[var(--adm-border)]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-white/[0.03] text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <thead className="bg-[var(--adm-surface)] text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
               <tr>
                 <th className="px-4 py-3">Field</th>
                 <th className="px-4 py-3">Before</th>
                 <th className="px-4 py-3">After</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 bg-[#070a0f]">
+            <tbody className="divide-y divide-white/5 bg-[var(--adm-surface)]">
               {Object.entries(rawChanges).map(([field, change]) => (
                 <tr key={field}>
-                  <td className="px-4 py-3 font-medium text-slate-200">{field}</td>
-                  <td className="px-4 py-3 text-slate-400">{formatAuditValue(change.from)}</td>
-                  <td className="px-4 py-3 text-slate-200">{formatAuditValue(change.to)}</td>
+                  <td className="px-4 py-3 font-medium text-[var(--adm-text)]">{field}</td>
+                  <td className="px-4 py-3 text-[var(--adm-text-muted)]">{formatAuditValue(change.from)}</td>
+                  <td className="px-4 py-3 text-[var(--adm-text)]">{formatAuditValue(change.to)}</td>
                 </tr>
               ))}
             </tbody>

@@ -20,6 +20,7 @@ import {
   AdminNotice,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminPageHeader } from "@/components/admin/ui";
 import { fetchAdminJson } from "@/lib/adminClientFetch";
 import {
   ADMIN_ANALYTICS_PRESET_OPTIONS,
@@ -407,7 +408,7 @@ const windowCopy: Record<number, { label: string; adjective: string; horizon: st
   365: { label: "1 year", adjective: "1-year", horizon: "current yearly window" },
 };
 
-const chartPalette = ["#22d3ee", "#818cf8", "#34d399", "#f59e0b", "#fb7185", "#c084fc"];
+const chartPalette = ["#2f6690", "#bd5b2b", "#5f8b72", "#e2a136", "#c0432c", "#8b6e5c"];
 
 const formatPrice = (amount: number, currency = "EUR") =>
   formatAdminMoney(amount, "de-DE", currency);
@@ -466,10 +467,10 @@ const issueTypeLabel: Record<ActionIssueType, string> = {
 };
 
 const severityClassName: Record<ActionItem["severity"], string> = {
-  critical: "border-rose-400/30 bg-rose-400/10 text-rose-100",
-  warning: "border-amber-400/30 bg-amber-400/10 text-amber-100",
-  info: "border-cyan-300/25 bg-cyan-300/10 text-cyan-100",
-  success: "border-emerald-400/25 bg-emerald-400/10 text-emerald-100",
+  critical: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
+  warning: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  info: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
+  success: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
 };
 
 const formatActionMetric = (
@@ -503,11 +504,11 @@ function WorkspaceHeader({
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
           {eyebrow}
         </p>
-        <h2 className="mt-2 text-xl font-semibold text-white">{title}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{description}</p>
+        <h2 className="mt-2 text-xl font-semibold text-[var(--adm-text)]">{title}</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--adm-text-muted)]">{description}</p>
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </div>
@@ -532,8 +533,8 @@ function SegmentButtons<T extends string>({
           onClick={() => onChange(option.value)}
           className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
             option.value === value
-              ? "border-cyan-300/30 bg-cyan-300/14 text-cyan-100"
-              : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
+              ? "border-[var(--adm-primary)] bg-cyan-300/14 text-[var(--adm-primary)]"
+              : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
           }`}
         >
           {option.label}
@@ -568,8 +569,8 @@ function OperationsTabs({
           onClick={() => onChange(tab.id)}
           className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
             tab.id === activeTab
-              ? "border-cyan-300/30 bg-cyan-300/14 text-cyan-100"
-              : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
+              ? "border-[var(--adm-primary)] bg-cyan-300/14 text-[var(--adm-primary)]"
+              : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
           }`}
         >
           {tab.label}
@@ -646,8 +647,8 @@ function ActionCenter({
                 onClick={() => onSelectIssueType(option.value)}
                 className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
                   option.value === selectedIssueType
-                    ? "border-cyan-300/30 bg-cyan-300/14 text-cyan-100"
-                    : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
+                    ? "border-[var(--adm-primary)] bg-cyan-300/14 text-[var(--adm-primary)]"
+                    : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                 }`}
               >
                 {option.label}
@@ -664,20 +665,20 @@ function ActionCenter({
           className="xl:col-span-8"
           actions={
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100">
+              <span className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--adm-error)]">
                 {criticalCount} critical
               </span>
-              <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+              <span className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#81560e]">
                 {warningCount} warning
               </span>
-              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+              <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--adm-primary)]">
                 {infoCount} info
               </span>
             </div>
           }
         >
           {filteredItems.length === 0 ? (
-            <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
               No action items match this issue type for the selected scope.
             </div>
           ) : (
@@ -689,10 +690,10 @@ function ActionCenter({
                     key={item.id}
                     type="button"
                     onClick={() => onSelectActionId(item.id)}
-                    className={`rounded-[24px] border p-4 text-left transition ${
+                    className={`rounded-xl border p-4 text-left transition ${
                       active
-                        ? "border-cyan-300/30 bg-cyan-300/10"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                        ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)]"
+                        : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                     }`}
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -703,14 +704,14 @@ function ActionCenter({
                           >
                             {item.severity}
                           </span>
-                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                          <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-muted)]">
                             {issueTypeLabel[item.type]}
                           </span>
                         </div>
-                        <div className="mt-3 text-base font-semibold text-white">
+                        <div className="mt-3 text-base font-semibold text-[var(--adm-text)]">
                           {item.title}
                         </div>
-                        <div className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                        <div className="mt-2 max-w-3xl text-sm leading-6 text-[var(--adm-text-muted)]">
                           {item.summary}
                         </div>
                       </div>
@@ -835,7 +836,7 @@ function TrendComposer({
 
   if (trend.length === 0) {
     return (
-      <div className="flex min-h-[22rem] items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-white/[0.03] text-sm text-slate-500">
+      <div className="flex min-h-[22rem] items-center justify-center rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] text-sm text-[var(--adm-text-faint)]">
         No revenue trend is available for this scope.
       </div>
     );
@@ -879,32 +880,32 @@ function TrendComposer({
   const activePoint = points[Math.min(Math.max(activeIndex, 0), points.length - 1)];
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(7,12,18,0.98),rgba(5,9,14,0.96))]">
-      <div className="grid gap-4 border-b border-white/10 px-4 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:px-5">
+    <div className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
+      <div className="grid gap-4 border-b border-[var(--adm-border)] px-4 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:px-5">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
             Recognized revenue pulse
           </div>
           <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Revenue</div>
-              <div className="mt-1 text-2xl font-semibold text-white">
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">Revenue</div>
+              <div className="mt-1 text-2xl font-semibold text-[var(--adm-text)]">
                 {formatPrice(summary.revenue.current, currency)}
               </div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Paid orders</div>
-              <div className="mt-1 text-2xl font-semibold text-white">
+              <div className="text-xs uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">Paid orders</div>
+              <div className="mt-1 text-2xl font-semibold text-[var(--adm-text)]">
                 {formatCount(summary.paidOrders.current)}
               </div>
             </div>
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3 text-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
             {activePoint.label}
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-slate-300">
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[var(--adm-text-muted)]">
             <span>{formatPrice(activePoint.revenueCents, currency)}</span>
             <span>{formatCount(activePoint.paidOrders)} paid</span>
             <span>{percent(activePoint.sessionConversionRate)} CVR</span>
@@ -953,7 +954,7 @@ function TrendComposer({
           <path
             d={linePath}
             fill="none"
-            stroke="#22d3ee"
+            stroke="#2f6690"
             strokeWidth="3"
             vectorEffect="non-scaling-stroke"
           />
@@ -973,8 +974,8 @@ function TrendComposer({
                 cx={point.x}
                 cy={point.y}
                 r={index === activeIndex ? "6" : "4"}
-                fill={index === activeIndex ? "#22d3ee" : "#0f172a"}
-                stroke="#22d3ee"
+                fill={index === activeIndex ? "#2f6690" : "#0f172a"}
+                stroke="#2f6690"
                 strokeWidth="2"
               />
               <rect
@@ -990,12 +991,12 @@ function TrendComposer({
           ))}
         </svg>
 
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--adm-text-faint)]">
           <span>Revenue line</span>
           <span>Paid order bars</span>
         </div>
 
-        <div className="mt-3 grid grid-cols-4 gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-500 sm:grid-cols-8">
+        <div className="mt-3 grid grid-cols-4 gap-2 text-[10px] uppercase tracking-[0.16em] text-[var(--adm-text-faint)] sm:grid-cols-8">
           {points.slice(-8).map((point) => (
             <span key={point.label} className="truncate">
               {point.label}
@@ -1028,7 +1029,7 @@ function FunnelRail({
       helper: "Entry volume",
       ratio: 1,
       dropoff: 0,
-      color: "#22d3ee",
+      color: "#2f6690",
       meaning: "Tracked visits with consent in the selected window.",
     },
     {
@@ -1038,7 +1039,7 @@ function FunnelRail({
       helper: percent(data.sessions > 0 ? data.productViews / data.sessions : 0),
       ratio: data.sessionToProductRate,
       dropoff: data.sessions > 0 ? Math.max(data.sessions - data.productViews, 0) / data.sessions : 0,
-      color: "#60a5fa",
+      color: "#2f6690",
       meaning: "Users who reached a product detail page.",
     },
     {
@@ -1048,7 +1049,7 @@ function FunnelRail({
       helper: percent(data.viewToCartRate),
       ratio: data.viewToCartRate,
       dropoff: data.productAbandonmentRate,
-      color: "#f59e0b",
+      color: "#e2a136",
       meaning: "Product viewers who showed buying intent.",
     },
     {
@@ -1058,7 +1059,7 @@ function FunnelRail({
       helper: percent(data.cartToViewCartRate),
       ratio: data.cartToViewCartRate,
       dropoff: data.cartToViewCartDropoffRate,
-      color: "#fb7185",
+      color: "#c0432c",
       meaning: "Cart adders who opened the cart surface.",
     },
     {
@@ -1068,7 +1069,7 @@ function FunnelRail({
       helper: percent(data.viewCart > 0 ? data.viewCartToCheckoutRate : data.cartToCheckoutRate),
       ratio: data.viewCart > 0 ? data.viewCartToCheckoutRate : data.cartToCheckoutRate,
       dropoff: data.viewCart > 0 ? data.viewCartAbandonmentRate : data.cartAbandonmentRate,
-      color: "#c084fc",
+      color: "#8b6e5c",
       meaning: "Sessions that crossed into the checkout funnel.",
     },
     {
@@ -1078,7 +1079,7 @@ function FunnelRail({
       helper: percent(data.addressViewToSubmitRate || data.checkoutToShippingRate),
       ratio: data.addressViewToSubmitRate || data.checkoutToShippingRate,
       dropoff: data.addressSubmitDropoffRate || data.checkoutStepAbandonmentRate,
-      color: "#a3e635",
+      color: "#6f8f65",
       meaning: "Checkout starters who submitted delivery information.",
     },
     {
@@ -1088,7 +1089,7 @@ function FunnelRail({
       helper: percent(data.paymentViewToHandoffRate || data.shippingToPaymentRate),
       ratio: data.paymentViewToHandoffRate || data.shippingToPaymentRate,
       dropoff: data.paymentHandoffDropoffRate || data.shippingAbandonmentRate,
-      color: "#2dd4bf",
+      color: "#4f7b67",
       meaning: "Address-submitters who reached Viva/payment handoff.",
     },
     {
@@ -1114,7 +1115,7 @@ function FunnelRail({
           : data.paymentInfo > 0
             ? data.paymentAbandonmentRate
             : data.checkoutAbandonmentRate,
-      color: "#34d399",
+      color: "#5f8b72",
       meaning: "Recognized paid orders, with purchase events as the first fallback.",
     },
   ];
@@ -1128,7 +1129,7 @@ function FunnelRail({
       helper: percent(data.checkoutToAddressViewRate || (data.beginCheckout > 0 ? 1 : 0)),
       ratio: data.checkoutToAddressViewRate || (data.beginCheckout > 0 ? 1 : 0),
       dropoff: data.checkoutAddressViewDropoffRate,
-      color: "#818cf8",
+      color: "#bd5b2b",
       meaning: "Checkout starters who loaded the delivery form.",
     },
     {
@@ -1149,7 +1150,7 @@ function FunnelRail({
           ? Math.max(addressViewValue - data.checkoutSubmitAttempt, 0) /
             Math.max(addressViewValue, 1)
           : data.addressSubmitDropoffRate,
-      color: "#facc15",
+      color: "#e2a136",
       meaning: "Visitors who pressed the address form submit button.",
     },
   );
@@ -1163,7 +1164,7 @@ function FunnelRail({
       helper: percent(data.shippingToPaymentViewRate || (data.shippingInfo > 0 ? 1 : 0)),
       ratio: data.shippingToPaymentViewRate || (data.shippingInfo > 0 ? 1 : 0),
       dropoff: data.shippingToPaymentViewDropoffRate,
-      color: "#38bdf8",
+      color: "#1f5f3f",
       meaning: "Address-submitters who loaded the payment handoff page.",
     },
   );
@@ -1177,7 +1178,7 @@ function FunnelRail({
       helper: percent(data.handoffToRedirectRate || (data.paymentInfo > 0 ? 1 : 0)),
       ratio: data.handoffToRedirectRate || (data.paymentInfo > 0 ? 1 : 0),
       dropoff: data.handoffRedirectDropoffRate,
-      color: "#14b8a6",
+      color: "#557a68",
       meaning: "Payment handoffs that actually started the external Viva redirect.",
     },
   );
@@ -1204,20 +1205,20 @@ function FunnelRail({
               onClick={() => onSelect(stage.label)}
               className={`grid w-full gap-3 rounded-[18px] border px-3 py-3 text-left transition duration-200 md:grid-cols-[144px_minmax(0,1fr)_112px] md:items-center ${
                 active
-                  ? "border-cyan-300/35 bg-cyan-300/10 shadow-[0_16px_42px_rgba(34,211,238,0.08)]"
-                  : "border-white/10 bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.045]"
+                  ? "border-cyan-300/35 bg-[var(--adm-primary-soft)] shadow-[0_16px_42px_rgba(34,211,238,0.08)]"
+                  : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               }`}
             >
               <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
                   {String(index + 1).padStart(2, "0")} / {stage.label}
                 </div>
-                <div className="mt-1 text-lg font-semibold text-white">
+                <div className="mt-1 text-lg font-semibold text-[var(--adm-text)]">
                   {formatCount(stage.value)}
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="h-3 overflow-hidden rounded-full bg-white/[0.07]">
+                <div className="h-3 overflow-hidden rounded-full bg-[var(--adm-surface-2)]">
                   <div
                     className="h-full rounded-full transition-[width] duration-500 ease-out"
                     style={{
@@ -1226,23 +1227,23 @@ function FunnelRail({
                     }}
                   />
                 </div>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--adm-text-muted)]">
                   <span>{stage.previousValue === null ? "baseline" : `${stage.helper} retained`}</span>
                   {stage.previousValue !== null ? (
-                    <span className={stage.dropoff >= 0.4 ? "text-rose-200" : "text-slate-500"}>
+                    <span className={stage.dropoff >= 0.4 ? "text-[var(--adm-error)]" : "text-[var(--adm-text-faint)]"}>
                       {formatCount(lostCount)} lost
                     </span>
                   ) : null}
                 </div>
               </div>
               <div className="flex items-center justify-between gap-2 md:block md:text-right">
-                <div className="text-xs uppercase tracking-[0.14em] text-slate-500">drop-off</div>
+                <div className="text-xs uppercase tracking-[0.14em] text-[var(--adm-text-faint)]">drop-off</div>
                 <div className={`mt-1 text-base font-semibold ${
                   stage.dropoff >= 0.5
-                    ? "text-rose-200"
+                    ? "text-[var(--adm-error)]"
                     : stage.dropoff >= 0.25
-                      ? "text-amber-200"
-                      : "text-emerald-200"
+                      ? "text-[#81560e]"
+                      : "text-[var(--adm-success)]"
                 }`}>
                   {stage.previousValue === null ? "-" : percent(stage.dropoff)}
                 </div>
@@ -1251,14 +1252,14 @@ function FunnelRail({
           );
         })}
       </div>
-      <div className="rounded-[22px] border border-white/10 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.13),transparent_34%),rgba(255,255,255,0.035)] p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200">
+      <div className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--adm-primary)]">
           Selected step
         </div>
-        <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">
+        <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--adm-text)]">
           {selectedStage.label}
         </div>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{selectedStage.meaning}</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">{selectedStage.meaning}</p>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <AdminCompactMetric label="Sessions" value={formatCount(selectedStage.value)} />
           <AdminCompactMetric
@@ -1279,7 +1280,7 @@ function FunnelRail({
           />
         </div>
         {worstDropoff ? (
-          <div className="mt-4 rounded-[18px] border border-amber-300/18 bg-amber-300/8 px-3 py-3 text-xs leading-5 text-amber-100">
+          <div className="mt-4 rounded-[18px] border border-amber-300/18 bg-amber-300/8 px-3 py-3 text-xs leading-5 text-[#81560e]">
             Biggest leak: <span className="font-semibold">{worstDropoff.label}</span>{" "}
             loses {percent(worstDropoff.dropoff)} from the previous step.
           </div>
@@ -1307,21 +1308,21 @@ function MobileOperationCards({
             key={row.id}
             type="button"
             onClick={() => onSelect(row.id)}
-            className={`block w-full rounded-2xl border p-3 text-left transition ${
+            className={`block w-full rounded-xl border p-3 text-left transition ${
               active
-                ? "border-cyan-400/25 bg-cyan-400/8"
-                : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                ? "border-[var(--adm-primary)] bg-[var(--adm-primary)]/8"
+                : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
             }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-slate-100">{row.title}</div>
-                <div className="mt-1 text-xs text-slate-500">{row.subtitle}</div>
+                <div className="truncate text-sm font-semibold text-[var(--adm-text)]">{row.title}</div>
+                <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{row.subtitle}</div>
               </div>
               <div className="shrink-0 text-right">
-                <div className="text-sm font-semibold text-white">{row.primaryValue}</div>
+                <div className="text-sm font-semibold text-[var(--adm-text)]">{row.primaryValue}</div>
                 {row.secondaryValue ? (
-                  <div className="text-xs text-slate-400">{row.secondaryValue}</div>
+                  <div className="text-xs text-[var(--adm-text-muted)]">{row.secondaryValue}</div>
                 ) : null}
               </div>
             </div>
@@ -1615,21 +1616,21 @@ function RevenueWorkspace({
               ))}
             </div>
 
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
               <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Abandonment explorer
                   </div>
-                  <div className="mt-2 text-lg font-semibold text-white">
+                  <div className="mt-2 text-lg font-semibold text-[var(--adm-text)]">
                     Click each stage to see where users leak before purchase.
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
+                <div className="flex flex-wrap gap-2 text-xs text-[var(--adm-text-muted)]">
+                  <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2">
                     Session CVR {percent(data.funnel.sessionToOrderRate)}
                   </span>
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2">
                     Payment handoff {percent(data.funnel.shippingToPaymentRate)}
                   </span>
                 </div>
@@ -1748,8 +1749,8 @@ function AcquisitionWorkspace({
         label: "Page",
         render: (row) => (
           <div>
-            <div className="font-semibold text-slate-100">{row.path}</div>
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{row.pageType}</div>
+            <div className="font-semibold text-[var(--adm-text)]">{row.path}</div>
+            <div className="text-xs uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">{row.pageType}</div>
           </div>
         ),
       },
@@ -1793,12 +1794,12 @@ function AcquisitionWorkspace({
                 data={sourceBars}
                 valueFormatter={(value) => `${formatCount(value)} sessions`}
                 secondaryValueFormatter={(value) => `${formatCount(value)} checkout starts`}
-                colorClassName="bg-cyan-400"
+                colorClassName="bg-[var(--adm-primary)]"
                 selectedLabel={selectedSource?.label}
                 onSelect={onSelectSourceLabel}
               />
               <div>
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                   Live pages
                 </div>
                 <div className="md:hidden">
@@ -2261,8 +2262,8 @@ function OperationsWorkspace({
         label: "Item",
         render: (row) => (
           <div>
-            <div className="font-semibold text-slate-100">{row.title}</div>
-            <div className="text-xs text-slate-500">{row.subtitle}</div>
+            <div className="font-semibold text-[var(--adm-text)]">{row.title}</div>
+            <div className="text-xs text-[var(--adm-text-faint)]">{row.subtitle}</div>
           </div>
         ),
       },
@@ -2272,8 +2273,8 @@ function OperationsWorkspace({
         align: "right",
         render: (row) => (
           <div>
-            <div className="font-medium text-slate-100">{row.primaryValue}</div>
-            <div className="text-xs text-slate-500">{row.primaryLabel}</div>
+            <div className="font-medium text-[var(--adm-text)]">{row.primaryValue}</div>
+            <div className="text-xs text-[var(--adm-text-faint)]">{row.primaryLabel}</div>
           </div>
         ),
         sortValue: (row) => row.primarySort,
@@ -2285,11 +2286,11 @@ function OperationsWorkspace({
         render: (row) =>
           row.secondaryValue ? (
             <div>
-              <div className="font-medium text-slate-100">{row.secondaryValue}</div>
-              <div className="text-xs text-slate-500">{row.secondaryLabel}</div>
+              <div className="font-medium text-[var(--adm-text)]">{row.secondaryValue}</div>
+              <div className="text-xs text-[var(--adm-text-faint)]">{row.secondaryLabel}</div>
             </div>
           ) : (
-            <span className="text-slate-500">-</span>
+            <span className="text-[var(--adm-text-faint)]">-</span>
           ),
         sortValue: (row) => row.secondarySort ?? 0,
       },
@@ -2408,7 +2409,7 @@ function OperationsWorkspace({
                       ? "bg-amber-400"
                       : activeTab === "products" && productBoard === "leaks"
                         ? "bg-amber-400"
-                        : "bg-cyan-400"
+                        : "bg-[var(--adm-primary)]"
                   }
                   selectedLabel={selectedRow?.title}
                   onSelect={(label) => {
@@ -2537,27 +2538,27 @@ function CommerceKpiGrid({
             disabled={!interactive}
             aria-pressed={interactive ? active : undefined}
             onClick={() => interactive && onSelectMetric(metric.id as AdminAnalyticsMetric)}
-            className={`group relative min-h-[8.75rem] overflow-hidden rounded-2xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:p-4 ${
+            className={`group relative min-h-[8.75rem] overflow-hidden rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 sm:p-4 ${
               active
-                ? "border-cyan-300/45 bg-[#101b22] shadow-[inset_0_0_0_1px_rgba(103,232,249,0.08)]"
-                : "border-white/10 bg-[#0a0f14] hover:border-white/20"
+                ? "border-cyan-300/45 bg-[var(--adm-surface)] shadow-[inset_0_0_0_1px_rgba(103,232,249,0.08)]"
+                : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:border-[var(--adm-border-strong)]"
             } ${!interactive ? "cursor-default" : "hover:-translate-y-0.5"}`}
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${commerceMetricTone[metric.id]}`} />
             <div className="relative flex h-full flex-col justify-between gap-4">
               <div className="flex items-start justify-between gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 sm:text-[11px]">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-muted)] sm:text-[11px]">
                   {metric.label}
                 </span>
                 {interactive ? (
-                  <span className={`mt-0.5 h-2 w-2 rounded-full ${active ? "bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.8)]" : "bg-white/15"}`} />
+                  <span className={`mt-0.5 h-2 w-2 rounded-full ${active ? "bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.8)]" : "bg-[var(--adm-surface-2)]"}`} />
                 ) : null}
               </div>
               <div>
-                <div className="font-mono text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                <div className="font-mono text-xl font-semibold tracking-tight text-[var(--adm-text)] sm:text-2xl">
                   {metricDisplay(metric, currency)}
                 </div>
-                <div className="mt-1.5 text-[11px] leading-4 text-slate-400">
+                <div className="mt-1.5 text-[11px] leading-4 text-[var(--adm-text-muted)]">
                   {metricDelta(metric)} · {metric.helper}
                 </div>
               </div>
@@ -2587,28 +2588,28 @@ function CommerceTrendExplorer({
       description: "Order-backed revenue after VAT and refunds.",
       value: (point: RevenueConversionData["trend"][number]) => point.netRevenueCents,
       format: (value: number) => formatPrice(value, currency),
-      color: "#67e8f9",
+      color: "#1f5f3f",
     },
     margin: {
       label: "Contribution margin",
       description: "Net revenue after product cost and payment fees.",
       value: (point: RevenueConversionData["trend"][number]) => point.contributionMarginCents,
       format: (value: number) => formatPrice(value, currency),
-      color: "#6ee7b7",
+      color: "#5f8b72",
     },
     orders: {
       label: "Paid orders",
       description: "Recognized paid order volume in each interval.",
       value: (point: RevenueConversionData["trend"][number]) => point.paidOrders,
       format: formatCount,
-      color: "#7dd3fc",
+      color: "#2f6690",
     },
     conversion: {
       label: "Session conversion",
       description: "Consented sessions that reached a paid purchase.",
       value: (point: RevenueConversionData["trend"][number]) => point.sessionConversionRate,
       format: percent,
-      color: "#fbbf24",
+      color: "#e2a136",
     },
   } satisfies Record<AdminAnalyticsMetric, {
     label: string;
@@ -2620,7 +2621,7 @@ function CommerceTrendExplorer({
   const selectedConfig = config[activeMetric];
 
   if (data.trend.length === 0) {
-    return <div className="flex min-h-72 items-center justify-center text-sm text-slate-500">No trend data for this range.</div>;
+    return <div className="flex min-h-72 items-center justify-center text-sm text-[var(--adm-text-faint)]">No trend data for this range.</div>;
   }
 
   const width = 900;
@@ -2643,16 +2644,16 @@ function CommerceTrendExplorer({
   const selected = points[Math.min(activeIndex, points.length - 1)];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#080d12]" aria-label={`${selectedConfig.label} trend`}>
-      <div className="flex flex-col gap-3 border-b border-white/8 px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
+    <section className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]" aria-label={`${selectedConfig.label} trend`}>
+      <div className="flex flex-col gap-3 border-b border-[var(--adm-border)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Selected signal</p>
-          <h2 className="mt-1.5 text-lg font-semibold text-white sm:text-xl">{selectedConfig.label}</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-400">{selectedConfig.description}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-primary)]/70">Selected signal</p>
+          <h2 className="mt-1.5 text-lg font-semibold text-[var(--adm-text)] sm:text-xl">{selectedConfig.label}</h2>
+          <p className="mt-1 text-xs leading-5 text-[var(--adm-text-muted)]">{selectedConfig.description}</p>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-right">
-          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{selected.point.label}</div>
-          <div className="mt-1 font-mono text-base font-semibold text-white">{selectedConfig.format(selected.value)}</div>
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-right">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">{selected.point.label}</div>
+          <div className="mt-1 font-mono text-base font-semibold text-[var(--adm-text)]">{selectedConfig.format(selected.value)}</div>
         </div>
       </div>
       <div className="p-3 sm:p-5">
@@ -2689,7 +2690,7 @@ function CommerceTrendExplorer({
             </g>
           ))}
         </svg>
-        <div className="mt-2 grid grid-cols-4 gap-2 text-[9px] uppercase tracking-[0.12em] text-slate-500 sm:grid-cols-8">
+        <div className="mt-2 grid grid-cols-4 gap-2 text-[9px] uppercase tracking-[0.12em] text-[var(--adm-text-faint)] sm:grid-cols-8">
           {data.trend.slice(-8).map((point) => <span key={point.label} className="truncate">{point.label}</span>)}
         </div>
       </div>
@@ -2700,34 +2701,34 @@ function CommerceTrendExplorer({
 function DecisionStack({ items, currency }: { items: ActionItem[]; currency: string }) {
   const topItems = items.slice(0, 3);
   return (
-    <aside className="rounded-2xl border border-white/10 bg-[#090e13] p-3.5 sm:p-4" aria-labelledby="decision-stack-title">
+    <aside className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3.5 sm:p-4" aria-labelledby="decision-stack-title">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/70">Decision queue</p>
-          <h2 id="decision-stack-title" className="mt-1.5 text-lg font-semibold text-white">What needs attention</h2>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#81560e]/70">Decision queue</p>
+          <h2 id="decision-stack-title" className="mt-1.5 text-lg font-semibold text-[var(--adm-text)]">What needs attention</h2>
         </div>
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-slate-300">Top {topItems.length}</span>
+        <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[10px] font-semibold text-[var(--adm-text-muted)]">Top {topItems.length}</span>
       </div>
       <div className="mt-4 space-y-2.5">
         {topItems.length ? topItems.map((item, index) => (
-          <article key={item.id} className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
+          <article key={item.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-3">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-slate-500">0{index + 1}</span>
+              <span className="font-mono text-[10px] text-[var(--adm-text-faint)]">0{index + 1}</span>
               <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${severityClassName[item.severity]}`}>{item.severity}</span>
-              <span className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{issueTypeLabel[item.type]}</span>
+              <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--adm-text-faint)]">{issueTypeLabel[item.type]}</span>
             </div>
-            <h3 className="mt-2.5 text-sm font-semibold leading-5 text-white">{item.title}</h3>
-            <p className="mt-1.5 text-xs leading-5 text-slate-400">{item.summary}</p>
-            <div className="mt-3 flex items-end justify-between gap-3 border-t border-white/8 pt-2.5">
+            <h3 className="mt-2.5 text-sm font-semibold leading-5 text-[var(--adm-text)]">{item.title}</h3>
+            <p className="mt-1.5 text-xs leading-5 text-[var(--adm-text-muted)]">{item.summary}</p>
+            <div className="mt-3 flex items-end justify-between gap-3 border-t border-[var(--adm-border)] pt-2.5">
               <div>
-                <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">{item.primaryMetricLabel}</div>
-                <div className="mt-1 font-mono text-sm font-semibold text-slate-100">{formatActionMetric(item.primaryMetricValue, item.primaryMetricKind, currency)}</div>
+                <div className="text-[9px] uppercase tracking-[0.12em] text-[var(--adm-text-faint)]">{item.primaryMetricLabel}</div>
+                <div className="mt-1 font-mono text-sm font-semibold text-[var(--adm-text)]">{formatActionMetric(item.primaryMetricValue, item.primaryMetricKind, currency)}</div>
               </div>
-              {item.links[0] ? <a href={item.links[0].href} className="inline-flex min-h-11 items-center rounded-lg border border-cyan-300/20 bg-cyan-300/8 px-3 text-xs font-semibold text-cyan-100 hover:bg-cyan-300/14">{item.links[0].label}</a> : null}
+              {item.links[0] ? <a href={item.links[0].href} className="inline-flex min-h-9 items-center rounded-lg border border-[var(--adm-primary)] bg-cyan-300/8 px-3 text-xs font-semibold text-[var(--adm-primary)] hover:bg-[var(--adm-primary-dim)]/14">{item.links[0].label}</a> : null}
             </div>
           </article>
         )) : (
-          <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4 text-sm leading-6 text-emerald-100">No high-confidence commerce issues were detected for this range.</div>
+          <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4 text-sm leading-6 text-[var(--adm-success)]">No high-confidence commerce issues were detected for this range.</div>
         )}
       </div>
     </aside>
@@ -2756,30 +2757,30 @@ function CommerceFunnel({
   const previous = selectedIndex > 0 ? stages[selectedIndex - 1] : null;
   const stageRate = previous && previous.value > 0 ? selected.value / previous.value : selectedIndex === 0 ? 1 : 0;
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#090e13] p-3.5 sm:p-5" aria-labelledby="funnel-title">
+    <section className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3.5 sm:p-5" aria-labelledby="funnel-title">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Conversion path</p>
-          <h2 id="funnel-title" className="mt-1.5 text-lg font-semibold text-white">Where intent becomes revenue</h2>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-primary)]/70">Conversion path</p>
+          <h2 id="funnel-title" className="mt-1.5 text-lg font-semibold text-[var(--adm-text)]">Where intent becomes revenue</h2>
         </div>
-        <div className="text-xs text-slate-400">Select any stage for context</div>
+        <div className="text-xs text-[var(--adm-text-muted)]">Select any stage for context</div>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {stages.map((stage, index) => {
           const active = stage.label === selected.label;
           const width = funnel.sessions > 0 ? Math.max((stage.value / funnel.sessions) * 100, stage.value > 0 ? 8 : 0) : 0;
           return (
-            <button key={stage.label} type="button" aria-pressed={active} onClick={() => onSelectStage(stage.label)} className={`min-h-[7.25rem] rounded-xl border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ${active ? "border-cyan-300/35 bg-cyan-300/[0.07]" : "border-white/8 bg-white/[0.025] hover:border-white/18"}`}>
-              <div className="flex items-center justify-between gap-2"><span className="font-mono text-[9px] text-slate-500">0{index + 1}</span><span className="font-mono text-base font-semibold text-white">{formatCount(stage.value)}</span></div>
-              <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{stage.label}</div>
-              <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-cyan-300" style={{ width: `${width}%` }} /></div>
+            <button key={stage.label} type="button" aria-pressed={active} onClick={() => onSelectStage(stage.label)} className={`min-h-[7.25rem] rounded-xl border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ${active ? "border-cyan-300/35 bg-cyan-300/[0.07]" : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] hover:border-[var(--adm-border)]"}`}>
+              <div className="flex items-center justify-between gap-2"><span className="font-mono text-[9px] text-[var(--adm-text-faint)]">0{index + 1}</span><span className="font-mono text-base font-semibold text-[var(--adm-text)]">{formatCount(stage.value)}</span></div>
+              <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--adm-text-muted)]">{stage.label}</div>
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--adm-surface-2)]"><div className="h-full rounded-full bg-cyan-300" style={{ width: `${width}%` }} /></div>
             </button>
           );
         })}
       </div>
-      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-white/8 bg-black/15 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-slate-300"><strong className="text-white">{selected.label}</strong> captured {formatCount(selected.value)} sessions/orders.</span>
-        <span className="font-mono text-cyan-100">{previous ? `${percent(stageRate)} from ${previous.label.toLowerCase()}` : "Entry volume"}</span>
+      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-[var(--adm-text-muted)]"><strong className="text-[var(--adm-text)]">{selected.label}</strong> captured {formatCount(selected.value)} sessions/orders.</span>
+        <span className="font-mono text-[var(--adm-primary)]">{previous ? `${percent(stageRate)} from ${previous.label.toLowerCase()}` : "Entry volume"}</span>
       </div>
     </section>
   );
@@ -2789,24 +2790,24 @@ function CommerceProductRisk({ data, currency }: { data: OperationsData; currenc
   const [view, setView] = useState<"products" | "inventory">("products");
   const rows = view === "products" ? data.merchandising.leaders.slice(0, 5) : data.inventory.risk.rows.slice(0, 5);
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#090e13] p-3.5 sm:p-5" aria-labelledby="commerce-board-title">
+    <section className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3.5 sm:p-5" aria-labelledby="commerce-board-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Merchandising</p><h2 id="commerce-board-title" className="mt-1.5 text-lg font-semibold text-white">Products and stock risk</h2></div>
-        <div className="flex gap-1 rounded-xl border border-white/10 bg-black/20 p-1" role="tablist" aria-label="Commerce board view">
-          {(["products", "inventory"] as const).map((option) => <button key={option} type="button" role="tab" aria-selected={view === option} onClick={() => setView(option)} className={`min-h-11 rounded-lg px-3 text-xs font-semibold capitalize ${view === option ? "bg-cyan-200 text-slate-950" : "text-slate-300 hover:bg-white/[0.06]"}`}>{option}</button>)}
+        <div><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-primary)]/70">Merchandising</p><h2 id="commerce-board-title" className="mt-1.5 text-lg font-semibold text-[var(--adm-text)]">Products and stock risk</h2></div>
+        <div className="flex gap-1 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-1" role="tablist" aria-label="Commerce board view">
+          {(["products", "inventory"] as const).map((option) => <button key={option} type="button" role="tab" aria-selected={view === option} onClick={() => setView(option)} className={`min-h-9 rounded-lg px-3 text-xs font-semibold capitalize ${view === option ? "bg-cyan-200 text-white" : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)]"}`}>{option}</button>)}
         </div>
       </div>
-      <div className="mt-4 divide-y divide-white/8 overflow-hidden rounded-xl border border-white/8">
+      <div className="mt-4 divide-y divide-white/8 overflow-hidden rounded-xl border border-[var(--adm-border)]">
         {rows.length ? rows.map((row) => {
           const inventoryRow = "riskLevel" in row;
           return (
-            <div key={inventoryRow ? row.variantId : row.productId} className="grid gap-3 bg-white/[0.018] p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
-              <div className="min-w-0"><div className="truncate text-sm font-semibold text-white">{row.productTitle}</div><div className="mt-1 truncate text-xs text-slate-500">{inventoryRow ? `${row.variantTitle} · ${row.sku ?? "No SKU"}` : row.priorityReason}</div></div>
-              <div className="flex items-center justify-between gap-5 sm:block sm:text-right"><span className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{inventoryRow ? "Available" : "Revenue"}</span><div className="font-mono text-sm font-semibold text-slate-100">{inventoryRow ? formatCount(row.available) : formatPrice(row.revenueCents, currency)}</div></div>
-              <div className="flex items-center justify-between gap-5 sm:min-w-24 sm:block sm:text-right"><span className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{inventoryRow ? "Cover" : "CVR"}</span><div className={`font-mono text-sm font-semibold ${inventoryRow && row.riskLevel === "critical" ? "text-rose-200" : "text-cyan-100"}`}>{inventoryRow ? (row.coverDays === null ? "No velocity" : `${row.coverDays}d`) : percent(row.conversionRate)}</div></div>
+            <div key={inventoryRow ? row.variantId : row.productId} className="grid gap-3 bg-[var(--adm-surface-2)] p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+              <div className="min-w-0"><div className="truncate text-sm font-semibold text-[var(--adm-text)]">{row.productTitle}</div><div className="mt-1 truncate text-xs text-[var(--adm-text-faint)]">{inventoryRow ? `${row.variantTitle} · ${row.sku ?? "No SKU"}` : row.priorityReason}</div></div>
+              <div className="flex items-center justify-between gap-5 sm:block sm:text-right"><span className="text-[10px] uppercase tracking-[0.12em] text-[var(--adm-text-faint)]">{inventoryRow ? "Available" : "Revenue"}</span><div className="font-mono text-sm font-semibold text-[var(--adm-text)]">{inventoryRow ? formatCount(row.available) : formatPrice(row.revenueCents, currency)}</div></div>
+              <div className="flex items-center justify-between gap-5 sm:min-w-24 sm:block sm:text-right"><span className="text-[10px] uppercase tracking-[0.12em] text-[var(--adm-text-faint)]">{inventoryRow ? "Cover" : "CVR"}</span><div className={`font-mono text-sm font-semibold ${inventoryRow && row.riskLevel === "critical" ? "text-[var(--adm-error)]" : "text-[var(--adm-primary)]"}`}>{inventoryRow ? (row.coverDays === null ? "No velocity" : `${row.coverDays}d`) : percent(row.conversionRate)}</div></div>
             </div>
           );
-        }) : <div className="p-5 text-sm text-slate-500">No {view} data is available for this range.</div>}
+        }) : <div className="p-5 text-sm text-[var(--adm-text-faint)]">No {view} data is available for this range.</div>}
       </div>
     </section>
   );
@@ -2814,12 +2815,12 @@ function CommerceProductRisk({ data, currency }: { data: OperationsData; currenc
 
 function AnalyticsDisclosure({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <details className="group rounded-2xl border border-white/10 bg-[#080c11]">
+    <details className="group rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
       <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300/70 sm:px-5">
-        <div><div className="text-sm font-semibold text-white">{title}</div><div className="mt-1 text-xs text-slate-500">{description}</div></div>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-lg text-slate-400 transition group-open:rotate-45">+</span>
+        <div><div className="text-sm font-semibold text-[var(--adm-text)]">{title}</div><div className="mt-1 text-xs text-[var(--adm-text-faint)]">{description}</div></div>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--adm-border)] text-lg text-[var(--adm-text-muted)] transition group-open:rotate-45">+</span>
       </summary>
-      <div className="border-t border-white/8 p-3 sm:p-5">{children}</div>
+      <div className="border-t border-[var(--adm-border)] p-3 sm:p-5">{children}</div>
     </details>
   );
 }
@@ -3094,44 +3095,38 @@ export default function AdminAnalyticsClient({
   }, [initialRange, initialStorefrontScope]);
 
   return (
-    <div className="analytics-commerce space-y-4 pb-10 sm:space-y-5">
-      <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#080d12] px-4 py-5 sm:px-6 sm:py-6">
-        <div className="pointer-events-none absolute inset-0 opacity-80 [background-image:linear-gradient(rgba(103,232,249,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,.035)_1px,transparent_1px)] [background-size:32px_32px]" />
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cyan-300/8 blur-3xl" />
-        <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              <span>Commerce intelligence</span><span className="h-1 w-1 rounded-full bg-cyan-300" /><span>{selectedStorefrontLabel}</span>
-            </div>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Revenue pulse</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Order-backed money, conversion friction, and stock exposure in one decision surface.</p>
-          </div>
+    <AdminPage layout="dashboard" className="analytics-commerce pb-10">
+      <AdminPageHeader
+        eyebrow={`Commerce intelligence / ${selectedStorefrontLabel}`}
+        title="Revenue pulse"
+        description="Order-backed money, conversion friction, and stock exposure in one decision surface."
+        actions={
           <div className="grid grid-cols-2 gap-2 text-xs sm:flex sm:flex-wrap sm:justify-end">
-            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2"><span className="block text-[9px] uppercase tracking-[0.14em] text-slate-500">Window</span><span className="mt-1 block font-semibold text-slate-200">{initialRange.label}</span></div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2"><span className="block text-[9px] uppercase tracking-[0.14em] text-slate-500">Updated</span><span className="mt-1 block font-semibold text-slate-200">{formatUpdatedAt(executive.updatedAt)}</span></div>
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2"><span className="block text-[9px] uppercase tracking-[0.14em] text-[var(--adm-text-faint)]">Window</span><span className="mt-1 block font-semibold text-[var(--adm-text)]">{initialRange.label}</span></div>
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2"><span className="block text-[9px] uppercase tracking-[0.14em] text-[var(--adm-text-faint)]">Updated</span><span className="mt-1 block font-semibold text-[var(--adm-text)]">{formatUpdatedAt(executive.updatedAt)}</span></div>
           </div>
-        </div>
-      </header>
+        }
+      />
 
-      <section className="sticky top-[4.9rem] z-20 rounded-2xl border border-white/10 bg-[#070c11]/94 p-2.5 shadow-[0_14px_34px_rgba(0,0,0,.28)] backdrop-blur-xl sm:top-[4.25rem] sm:p-3" aria-label="Analytics range controls">
+      <section className="sticky top-[4.9rem] z-20 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-2.5 shadow-[0_14px_34px_rgba(0,0,0,.28)] backdrop-blur-xl sm:top-[4.25rem] sm:p-3" aria-label="Analytics range controls">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="admin-scroll-x -mx-1 flex gap-1.5 px-1 pb-0.5">
             {ADMIN_ANALYTICS_PRESET_OPTIONS.map((option) => (
-              <a key={option.value} href={buildAdminAnalyticsHref({ range: { kind: "preset", days: option.value, from: "", to: "" }, storefront: initialStorefrontScope, metric: activeMetric })} className={`inline-flex min-h-11 shrink-0 items-center rounded-xl border px-3 text-xs font-semibold ${initialRange.kind === "preset" && initialRange.days === option.value ? "border-cyan-200/35 bg-cyan-200 text-slate-950" : "border-white/10 bg-white/[0.035] text-slate-300 hover:border-white/20"}`}>{option.label}</a>
+              <a key={option.value} href={buildAdminAnalyticsHref({ range: { kind: "preset", days: option.value, from: "", to: "" }, storefront: initialStorefrontScope, metric: activeMetric })} className={`inline-flex min-h-9 shrink-0 items-center rounded-xl border px-3 text-xs font-semibold ${initialRange.kind === "preset" && initialRange.days === option.value ? "border-cyan-200/35 bg-cyan-200 text-white" : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)] hover:border-[var(--adm-border-strong)]"}`}>{option.label}</a>
             ))}
-            <button type="button" aria-expanded={customRangeOpen} onClick={() => setCustomRangeOpen((current) => !current)} className={`min-h-11 shrink-0 rounded-xl border px-3 text-xs font-semibold ${initialRange.kind === "custom" ? "border-cyan-200/35 bg-cyan-200 text-slate-950" : "border-white/10 bg-white/[0.035] text-slate-300 hover:border-white/20"}`}>Custom</button>
+            <button type="button" aria-expanded={customRangeOpen} onClick={() => setCustomRangeOpen((current) => !current)} className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-semibold ${initialRange.kind === "custom" ? "border-cyan-200/35 bg-cyan-200 text-white" : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)] hover:border-[var(--adm-border-strong)]"}`}>Custom</button>
           </div>
           <div className="flex items-center justify-between gap-2 sm:justify-end">
-            <span className="hidden text-[10px] uppercase tracking-[0.14em] text-slate-500 sm:inline">Live {formatUpdatedAt(liveRefreshedAt)}</span>
+            <span className="hidden text-[10px] uppercase tracking-[0.14em] text-[var(--adm-text-faint)] sm:inline">Live {formatUpdatedAt(liveRefreshedAt)}</span>
             <AdminButton type="button" onClick={() => void refreshAnalytics()} disabled={loading}>{loading ? "Refreshing…" : "Refresh all"}</AdminButton>
           </div>
         </div>
         {customRangeOpen ? (
-          <form onSubmit={applyCustomRange} className="mt-3 grid gap-3 border-t border-white/8 pt-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="mt-1.5 block min-h-11 w-full rounded-xl border border-white/10 bg-black/25 px-3 text-sm text-white" /></label>
-            <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">To<input type="date" value={customTo} min={customFrom} max={getBerlinDateKey()} onChange={(event) => setCustomTo(event.target.value)} className="mt-1.5 block min-h-11 w-full rounded-xl border border-white/10 bg-black/25 px-3 text-sm text-white" /></label>
-            <button type="submit" className="min-h-11 rounded-xl bg-cyan-200 px-4 text-sm font-semibold text-slate-950 hover:bg-cyan-100">Apply range</button>
-            {customError ? <p className="text-xs text-rose-200 sm:col-span-3" role="alert">{customError}</p> : null}
+          <form onSubmit={applyCustomRange} className="mt-3 grid gap-3 border-t border-[var(--adm-border)] pt-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--adm-text-faint)]">From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="mt-1.5 block min-h-9 w-full rounded-xl border border-[var(--adm-border)] bg-black/25 px-3 text-sm text-[var(--adm-text)]" /></label>
+            <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--adm-text-faint)]">To<input type="date" value={customTo} min={customFrom} max={getBerlinDateKey()} onChange={(event) => setCustomTo(event.target.value)} className="mt-1.5 block min-h-9 w-full rounded-xl border border-[var(--adm-border)] bg-black/25 px-3 text-sm text-[var(--adm-text)]" /></label>
+            <button type="submit" className="min-h-9 rounded-xl bg-cyan-200 px-4 text-sm font-semibold text-white hover:bg-cyan-100">Apply range</button>
+            {customError ? <p className="text-xs text-[var(--adm-error)] sm:col-span-3" role="alert">{customError}</p> : null}
           </form>
         ) : null}
       </section>
@@ -3162,7 +3157,7 @@ export default function AdminAnalyticsClient({
       <CommerceProductRisk data={operations} currency={currency} />
 
       <section className="space-y-2.5" aria-label="Supporting analytics">
-        <div className="px-1 pb-1"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Progressive detail</p><h2 className="mt-1.5 text-lg font-semibold text-white">Supporting workspaces</h2></div>
+        <div className="px-1 pb-1"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">Progressive detail</p><h2 className="mt-1.5 text-lg font-semibold text-[var(--adm-text)]">Supporting workspaces</h2></div>
         <AnalyticsDisclosure title="All ranked actions" description="Finance, conversion, inventory, returns, recovery, discounts, and acquisition signals.">
           <ActionCenter items={actionItems} selectedIssueType={selectedIssueType} onSelectIssueType={setSelectedIssueType} selectedActionId={selectedActionId} onSelectActionId={setSelectedActionId} currency={currency} overviewTrust={overview.trust} secondaryTrust={secondary.trust} marginTrend={overview.marginTrend} currentStart={overview.scope?.currentStart} currentEnd={overview.scope?.currentEnd} />
         </AnalyticsDisclosure>
@@ -3176,6 +3171,6 @@ export default function AdminAnalyticsClient({
           <OperationsWorkspace data={operations} currency={currency} days={initialRange.days} storefrontScope={initialStorefrontScope} activeTab={activeOperationsTab} onChangeTab={setActiveOperationsTab} productBoard={productBoard} onChangeProductBoard={setProductBoard} productQuery={productQuery} onChangeProductQuery={setProductQuery} selectedRowId={selectedOperationRowId} onSelectRowId={setSelectedOperationRowId} />
         </AnalyticsDisclosure>
       </section>
-    </div>
+    </AdminPage>
   );
 }

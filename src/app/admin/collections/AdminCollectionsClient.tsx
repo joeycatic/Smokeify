@@ -13,6 +13,7 @@ import {
   AdminPanel,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminSplitView } from "@/components/admin/ui";
 
 type Collection = {
   id: string;
@@ -195,11 +196,11 @@ export default function AdminCollectionsClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="master-detail">
       <AdminPageIntro
         eyebrow="Admin / Collections"
         title="Collection workspace"
-        description="Manage curated merch groupings in a dedicated dark list/detail workspace instead of the old stacked CRUD page."
+        description="Create, search, and edit curated merch groups in a persistent list-and-editor workspace."
         actions={
           <AdminButton tone="secondary" onClick={() => void loadCollections()} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
@@ -221,7 +222,7 @@ export default function AdminCollectionsClient() {
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+      <AdminSplitView>
         <AdminPanel
           eyebrow="Create"
           title="New collection"
@@ -279,8 +280,8 @@ export default function AdminCollectionsClient() {
             />
           ) : (
             <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
-              <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-3">
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                   Collection list
                 </div>
                 <div className="space-y-2">
@@ -289,30 +290,30 @@ export default function AdminCollectionsClient() {
                       key={collection.id}
                       type="button"
                       onClick={() => setSelectedId(collection.id)}
-                      className={`flex w-full flex-col items-start rounded-2xl border px-4 py-3 text-left transition ${
+                      className={`flex w-full flex-col items-start rounded-xl border px-4 py-3 text-left transition ${
                         selectedId === collection.id
-                          ? "border-cyan-400/20 bg-cyan-400/10"
-                          : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"
+                          ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)]"
+                          : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:bg-[var(--adm-surface-2)]"
                       }`}
                     >
-                      <span className="font-semibold text-white">{collection.name}</span>
-                      <span className="mt-1 text-xs text-slate-500">{collection.handle}</span>
+                      <span className="font-semibold text-[var(--adm-text)]">{collection.name}</span>
+                      <span className="mt-1 text-xs text-[var(--adm-text-faint)]">{collection.handle}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {selectedCollection ? (
-                <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-5">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-5">
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                         Selected collection
                       </div>
-                      <div className="mt-2 text-lg font-semibold text-white">
+                      <div className="mt-2 text-lg font-semibold text-[var(--adm-text)]">
                         {selectedCollection.name}
                       </div>
-                      <div className="mt-1 text-sm text-slate-400">
+                      <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
                         Curated group editor
                       </div>
                     </div>
@@ -351,16 +352,16 @@ export default function AdminCollectionsClient() {
                         onChange={(event) => updateSelected({ handle: event.target.value })}
                       />
                     </AdminField>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                         Metadata
                       </div>
-                      <div className="mt-3 space-y-2 text-sm text-slate-300">
+                      <div className="mt-3 space-y-2 text-sm text-[var(--adm-text-muted)]">
                         <div>Created: {new Date(selectedCollection.createdAt).toLocaleDateString("de-DE")}</div>
                         <div>Updated: {new Date(selectedCollection.updatedAt).toLocaleDateString("de-DE")}</div>
                         <div className="space-y-1">
                           <div>ID:</div>
-                          <div className="break-all rounded-xl border border-white/10 bg-[#050912] px-3 py-2 font-mono text-xs text-slate-300">
+                          <div className="break-all rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 font-mono text-xs text-[var(--adm-text-muted)]">
                             {selectedCollection.id}
                           </div>
                         </div>
@@ -389,7 +390,7 @@ export default function AdminCollectionsClient() {
             </div>
           )}
         </AdminPanel>
-      </div>
+      </AdminSplitView>
 
       <AdminDialog
         open={Boolean(deleteTarget)}
@@ -424,7 +425,7 @@ export default function AdminCollectionsClient() {
         }
       >
         <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
             {deleteTarget?.name}
           </div>
           <AdminInput
@@ -437,10 +438,10 @@ export default function AdminCollectionsClient() {
             placeholder="Admin password"
           />
           {deletePasswordError ? (
-            <div className="text-xs text-red-300">{deletePasswordError}</div>
+            <div className="text-xs text-[var(--adm-error)]">{deletePasswordError}</div>
           ) : null}
         </div>
       </AdminDialog>
-    </div>
+    </AdminPage>
   );
 }

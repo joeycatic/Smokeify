@@ -46,6 +46,8 @@ type AdminShellProps = {
   children: React.ReactNode;
   userEmail: string | null;
   userRole: "USER" | "ADMIN" | "STAFF";
+  fontClassName?: string;
+  monoFontClassName?: string;
 };
 
 function formatIdleRemaining(ms: number) {
@@ -55,7 +57,13 @@ function formatIdleRemaining(ms: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export default function AdminShell({ children, userEmail, userRole }: AdminShellProps) {
+export default function AdminShell({
+  children,
+  userEmail,
+  userRole,
+  fontClassName = "",
+  monoFontClassName = "",
+}: AdminShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamString = searchParams?.toString() ?? "";
@@ -105,6 +113,12 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   }, [activeItem, pathname]);
   const idleElapsedMs = Math.max(0, ADMIN_IDLE_TIMEOUT_MS - idleRemainingMs);
   const showIdleTimer = idleElapsedMs >= ADMIN_IDLE_TIMER_VISIBLE_AFTER_MS;
+  const userInitials = (userEmail ?? "A")
+    .split(/[@._-]/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "A";
 
   const navHref = (href: string) => {
     if (!adminPathSupportsStorefrontScope(href)) {
@@ -191,201 +205,129 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
   }, [refreshIdleDeadline, startAdminSignOut]);
 
   return (
-    <div className="admin-theme admin-dark admin-shell min-h-screen w-full overflow-x-hidden bg-[#05070a] text-slate-100">
-      <div className="admin-shell__backdrop" aria-hidden="true" />
+    <div className={`admin-theme admin-light admin-shell min-h-screen w-full overflow-x-hidden bg-[var(--adm-bg)] text-[var(--adm-text)] ${fontClassName}`}>
       <div className="relative flex min-h-screen">
         {sidebarOpen ? (
           <button
             type="button"
-            className="fixed inset-0 z-30 bg-black/60 md:hidden"
+            className="fixed inset-0 z-30 bg-[#16241a]/30 md:hidden"
             aria-label="Close admin navigation"
             onClick={() => setSidebarOpen(false)}
           />
         ) : null}
 
         <aside
-          className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[16.5rem] max-w-[calc(100vw-0.5rem)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0d12]/95 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:p-3 md:translate-x-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } transition-transform duration-200 ease-out`}
+          className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-[18rem] max-w-[calc(100vw-0.5rem)] flex-col border-r border-[var(--adm-border)] bg-[var(--adm-surface)] p-3 transition-transform duration-200 ease-out md:hidden ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
         >
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-                {supportsStorefrontScope
-                  ? currentStorefrontScope === "ALL"
-                    ? "All stores"
-                    : currentStorefrontLabel
-                  : dashboardStorefront
-                    ? currentStorefrontLabel
-                    : "All stores"}
-              </p>
-              <h1 className="mt-1.5 text-base font-semibold text-white">Admin</h1>
+          <div className="flex items-center justify-between border-b border-[var(--adm-border)] pb-3">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] bg-[var(--adm-primary)] text-sm font-bold text-[var(--adm-text)]">S</span>
+              <div>
+                <p className="text-sm font-semibold text-[var(--adm-text)]">Smokeify Admin</p>
+                <p className="text-[11px] text-[var(--adm-text-muted)]">{userRole} access</p>
+              </div>
             </div>
-            <button
-              type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 md:hidden"
-              aria-label="Close navigation"
-              onClick={() => setSidebarOpen(false)}
-            >
+            <button type="button" className="admin-icon-button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}>
               <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
-
-          <div className="mt-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 sm:mt-3 sm:p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  {supportsStorefrontScope ? "Access" : "Workspace"}
-                </p>
-                <p className="mt-1 text-xs text-slate-400">{currentStorefrontLabel}</p>
-              </div>
-              {supportsStorefrontScope || dashboardStorefront ? (
-                <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
-                  {currentStorefrontLabel}
-                </span>
-              ) : (
-                <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
-                  SHARED
-                </span>
-              )}
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-100">
-                  {userEmail ?? "admin"}
-                </p>
-                <p className="text-xs text-slate-400">{userRole} access</p>
-              </div>
-              <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                LIVE SAFE
-              </span>
-            </div>
-          </div>
-
-          <nav className="mt-2.5 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none] [-ms-overflow-style:none] sm:mt-3 sm:space-y-1.5 [&::-webkit-scrollbar]:hidden">
+          <nav className="mt-3 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))]">
             {visibleWorkspaces.map((workspace) => {
-              const isWorkspaceActive = activeWorkspace?.id === workspace.id;
               const WorkspaceIcon = workspace.icon;
               return (
-                <Link
-                  key={workspace.id}
-                  href={navHref(workspace.items[0].href)}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`admin-sidebar-workspace ${isWorkspaceActive ? "admin-sidebar-workspace-active" : ""}`}
-                  aria-current={isWorkspaceActive ? "page" : undefined}
-                >
-                  <span className="flex min-w-0 items-start gap-2.5">
-                    <WorkspaceIcon className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{workspace.label}</span>
-                      <span className="mt-0.5 block truncate text-[11px] font-medium text-slate-500">
-                        {workspace.description}
-                      </span>
-                    </span>
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                      isWorkspaceActive
-                        ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
-                        : "border-white/10 bg-white/[0.03] text-slate-500"
-                    }`}
-                  >
-                    {workspace.items.length}
-                  </span>
-                </Link>
+                <section key={workspace.id}>
+                  <div className="mb-1 flex items-center gap-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
+                    <WorkspaceIcon className="h-4 w-4" />
+                    {workspace.label}
+                  </div>
+                  <div className="space-y-0.5">
+                    {workspace.items.map((item) => {
+                      const active = isAdminNavItemActive(pathname, item);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={navHref(item.href)}
+                          onClick={() => setSidebarOpen(false)}
+                          className={`flex min-h-8 items-center rounded-[10px] px-3 text-[13px] font-medium transition ${active ? "bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]" : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"}`}
+                          aria-current={active ? "page" : undefined}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
               );
             })}
           </nav>
         </aside>
 
-        <div className="min-w-0 w-full overflow-x-hidden md:ml-[16.5rem] md:w-[calc(100%-16.5rem)]">
-          <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070a]/85 backdrop-blur">
-            <div className="flex w-full flex-wrap items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-5 sm:py-2.5 xl:flex-nowrap xl:px-6">
-              <button
-                type="button"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-200 md:hidden"
-                aria-label="Open navigation"
-                onClick={() => setSidebarOpen(true)}
-              >
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-16 flex-col items-center border-r border-[var(--adm-border)] bg-[var(--adm-surface)] py-2 md:flex">
+          <Link href="/admin" className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-[10px] bg-[var(--adm-primary)] text-sm font-bold text-[var(--adm-text)]" aria-label="Admin dashboard">S</Link>
+          <nav className="flex flex-1 flex-col items-center gap-1" aria-label="Admin workspaces">
+            {visibleWorkspaces.map((workspace) => {
+              const active = activeWorkspace?.id === workspace.id;
+              const WorkspaceIcon = workspace.icon;
+              return (
+                <Link
+                  key={workspace.id}
+                  href={navHref(workspace.items[0].href)}
+                  className={`admin-rail-link group relative inline-flex h-8 w-10 items-center justify-center rounded-[10px] transition ${active ? "bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]" : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"}`}
+                  aria-label={workspace.label}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <WorkspaceIcon className="h-5 w-5" />
+                  <span className="admin-rail-tooltip pointer-events-none absolute left-[3.15rem] z-50 whitespace-nowrap rounded-[8px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--adm-text)] opacity-0 shadow-[var(--adm-shadow)] transition-opacity delay-150 group-hover:opacity-100 group-focus-visible:opacity-100">{workspace.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <button type="button" className="admin-icon-button mb-2" onClick={() => setSettingsOpen(true)} aria-label="Open admin settings">
+            <Cog6ToothIcon className="h-4 w-4" />
+          </button>
+          <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--adm-primary)] text-[10px] font-bold text-[var(--adm-text)]" onClick={() => setSettingsOpen(true)} aria-label={`Open settings for ${userEmail ?? "admin"}`}>
+            {userInitials}
+          </button>
+        </aside>
+
+        <div className="min-w-0 w-full overflow-x-hidden md:ml-16 md:w-[calc(100%-4rem)]">
+          <header className="sticky top-0 z-20 border-b border-[var(--adm-border)] bg-[var(--adm-surface)]">
+            <div className="flex h-[52px] min-w-0 items-center gap-2 px-2.5 sm:px-4 lg:px-5">
+              <button type="button" className="admin-icon-button shrink-0 md:hidden" aria-label="Open navigation" onClick={() => setSidebarOpen(true)}>
                 <Bars3Icon className="h-5 w-5" />
               </button>
-
-              <div className="min-w-0 flex-1 basis-0 xl:basis-auto">
-                <p className="hidden text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 sm:block xl:tracking-[0.3em]">
-                  {activeWorkspace?.label ?? "Internal Console"}
-                </p>
-                <div className="flex min-w-0 items-center gap-1.5 sm:mt-1 sm:flex-wrap sm:gap-2">
-                  <h2 className="min-w-0 truncate text-sm font-semibold text-white sm:text-lg">
-                    {currentTitle}
-                  </h2>
-                  <span
-                    className={`hidden max-w-full truncate rounded-full px-2 py-0.5 text-[10px] font-semibold sm:inline-flex sm:px-2.5 sm:py-1 sm:text-[11px] ${
-                      supportsStorefrontScope
-                        ? "border border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-                        : "border border-white/10 bg-white/[0.04] text-slate-300"
-                    }`}
-                  >
-                    {currentStorefrontLabel}
-                  </span>
-                  <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 2xl:inline-flex">
-                    Workspace tabs preserve existing admin routes
-                  </span>
+              <div className="min-w-0 flex-1">
+                <p className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)] sm:block">{activeWorkspace?.label ?? "Internal Console"}</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <h1 className="truncate text-base font-semibold leading-5 text-[var(--adm-text)] sm:text-lg">{currentTitle}</h1>
+                  <span className={`hidden shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold sm:inline-flex ${supportsStorefrontScope ? "border-[var(--adm-primary)] text-[var(--adm-primary)]" : "border-[var(--adm-border)] text-[var(--adm-text-muted)]"}`}>{currentStorefrontLabel}</span>
                 </div>
               </div>
-
-              <div className="admin-header-controls flex min-w-0 shrink-0 items-center gap-1.5 sm:ml-auto sm:gap-2 xl:w-auto xl:flex-nowrap xl:justify-end">
+              <div className="admin-header-controls flex shrink-0 items-center gap-1.5">
                 {showIdleTimer ? (
                   <div
-                    className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold tabular-nums sm:h-10 sm:gap-2 sm:px-3 ${
-                      idleRemainingMs <= 60_000
-                        ? "border-red-300/25 bg-red-400/10 text-red-100"
-                        : idleRemainingMs <= 120_000
-                          ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
-                          : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
-                    }`}
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-[10px] border px-2 font-mono text-xs font-semibold tabular-nums ${idleRemainingMs <= 60_000 ? "border-[#c0432c44] bg-[#fae7e3] text-[var(--adm-error)]" : idleRemainingMs <= 120_000 ? "border-[#e2a13655] bg-[#fff4dd] text-[#81560e]" : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"}`}
                     title="Admin AFK timer resets on activity. At 0:00 you must log in again."
                     aria-label={`Admin AFK logout in ${formatIdleRemaining(idleRemainingMs)}`}
                   >
                     <ClockIcon className="h-4 w-4" />
                     <span className="hidden sm:inline">AFK</span>
-                    <span>{formatIdleRemaining(idleRemainingMs)}</span>
+                    {formatIdleRemaining(idleRemainingMs)}
                   </div>
                 ) : null}
-
-                <AdminCommandBar
-                  key={pathname}
-                  groups={visibleWorkspaces}
-                  pathname={pathname}
-                  currentStorefrontScope={currentStorefrontScope}
-                />
-
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-0 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.07] sm:h-10 sm:w-auto sm:px-3"
-                  aria-haspopup="dialog"
-                  aria-expanded={settingsOpen}
-                  onClick={() => setSettingsOpen(true)}
-                >
+                <AdminCommandBar key={pathname} groups={visibleWorkspaces} pathname={pathname} currentStorefrontScope={currentStorefrontScope} />
+                <button type="button" className="admin-icon-button" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(true)} aria-label="Open admin settings">
                   <Cog6ToothIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Settings</span>
                 </button>
               </div>
             </div>
             {activeWorkspace && activeWorkspace.items.length > 1 ? (
-              <nav
-                className="admin-workspace-tabs flex w-full gap-1 overflow-x-auto px-2.5 pb-1.5 sm:px-5 sm:pb-2 xl:px-6"
-                aria-label={`${activeWorkspace.label} workspace sections`}
-              >
+              <nav className="admin-scroll-x admin-workspace-tabs flex h-8 w-full items-center gap-1 border-t border-[var(--adm-border)] px-2.5 sm:px-4 lg:px-5" aria-label={`${activeWorkspace.label} workspace sections`}>
                 {activeWorkspace.items.map((item) => {
                   const active = isAdminNavItemActive(pathname, item);
                   const Icon = item.icon;
                   return (
-                    <Link
-                      key={item.href}
-                      href={navHref(item.href)}
-                      className={`admin-workspace-tab ${active ? "admin-workspace-tab-active" : ""}`}
-                      aria-current={active ? "page" : undefined}
-                    >
+                    <Link key={item.href} href={navHref(item.href)} className={`admin-workspace-tab ${active ? "admin-workspace-tab-active" : ""}`} aria-current={active ? "page" : undefined}>
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="whitespace-nowrap">{item.label}</span>
                     </Link>
@@ -397,96 +339,32 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
           </header>
 
           {settingsOpen ? (
-            <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-start sm:justify-end sm:p-4">
-              <button
-                type="button"
-                className="absolute inset-0 bg-black/60"
-                aria-label="Close admin settings"
-                onClick={() => setSettingsOpen(false)}
-              />
-              <section
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="admin-settings-title"
-                className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#090d12] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:mt-12"
-              >
+            <div className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-start sm:justify-end sm:p-4">
+              <button type="button" className="absolute inset-0 bg-[#16241a]/30" aria-label="Close admin settings" onClick={() => setSettingsOpen(false)} />
+              <section role="dialog" aria-modal="true" aria-labelledby="admin-settings-title" className="relative w-full max-w-md rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-[var(--adm-text)] shadow-[var(--adm-shadow-lg)] sm:mt-10">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                      Admin Settings
-                    </p>
-                    <h2 id="admin-settings-title" className="mt-1.5 text-lg font-semibold text-white">
-                      Workspace controls
-                    </h2>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">Admin Settings</p>
+                    <h2 id="admin-settings-title" className="mt-1 text-sm font-semibold">Workspace controls</h2>
                   </div>
-                  <button
-                    type="button"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
-                    aria-label="Close settings"
-                    onClick={() => setSettingsOpen(false)}
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </button>
+                  <button type="button" className="admin-icon-button" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><XMarkIcon className="h-5 w-5" /></button>
                 </div>
-
                 <div className="mt-4 space-y-3">
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Current context
-                    </p>
-                    <div className="mt-2 grid gap-2 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-400">Page</span>
-                        <span className="truncate font-medium text-slate-100">{currentTitle}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-400">Workspace</span>
-                        <span className="truncate font-medium text-slate-100">
-                          {activeWorkspace?.label ?? currentStorefrontLabel}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-400">User</span>
-                        <span className="truncate font-medium text-slate-100">{userEmail ?? "admin"}</span>
-                      </div>
-                      {showIdleTimer ? (
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-slate-400">AFK logout</span>
-                          <span className="font-mono text-sm font-semibold text-emerald-100">
-                            {formatIdleRemaining(idleRemainingMs)}
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">Current context</p>
+                    <dl className="mt-2 grid gap-2 text-[13px]">
+                      {[["Page", currentTitle], ["Workspace", activeWorkspace?.label ?? currentStorefrontLabel], ["User", userEmail ?? "admin"]].map(([label, value]) => (
+                        <div key={label} className="flex min-w-0 items-center justify-between gap-3"><dt className="text-[var(--adm-text-muted)]">{label}</dt><dd className="truncate font-medium">{value}</dd></div>
+                      ))}
+                      {showIdleTimer ? <div className="flex items-center justify-between gap-3"><dt className="text-[var(--adm-text-muted)]">AFK logout</dt><dd className={`font-mono font-semibold tabular-nums ${monoFontClassName}`}>{formatIdleRemaining(idleRemainingMs)}</dd></div> : null}
+                    </dl>
                   </div>
-
                   {supportsStorefrontScope ? (
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Storefront scope
-                      </p>
-                      <div
-                        className={`mt-3 grid gap-1 rounded-xl border border-white/10 bg-black/20 p-1 text-xs font-semibold ${
-                          supportsAllStorefrontScope ? "grid-cols-3" : "grid-cols-2"
-                        }`}
-                      >
-                        {(supportsAllStorefrontScope
-                          ? (["ALL", "MAIN", "GROW"] as const)
-                          : (["MAIN", "GROW"] as const)
-                        ).map((scope) => (
-                          <Link
-                            key={scope}
-                            href={storefrontHref(scope)}
-                            aria-label={`Switch admin storefront scope to ${ADMIN_STOREFRONT_SCOPE_LABELS[scope]}`}
-                            onClick={() => setSettingsOpen(false)}
-                            className={`inline-flex h-10 min-w-0 items-center justify-center rounded-lg px-3 text-xs font-semibold uppercase tracking-[0.12em] transition ${
-                              currentStorefrontScope === scope
-                                ? "bg-cyan-300/90 text-slate-950"
-                                : "text-slate-300 hover:bg-white/[0.08] hover:text-white"
-                            }`}
-                          >
-                            {ADMIN_STOREFRONT_SCOPE_LABELS[scope]}
-                          </Link>
+                    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">Storefront scope</p>
+                      <div className={`mt-2 grid gap-1 rounded-[10px] bg-[var(--adm-surface-2)] p-1 ${supportsAllStorefrontScope ? "grid-cols-3" : "grid-cols-2"}`}>
+                        {(supportsAllStorefrontScope ? (["ALL", "MAIN", "GROW"] as const) : (["MAIN", "GROW"] as const)).map((scope) => (
+                          <Link key={scope} href={storefrontHref(scope)} onClick={() => setSettingsOpen(false)} className={`inline-flex h-8 min-w-0 items-center justify-center rounded-[8px] px-2 text-[11px] font-semibold transition ${currentStorefrontScope === scope ? "bg-[var(--adm-primary)] text-[var(--adm-text)]" : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface)]"}`}>{ADMIN_STOREFRONT_SCOPE_LABELS[scope]}</Link>
                         ))}
                       </div>
                     </div>
@@ -496,10 +374,8 @@ export default function AdminShell({ children, userEmail, userRole }: AdminShell
             </div>
           ) : null}
 
-          <main className="relative">
-            <div className="w-full px-2 py-2.5 sm:px-4 sm:py-4 lg:px-6">
-              {children}
-            </div>
+          <main className="relative min-w-0">
+            <div className="admin-route-frame mx-auto w-full max-w-[1680px] px-2 py-2.5 sm:px-4 sm:py-4 lg:px-5">{children}</div>
           </main>
         </div>
       </div>

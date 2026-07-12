@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAdminScope } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import AdminUsersClient from "./AdminUsersClient";
+import { AdminPage, AdminPageHeader } from "@/components/admin/ui";
 
 const PAGE_SIZE = 20;
 
@@ -68,19 +69,12 @@ export default async function AdminUsersPage({
   });
 
   return (
-    <div className="space-y-6">
-      <section className="admin-reveal overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-          Admin / Users
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold text-white">
-          User access and profile controls
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm text-slate-400">
-          Dedicated user administration view for role changes, profile review,
-          and direct access into individual user records.
-        </p>
-      </section>
+    <AdminPage layout="queue">
+      <AdminPageHeader
+        eyebrow="Admin / Users"
+        title="User access and governance"
+        description="Search accounts, review roles and MFA posture, and open individual governance records."
+      />
 
       <AdminUsersClient
         initialUsers={users.map((user) => ({
@@ -105,6 +99,6 @@ export default async function AdminUsersPage({
         heading="All users"
         description="Standalone CRM access surface with role changes and direct profile entry."
       />
-    </div>
+    </AdminPage>
   );
 }

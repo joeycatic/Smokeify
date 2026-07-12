@@ -12,6 +12,7 @@ import {
   AdminPanel,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminPrimaryGrid } from "@/components/admin/ui";
 
 type AdminScriptsClientProps = {
   scripts: readonly AdminScriptDefinition[];
@@ -158,7 +159,7 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="console">
       <AdminPageIntro
         eyebrow="Admin / Scripts"
         title="Manual operations console"
@@ -179,7 +180,7 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
 
       {requestError ? <AdminNotice tone="error">{requestError}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <AdminPrimaryGrid rail="balanced">
         <div className="space-y-6">
           {groupedScripts.map((group) => (
             <AdminPanel
@@ -194,25 +195,25 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                   const hasLastRun = lastRun?.scriptId === script.id;
                   const lastRunBadgeClass =
                     hasLastRun && lastRun.status === "success"
-                      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                      ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
                       : hasLastRun && lastRun.status === "error"
-                      ? "border-red-400/20 bg-red-400/10 text-red-200"
-                      : "border-white/10 bg-white/[0.04] text-slate-400";
+                      ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
+                      : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]";
 
                   return (
                     <div
                       key={script.id}
-                      className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4"
+                      className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="max-w-3xl">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-semibold text-white">{script.title}</h3>
+                            <h3 className="text-base font-semibold text-[var(--adm-text)]">{script.title}</h3>
                             <span
                               className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                                 script.riskLevel === "read-only"
-                                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                                  : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+                                  ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                                  : "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
                               }`}
                             >
                               {script.riskLevel === "read-only" ? "Read-only" : "Writes data"}
@@ -220,8 +221,8 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                             <span
                               className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                                 script.dryRunByDefault
-                                  ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-                                  : "border-white/10 bg-white/[0.04] text-slate-300"
+                                  ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
+                                  : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                               }`}
                             >
                               {script.dryRunByDefault ? "Dry-run first" : "Direct apply"}
@@ -251,23 +252,23 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                       </div>
 
                       <div className="mt-4 grid gap-3 xl:grid-cols-3">
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                             What it does
                           </div>
-                          <div className="mt-2 text-sm text-slate-200">{script.description}</div>
+                          <div className="mt-2 text-sm text-[var(--adm-text)]">{script.description}</div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                             Input
                           </div>
-                          <div className="mt-2 text-sm text-slate-200">{script.inputSummary}</div>
+                          <div className="mt-2 text-sm text-[var(--adm-text)]">{script.inputSummary}</div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                             Output
                           </div>
-                          <div className="mt-2 text-sm text-slate-200">{script.outputSummary}</div>
+                          <div className="mt-2 text-sm text-[var(--adm-text)]">{script.outputSummary}</div>
                         </div>
                       </div>
 
@@ -276,7 +277,7 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                           {script.inputs.map((input) => (
                             <div
                               key={input.id}
-                              className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+                              className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3"
                             >
                               <AdminField label={input.label} optional="Optional">
                                 <AdminInput
@@ -289,13 +290,13 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                                   disabled={Boolean(runningScriptId)}
                                 />
                               </AdminField>
-                              <p className="mt-2 text-xs text-slate-500">{input.description}</p>
+                              <p className="mt-2 text-xs text-[var(--adm-text-faint)]">{input.description}</p>
                             </div>
                           ))}
                         </div>
                       ) : null}
 
-                      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                      <div className="mt-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
                         <AdminField label="Execution reason">
                           <AdminTextarea
                             value={getScriptReason(script.id)}
@@ -305,46 +306,46 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
                             disabled={Boolean(runningScriptId)}
                           />
                         </AdminField>
-                        <p className="mt-2 text-xs text-slate-500">
+                        <p className="mt-2 text-xs text-[var(--adm-text-faint)]">
                           Required for auditability before the script can run.
                         </p>
                       </div>
 
                       <div className="mt-3 grid gap-3 md:grid-cols-3">
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                             Command
                           </div>
-                          <div className="mt-2 text-sm text-slate-200">npm run {script.npmScript}</div>
+                          <div className="mt-2 text-sm text-[var(--adm-text)]">npm run {script.npmScript}</div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                             Expected time
                           </div>
-                          <div className="mt-2 text-sm text-slate-200">{script.expectedDuration}</div>
+                          <div className="mt-2 text-sm text-[var(--adm-text)]">{script.expectedDuration}</div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                             Impact
                           </div>
-                          <div className="mt-2 text-sm text-slate-200">{script.impact}</div>
+                          <div className="mt-2 text-sm text-[var(--adm-text)]">{script.impact}</div>
                         </div>
                       </div>
 
-                      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-400">
+                      <div className="mt-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3 text-sm text-[var(--adm-text-muted)]">
                         {script.safetyNote}
                       </div>
 
                       {hasLastRun ? (
-                        <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                        <div className="mt-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
-                              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                                 Last result
                               </div>
-                              <div className="mt-2 text-sm text-slate-200">{lastRun.message}</div>
+                              <div className="mt-2 text-sm text-[var(--adm-text)]">{lastRun.message}</div>
                             </div>
-                            <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                            <div className="flex flex-wrap gap-2 text-xs text-[var(--adm-text-muted)]">
                               <span>Duration: {formatDuration(lastRun.durationMs)}</span>
                               <span>Exit code: {lastRun.exitCode ?? "n/a"}</span>
                             </div>
@@ -367,61 +368,61 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
           >
             {lastRun ? (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                         Script
                       </div>
-                      <div className="mt-2 text-sm font-semibold text-white">{lastRun.title}</div>
+                      <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">{lastRun.title}</div>
                     </div>
                     <span
                       className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                         lastRun.status === "success"
-                          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                          : "border-red-400/20 bg-red-400/10 text-red-200"
+                          ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                          : "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
                       }`}
                     >
                       {lastRun.status}
                     </span>
                   </div>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                         Duration
                       </div>
-                      <div className="mt-2 text-sm text-slate-200">{formatDuration(lastRun.durationMs)}</div>
+                      <div className="mt-2 text-sm text-[var(--adm-text)]">{formatDuration(lastRun.durationMs)}</div>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                         Exit code
                       </div>
-                      <div className="mt-2 text-sm text-slate-200">{lastRun.exitCode ?? "n/a"}</div>
+                      <div className="mt-2 text-sm text-[var(--adm-text)]">{lastRun.exitCode ?? "n/a"}</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                       Stdout
                     </div>
-                    <pre className="mt-3 max-h-[18rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-slate-300">
+                    <pre className="mt-3 max-h-[18rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-[var(--adm-text-muted)]">
                       {lastRun.stdout || "No stdout returned."}
                     </pre>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                       Stderr
                     </div>
-                    <pre className="mt-3 max-h-[18rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-slate-300">
+                    <pre className="mt-3 max-h-[18rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-[var(--adm-text-muted)]">
                       {lastRun.stderr || "No stderr returned."}
                     </pre>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.02] px-5 py-10 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-5 py-10 text-center text-sm text-[var(--adm-text-faint)]">
                 Trigger a script to review its latest captured output here.
               </div>
             )}
@@ -432,20 +433,20 @@ export default function AdminScriptsClient({ scripts }: AdminScriptsClientProps)
             title="Execution guardrails"
             description="This page is intentionally constrained to reduce operational risk."
           >
-            <div className="space-y-3 text-sm text-slate-400">
-              <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3">
+            <div className="space-y-3 text-sm text-[var(--adm-text-muted)]">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
                 Only approved npm scripts are exposed. There is no arbitrary command entry point.
               </div>
-              <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
                 Runs are executed one at a time and rejected if another script is already active.
               </div>
-              <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
                 Every trigger is logged to the audit log with outcome metadata for later review.
               </div>
             </div>
           </AdminPanel>
         </div>
-      </div>
-    </div>
+      </AdminPrimaryGrid>
+    </AdminPage>
   );
 }

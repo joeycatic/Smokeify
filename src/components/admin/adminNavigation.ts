@@ -26,7 +26,6 @@ import {
   UsersIcon,
 } from "@heroicons/react/24/outline";
 import { hasAdminScope, type AdminScope } from "@/lib/adminPermissions";
-import { getStorefrontConfigs } from "@/lib/storefronts";
 
 export type AdminNavItem = {
   href: string;
@@ -46,48 +45,15 @@ export type AdminWorkspace = {
 
 export const ADMIN_WORKSPACES: AdminWorkspace[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    description: "Business health, analytics, and storefront views",
+    id: "overview",
+    label: "Overview",
+    description: "Business health, analytics, and storefronts",
     icon: HomeIcon,
     items: [
       { href: "/admin", label: "Dashboard", icon: HomeIcon, exact: true, scope: "dashboard.read" },
       { href: "/admin/analytics", label: "Analytics", icon: ChartBarSquareIcon, scope: "analytics.read" },
-      ...getStorefrontConfigs().map((storefront) => ({
-        href: storefront.adminPath,
-        label: storefront.label,
-        icon: HomeIcon,
-        scope: "analytics.read" as const,
-      })),
-    ],
-  },
-  {
-    id: "action-center",
-    label: "Action Center",
-    description: "Operational queues, tools, access, and audit trails",
-    icon: CommandLineIcon,
-    items: [
-      {
-        href: "/admin/ops",
-        label: "Ops",
-        icon: ClipboardDocumentListIcon,
-        scope: "ops.read",
-      },
-      {
-        href: "/admin/page-previews",
-        label: "Page Previews",
-        icon: RectangleStackIcon,
-        scope: "ops.read",
-      },
-      { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon, scope: "alerts.read" },
-      {
-        href: "/admin/scripts",
-        label: "Scripts",
-        icon: CommandLineIcon,
-        scope: "scripts.execute",
-      },
-      { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
-      { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon, scope: "audit.read" },
+      { href: "/admin/smokeify", label: "Smokeify", icon: HomeIcon, scope: "analytics.read" },
+      { href: "/admin/growvault", label: "GrowVault", icon: HomeIcon, scope: "analytics.read" },
     ],
   },
   {
@@ -107,34 +73,23 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
     ],
   },
   {
-    id: "customers",
-    label: "Customer Care",
-    description: "Support, returns, and customer care queues",
-    icon: UsersIcon,
-    items: [
-      { href: "/admin/support", label: "Support", icon: ChatBubbleLeftRightIcon, scope: "support.read" },
-      { href: "/admin/returns", label: "Returns", icon: ArchiveBoxIcon, scope: "returns.read" },
-    ],
-  },
-  {
     id: "catalog",
     label: "Catalog",
     description: "Products, taxonomy, governance, and inventory",
     icon: CubeIcon,
     items: [
       { href: "/admin/catalog", label: "Catalog", icon: CubeIcon, scope: "catalog.read" },
+      { href: "/admin/catalog/hygiene", label: "Hygiene", icon: ClipboardDocumentListIcon, scope: "catalog.read" },
+      { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
+      { href: "/admin/collections", label: "Collections", icon: FolderIcon, scope: "catalog.write" },
+      { href: "/admin/compliance", label: "Compliance", icon: CheckBadgeIcon, scope: "catalog.write" },
+      { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon, scope: "suppliers.read" },
       {
         href: "/admin/supplier-import",
         label: "Supplier Import",
         icon: Squares2X2Icon,
         scope: "catalog.write",
       },
-      { href: "/admin/catalog/hygiene", label: "Hygiene", icon: ClipboardDocumentListIcon, scope: "catalog.read" },
-      { href: "/admin/compliance", label: "Compliance", icon: CheckBadgeIcon, scope: "catalog.write" },
-      { href: "/admin/categories", label: "Categories", icon: SwatchIcon, scope: "catalog.write" },
-      { href: "/admin/collections", label: "Collections", icon: FolderIcon, scope: "catalog.write" },
-      { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon, scope: "catalog.write" },
-      { href: "/admin/suppliers", label: "Suppliers", icon: TruckIcon, scope: "suppliers.read" },
       {
         href: "/admin/inventory-adjustments",
         label: "Inventory",
@@ -144,17 +99,27 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
     ],
   },
   {
-    id: "mcc",
-    label: "Marketing Command Center",
-    description: "CRM, audiences, campaigns, automations, offers, and attribution",
+    id: "customers",
+    label: "Customers",
+    description: "Support, customer records, and feedback",
+    icon: UsersIcon,
+    items: [
+      { href: "/admin/support", label: "Support", icon: ChatBubbleLeftRightIcon, scope: "support.read" },
+      { href: "/admin/customers", label: "Contacts CRM", icon: UsersIcon, scope: "customers.read" },
+      { href: "/admin/reviews", label: "Reviews", icon: ChatBubbleLeftRightIcon, scope: "catalog.write" },
+    ],
+  },
+  {
+    id: "marketing",
+    label: "Marketing",
+    description: "Campaigns, growth, content, and attribution",
     icon: ChartBarSquareIcon,
     items: [
-      { href: "/admin/mcc", label: "MCC Overview", icon: ChartBarSquareIcon, scope: "marketing.read" },
-      { href: "/admin/customers", label: "Contacts CRM", icon: UsersIcon, scope: "customers.read" },
-      { href: "/admin/growth", label: "Growth Hub", icon: ChartBarSquareIcon, scope: "marketing.read" },
+      { href: "/admin/mcc", label: "Command Center", icon: ChartBarSquareIcon, scope: "marketing.read" },
+      { href: "/admin/growth", label: "Growth", icon: ChartBarSquareIcon, scope: "marketing.read" },
       {
         href: "/admin/email-testing",
-        label: "Email Testing",
+        label: "Email",
         icon: ArrowTopRightOnSquareIcon,
         scope: "marketing.send",
       },
@@ -166,25 +131,12 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
         icon: DocumentTextIcon,
         scope: "marketing.read",
       },
-      {
-        href: "/admin/recommendations",
-        label: "Recommendations",
-        icon: RectangleGroupIcon,
-        scope: "pricing.review",
-      },
-      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon, scope: "pricing.read" },
-      {
-        href: "/admin/analyzer",
-        label: "Analyzer",
-        icon: BeakerIcon,
-        scope: "ops.read",
-      },
     ],
   },
   {
     id: "finance",
-    label: "Finance",
-    description: "Finance, tax, reports, profitability, and attribution",
+    label: "Finance & Pricing",
+    description: "Finance, tax, profitability, and pricing",
     icon: BanknotesIcon,
     items: [
       { href: "/admin/finance", label: "Finance", icon: BanknotesIcon, scope: "finance.read" },
@@ -194,9 +146,31 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
         icon: PresentationChartLineIcon,
         scope: "finance.read",
       },
-      { href: "/admin/vat", label: "VAT Monitor", icon: CalculatorIcon, scope: "tax.review" },
+      { href: "/admin/pricing", label: "Pricing", icon: CalculatorIcon, scope: "pricing.read" },
+      {
+        href: "/admin/recommendations",
+        label: "Recommendations",
+        icon: RectangleGroupIcon,
+        scope: "pricing.review",
+      },
+      { href: "/admin/vat", label: "VAT", icon: CalculatorIcon, scope: "tax.review" },
       { href: "/admin/expenses", label: "Expenses", icon: DocumentTextIcon, scope: "tax.review" },
       { href: "/admin/reports", label: "Reports", icon: DocumentTextIcon, scope: "finance.read" },
+    ],
+  },
+  {
+    id: "system",
+    label: "System",
+    description: "Operations, alerts, tools, access, and audit",
+    icon: CommandLineIcon,
+    items: [
+      { href: "/admin/ops", label: "Ops", icon: ClipboardDocumentListIcon, scope: "ops.read" },
+      { href: "/admin/alerts", label: "Alerts", icon: BellAlertIcon, scope: "alerts.read" },
+      { href: "/admin/analyzer", label: "Analyzer", icon: BeakerIcon, scope: "ops.read" },
+      { href: "/admin/page-previews", label: "Page Previews", icon: RectangleStackIcon, scope: "ops.read" },
+      { href: "/admin/scripts", label: "Scripts", icon: CommandLineIcon, scope: "scripts.execute" },
+      { href: "/admin/users", label: "Users", icon: UsersIcon, scope: "users.manage" },
+      { href: "/admin/audit", label: "Audit Log", icon: ClipboardDocumentListIcon, scope: "audit.read" },
     ],
   },
 ];

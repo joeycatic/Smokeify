@@ -19,6 +19,7 @@ import {
   AdminPageIntro,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage } from "@/components/admin/ui";
 import { STOREFRONT_LABELS, type StorefrontCode } from "@/lib/storefronts";
 
 type LandingPageProduct = {
@@ -187,18 +188,18 @@ function LandingPageSectionEditor({
       title={section.title}
       description={section.description}
       actions={
-        <div className="flex flex-col items-end gap-1 text-right text-xs text-slate-400">
+        <div className="flex flex-col items-end gap-1 text-right text-xs text-[var(--adm-text-muted)]">
           <span>{section.draftProducts.length}/{section.maxItems} in draft</span>
           {section.lastPublishedAt ? (
             <span>Published {new Date(section.lastPublishedAt).toLocaleString("de-DE")}</span>
           ) : null}
           {section.scheduledPublishAt ? (
             <>
-              <span className="text-cyan-200">
+              <span className="text-[var(--adm-primary)]">
                 Scheduled {new Date(section.scheduledPublishAt).toLocaleString("de-DE")}
               </span>
               {section.scheduledRevision ? (
-                <span className="text-slate-400">
+                <span className="text-[var(--adm-text-muted)]">
                   Revision {section.scheduledRevision.id.slice(0, 8)}
                   {section.scheduledDraftDiffers ? " · draft changed since scheduling" : ""}
                 </span>
@@ -210,45 +211,45 @@ function LandingPageSectionEditor({
     >
       <div className="space-y-5">
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
               Live
             </div>
-            <div className="mt-2 text-sm font-semibold text-white">
+            <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">
               {section.isManual ? "Manual section is live" : "Automatic fallback is live"}
             </div>
-            <div className="mt-1 text-sm text-slate-400">
+            <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
               {section.products.length} product(s) are currently visible on the storefront.
             </div>
           </div>
-          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+          <div className="rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--adm-primary)]">
               Draft
             </div>
-            <div className="mt-2 text-sm font-semibold text-white">
+            <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">
               {section.draftIsManual ? "Manual draft ready" : "Draft keeps automatic fallback"}
             </div>
-            <div className="mt-1 text-sm text-slate-300">
+            <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
               Save changes here first, then preview, publish, or schedule them.
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
           <div>
-            <div className="text-sm font-semibold text-white">Draft manual override</div>
-            <div className="mt-1 text-sm text-slate-400">
+            <div className="text-sm font-semibold text-[var(--adm-text)]">Draft manual override</div>
+            <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
               {section.draftIsManual
                 ? "The draft will use the exact product order saved here."
                 : "The draft will fall back to the automatic default selection."}
             </div>
           </div>
-          <label className="inline-flex items-center gap-3 text-sm font-medium text-slate-200">
+          <label className="inline-flex items-center gap-3 text-sm font-medium text-[var(--adm-text)]">
             <input
               type="checkbox"
               checked={section.draftIsManual}
               onChange={(event) => onToggleManual(event.target.checked)}
-              className="h-4 w-4 rounded border-white/20 bg-white/5"
+              className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-[var(--adm-surface-2)]"
             />
             Manual draft
           </label>
@@ -259,9 +260,9 @@ function LandingPageSectionEditor({
             section.draftProducts.map((product, index) => (
               <div
                 key={product.id}
-                className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-[#070a0f] p-3"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3"
               >
-                <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                <div className="relative h-14 w-14 overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)]">
                   {product.imageUrl ? (
                     <Image
                       src={product.imageUrl}
@@ -273,16 +274,16 @@ function LandingPageSectionEditor({
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-white">{product.title}</div>
-                  <div className="mt-1 text-xs text-slate-400">
+                  <div className="truncate text-sm font-semibold text-[var(--adm-text)]">{product.title}</div>
+                  <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                     /products/{product.handle}
                     {product.manufacturer ? ` · ${product.manufacturer}` : ""}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-slate-300">
+                    <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[var(--adm-text-muted)]">
                       {product.status}
                     </span>
-                    <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-200">
+                    <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-primary)]">
                       {product.storefronts
                         .map((entry) => STOREFRONT_LABELS[entry as StorefrontCode] ?? entry)
                         .join(" + ")}
@@ -294,7 +295,7 @@ function LandingPageSectionEditor({
                     type="button"
                     onClick={() => onMoveProduct(index, index - 1)}
                     disabled={index === 0}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-300 transition hover:bg-white/[0.05] disabled:opacity-40"
+                    className="inline-flex h-8 w-10 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-surface-2)] disabled:opacity-40"
                     aria-label={`Move ${product.title} up`}
                   >
                     <ArrowUpIcon className="h-4 w-4" />
@@ -303,7 +304,7 @@ function LandingPageSectionEditor({
                     type="button"
                     onClick={() => onMoveProduct(index, index + 1)}
                     disabled={index === section.draftProducts.length - 1}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-300 transition hover:bg-white/[0.05] disabled:opacity-40"
+                    className="inline-flex h-8 w-10 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-surface-2)] disabled:opacity-40"
                     aria-label={`Move ${product.title} down`}
                   >
                     <ArrowDownIcon className="h-4 w-4" />
@@ -311,7 +312,7 @@ function LandingPageSectionEditor({
                   <button
                     type="button"
                     onClick={() => onRemoveProduct(product.id)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-400/20 bg-red-400/10 text-red-200 transition hover:bg-red-400/15"
+                    className="inline-flex h-8 w-10 items-center justify-center rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)] transition hover:bg-[#fae7e3]"
                     aria-label={`Remove ${product.title}`}
                   >
                     <TrashIcon className="h-4 w-4" />
@@ -320,16 +321,16 @@ function LandingPageSectionEditor({
               </div>
             ))
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-5 py-8 text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-5 py-8 text-sm text-[var(--adm-text-faint)]">
               No draft products selected. Add products below, then save the draft before you publish.
             </div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
           <AdminField label="Search products">
             <div className="relative">
-              <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--adm-text-faint)]" />
               <AdminInput
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -339,9 +340,9 @@ function LandingPageSectionEditor({
             </div>
           </AdminField>
           <div className="mt-3 space-y-2">
-            {searching ? <div className="text-sm text-slate-500">Searching products...</div> : null}
+            {searching ? <div className="text-sm text-[var(--adm-text-faint)]">Searching products...</div> : null}
             {!searching && query.trim() && searchResults.length === 0 ? (
-              <div className="text-sm text-slate-500">
+              <div className="text-sm text-[var(--adm-text-faint)]">
                 No matching active {storefrontLabel} products found.
               </div>
             ) : null}
@@ -351,13 +352,13 @@ function LandingPageSectionEditor({
               return (
                 <div
                   key={result.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-white">
+                    <div className="truncate text-sm font-semibold text-[var(--adm-text)]">
                       {result.title}
                     </div>
-                    <div className="mt-1 text-xs text-slate-400">/products/{result.handle}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-muted)]">/products/{result.handle}</div>
                   </div>
                   <AdminButton
                     tone="secondary"
@@ -372,9 +373,9 @@ function LandingPageSectionEditor({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white">
-            <CalendarDaysIcon className="h-4 w-4 text-cyan-200" />
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--adm-text)]">
+            <CalendarDaysIcon className="h-4 w-4 text-[var(--adm-primary)]" />
             Publishing controls
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
@@ -398,11 +399,11 @@ function LandingPageSectionEditor({
               Clear schedule
             </AdminButton>
           </div>
-          <div className="mt-3 text-sm text-slate-400">
+          <div className="mt-3 text-sm text-[var(--adm-text-muted)]">
             Publishing uses the saved draft state. Save the draft first if you changed products or override mode.
           </div>
           {section.scheduledRevision ? (
-            <div className="mt-2 text-xs text-cyan-200/80">
+            <div className="mt-2 text-xs text-[var(--adm-primary)]/80">
               Scheduled publish is pinned to revision {section.scheduledRevision.id.slice(0, 8)}
               {" · "}
               saved {new Date(section.scheduledRevision.createdAt).toLocaleString("de-DE")}
@@ -413,28 +414,28 @@ function LandingPageSectionEditor({
           ) : null}
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="text-sm font-semibold text-white">Revision history</div>
-          <div className="mt-1 text-sm text-slate-400">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+          <div className="text-sm font-semibold text-[var(--adm-text)]">Revision history</div>
+          <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
             Each draft save creates a frozen snapshot. Scheduled publishes stay pinned to the revision selected at schedule time.
           </div>
           <div className="mt-4 space-y-3">
             {section.revisions.length === 0 ? (
-              <div className="text-sm text-slate-500">
+              <div className="text-sm text-[var(--adm-text-faint)]">
                 No revisions saved yet. Save the current draft to create the first snapshot.
               </div>
             ) : (
               section.revisions.map((revision) => (
                 <div
                   key={revision.id}
-                  className="rounded-2xl border border-white/10 bg-[#070a0f] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         {revision.isManual ? "Manual revision" : "Automatic fallback revision"}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {revision.productIds.length} product(s) ·{" "}
                         {new Date(revision.createdAt).toLocaleString("de-DE")}
                         {revision.createdByEmail ? ` · ${revision.createdByEmail}` : ""}
@@ -442,12 +443,12 @@ function LandingPageSectionEditor({
                     </div>
                     <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
                       {section.publishedRevisionId === revision.id ? (
-                        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-emerald-200">
+                        <span className="rounded-full border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-success)]">
                           Live
                         </span>
                       ) : null}
                       {section.scheduledRevisionId === revision.id ? (
-                        <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-200">
+                        <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-primary)]">
                           Scheduled
                         </span>
                       ) : null}
@@ -867,14 +868,14 @@ export default function AdminLandingPageClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="editor">
       <AdminPageIntro
         eyebrow="Admin / Landing Page"
         title="Homepage merchandising"
         description={`Manage ${storefrontLabel} homepage product sections with a safer workflow: edit the draft, then publish immediately or schedule it for later.`}
         actions={
           <>
-            <div className="inline-flex overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] p-1">
+            <div className="inline-flex overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-1">
               {(["MAIN", "GROW"] as const).map((storefront) => {
                 const active = storefront === initialStorefront;
                 return (
@@ -887,8 +888,8 @@ export default function AdminLandingPageClient({
                     }
                     className={`inline-flex h-9 items-center justify-center rounded-lg px-3 text-sm font-semibold transition ${
                       active
-                        ? "bg-cyan-400 text-slate-950"
-                        : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
+                        ? "bg-[var(--adm-primary)] text-white"
+                        : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"
                     }`}
                   >
                     {STOREFRONT_LABELS[storefront]}
@@ -900,7 +901,7 @@ export default function AdminLandingPageClient({
               <Link
                 href="/?landingPreview=draft"
                 target="_blank"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15"
               >
                 Preview draft homepage
               </Link>
@@ -953,7 +954,7 @@ export default function AdminLandingPageClient({
       >
         <div className="space-y-3">
           {scheduledSections.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
               No landing-page sections are currently scheduled.
             </div>
           ) : (
@@ -971,21 +972,21 @@ export default function AdminLandingPageClient({
                 return (
                   <div
                     key={queueKey}
-                    className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4"
+                    className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4"
                   >
                     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                       <div>
-                        <div className="text-sm font-semibold text-white">
+                        <div className="text-sm font-semibold text-[var(--adm-text)]">
                           {STOREFRONT_LABELS[section.storefront]} · {section.title}
                         </div>
-                        <div className="mt-1 text-xs text-slate-500">
+                        <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                           Scheduled {new Date(section.scheduledPublishAt ?? "").toLocaleString("de-DE")}
                           {section.scheduledRevision
                             ? ` · revision ${section.scheduledRevision.id.slice(0, 8)}`
                             : ""}
                         </div>
                         {section.scheduledDraftDiffers ? (
-                          <div className="mt-2 text-xs text-amber-200">
+                          <div className="mt-2 text-xs text-[#81560e]">
                             Current draft differs from the frozen scheduled revision.
                           </div>
                         ) : null}
@@ -1037,7 +1038,7 @@ export default function AdminLandingPageClient({
                               ? "/admin/landing-page"
                               : `/admin/landing-page?storefront=${section.storefront}`
                           }
-                          className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.05]"
+                          className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                         >
                           Open
                         </Link>
@@ -1132,6 +1133,6 @@ export default function AdminLandingPageClient({
           />
         ))}
       </div>
-    </div>
+    </AdminPage>
   );
 }

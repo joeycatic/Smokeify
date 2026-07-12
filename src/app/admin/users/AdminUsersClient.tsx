@@ -45,8 +45,8 @@ type Props = {
 const ROLES: UserRow["role"][] = ["USER", "STAFF", "ADMIN"];
 
 const ROLE_STYLES: Record<UserRow["role"], string> = {
-  USER: "border-white/10 bg-white/[0.04] text-slate-300",
-  STAFF: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+  USER: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]",
+  STAFF: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
   ADMIN: "border-violet-400/20 bg-violet-400/10 text-violet-200",
 };
 
@@ -446,14 +446,14 @@ export default function AdminUsersClient({
   };
 
   return (
-    <section className="admin-reveal space-y-5 rounded-[28px] border border-white/10 bg-[#090d12]/90 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+    <section className="admin-reveal space-y-5 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
             Access
           </p>
-          <h2 className="mt-2 text-lg font-semibold text-white">{heading}</h2>
-          <p className="mt-1 text-sm text-slate-400">{description}</p>
+          <h2 className="mt-2 text-lg font-semibold text-[var(--adm-text)]">{heading}</h2>
+          <p className="mt-1 text-sm text-[var(--adm-text-muted)]">{description}</p>
         </div>
         <div className="grid w-full gap-2 sm:min-w-[16rem] sm:grid-cols-2 lg:w-auto">
           <StatChip label="Visible users" value={String(totalCount)} />
@@ -467,8 +467,8 @@ export default function AdminUsersClient({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex w-full min-w-0 flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300 sm:min-w-[16rem]">
-          <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" aria-hidden="true">
+        <label className="flex w-full min-w-0 flex-1 items-center gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)] sm:min-w-[16rem]">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--adm-text-faint)]" aria-hidden="true">
             <path
               d="M11 4a7 7 0 015.25 11.7l3.53 3.53a1 1 0 01-1.41 1.41l-3.53-3.53A7 7 0 1111 4z"
               fill="none"
@@ -483,35 +483,35 @@ export default function AdminUsersClient({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search email, name, or role"
-            className="w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+            className="w-full bg-transparent text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
           />
         </label>
-        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-400">
+        <div className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-xs text-[var(--adm-text-muted)]">
           Page {currentPage} / {totalPages}
         </div>
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-xl border border-red-500/20 bg-[#fae7e3] px-4 py-3 text-sm text-[var(--adm-error)]">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <div className="rounded-xl border border-emerald-500/20 bg-[var(--adm-primary-soft)] px-4 py-3 text-sm text-[var(--adm-success)]">
           {notice}
         </div>
       ) : null}
 
       {adminUsers.length > 0 ? (
-        <div className="space-y-3 rounded-[24px] border border-white/10 bg-[#070a0f] p-4">
+        <div className="space-y-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                 Governance
               </p>
-              <h3 className="mt-2 text-base font-semibold text-white">Admin account controls</h3>
+              <h3 className="mt-2 text-base font-semibold text-[var(--adm-text)]">Admin account controls</h3>
             </div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-[var(--adm-text-faint)]">
               Disable access, revoke sessions, and clear remembered devices.
             </div>
           </div>
@@ -520,14 +520,14 @@ export default function AdminUsersClient({
             {adminUsers.map((user) => (
               <div
                 key={user.id}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-white">
+                    <div className="truncate text-sm font-semibold text-[var(--adm-text)]">
                       {user.email ?? user.id}
                     </div>
-                    <div className="mt-1 truncate text-xs text-slate-500">
+                    <div className="mt-1 truncate text-xs text-[var(--adm-text-faint)]">
                       {user.name ?? "No public name"}
                     </div>
                   </div>
@@ -535,8 +535,8 @@ export default function AdminUsersClient({
                     <span
                       className={`rounded-full border px-2.5 py-1 ${
                         user.adminAccessDisabledAt
-                          ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
-                          : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                          ? "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
+                          : "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
                       }`}
                     >
                       {user.adminAccessDisabledAt ? "Access disabled" : "Access enabled"}
@@ -544,10 +544,10 @@ export default function AdminUsersClient({
                     <span
                       className={`rounded-full border px-2.5 py-1 ${
                         user.adminTotpEnabled
-                          ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                          ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
                           : user.adminTotpPending
-                            ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
-                          : "border-rose-400/20 bg-rose-400/10 text-rose-200"
+                            ? "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
+                          : "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
                       }`}
                     >
                       {user.adminTotpEnabled
@@ -559,21 +559,21 @@ export default function AdminUsersClient({
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-400">
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--adm-text-muted)]">
                   <span>{user.sessionCount} session(s)</span>
                   <span>{user.deviceCount} trusted device(s)</span>
                   <span>Created {new Date(user.createdAt).toLocaleDateString("de-DE")}</span>
                 </div>
 
                 {user.adminAccessDisabledAt ? (
-                  <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-3 py-3 text-xs text-amber-100">
+                  <div className="mt-3 rounded-xl border border-[#e2a136] bg-[#fff4dd] px-3 py-3 text-xs text-[#81560e]">
                     Disabled {new Date(user.adminAccessDisabledAt).toLocaleString("de-DE")}
                     {user.adminAccessDisableReason ? ` · ${user.adminAccessDisableReason}` : ""}
                   </div>
                 ) : null}
 
                 {user.adminTotpPending ? (
-                  <div className="mt-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-3 text-xs text-cyan-100">
+                  <div className="mt-3 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-3 text-xs text-[var(--adm-primary)]">
                     Authenticator setup is pending confirmation for this admin account.
                   </div>
                 ) : null}
@@ -592,7 +592,7 @@ export default function AdminUsersClient({
                       })
                     }
                     disabled={savingId === user.id}
-                    className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100"
+                    className="rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--adm-primary)]"
                   >
                     {user.adminTotpPending
                       ? "Resume MFA setup"
@@ -613,7 +613,7 @@ export default function AdminUsersClient({
                       savingId === user.id ||
                       (!user.adminTotpEnabled && !user.adminTotpPending)
                     }
-                    className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs font-semibold text-rose-100"
+                    className="rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-3 py-2 text-xs font-semibold text-[var(--adm-error)]"
                   >
                     Reset MFA
                   </button>
@@ -630,8 +630,8 @@ export default function AdminUsersClient({
                     disabled={savingId === user.id}
                     className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
                       user.adminAccessDisabledAt
-                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
-                        : "border-amber-400/20 bg-amber-400/10 text-amber-100"
+                        ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                        : "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
                     }`}
                   >
                     {user.adminAccessDisabledAt ? "Enable access" : "Disable access"}
@@ -642,7 +642,7 @@ export default function AdminUsersClient({
                       setGovernanceConfirm({ id: user.id, action: "revoke_sessions" })
                     }
                     disabled={savingId === user.id}
-                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-100"
+                    className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-xs font-semibold text-[var(--adm-text)]"
                   >
                     Revoke sessions
                   </button>
@@ -655,7 +655,7 @@ export default function AdminUsersClient({
                       })
                     }
                     disabled={savingId === user.id}
-                    className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100"
+                    className="rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--adm-primary)]"
                   >
                     Clear devices
                   </button>
@@ -670,17 +670,17 @@ export default function AdminUsersClient({
         {users.map((user) => (
           <div
             key={user.id}
-            className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4"
+            className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <Link
                   href={`/admin/users/${user.id}`}
-                  className="truncate text-sm font-semibold text-slate-100 underline-offset-4 hover:text-cyan-300 hover:underline"
+                  className="truncate text-sm font-semibold text-[var(--adm-text)] underline-offset-4 hover:text-[var(--adm-primary)] hover:underline"
                 >
                   {user.email ?? "Unknown email"}
                 </Link>
-                <div className="mt-1 truncate text-xs text-slate-500">
+                <div className="mt-1 truncate text-xs text-[var(--adm-text-faint)]">
                   {user.name ?? "No public name"}
                 </div>
               </div>
@@ -692,26 +692,26 @@ export default function AdminUsersClient({
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                   Created
                 </div>
-                <div className="mt-1 text-sm text-slate-200">
+                <div className="mt-1 text-sm text-[var(--adm-text)]">
                   {new Date(user.createdAt).toLocaleDateString("de-DE")}
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                   Profile
                 </div>
-                <div className="mt-1 text-sm text-slate-200">
+                <div className="mt-1 text-sm text-[var(--adm-text)]">
                   {user.sessionCount} sessions · {user.deviceCount} devices
                 </div>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Role
                 <select
                   value={user.role}
@@ -726,7 +726,7 @@ export default function AdminUsersClient({
                     });
                   }}
                   disabled={savingId === user.id}
-                  className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-semibold text-slate-100"
+                  className="mt-2 h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm font-semibold text-[var(--adm-text)]"
                 >
                   {ROLES.map((role) => (
                     <option key={role} value={role}>
@@ -738,7 +738,7 @@ export default function AdminUsersClient({
 
               <Link
                 href={`/admin/users/${user.id}`}
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200"
+                className="inline-flex h-9 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
               >
                 Open profile
               </Link>
@@ -746,16 +746,16 @@ export default function AdminUsersClient({
           </div>
         ))}
         {users.length === 0 ? (
-          <div className="rounded-[24px] border border-white/10 bg-[#070a0f] px-4 py-10 text-center text-sm text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-10 text-center text-sm text-[var(--adm-text-faint)]">
             No users found for this query.
           </div>
         ) : null}
       </div>
 
-      <div className="hidden overflow-hidden rounded-[24px] border border-white/10 bg-[#070a0f] md:block">
+      <div className="hidden overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-white/[0.03] text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <thead className="bg-[var(--adm-surface)] text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
               <tr>
                 <th className="px-4 py-3">Identity</th>
                 <th className="px-4 py-3">Role</th>
@@ -765,16 +765,16 @@ export default function AdminUsersClient({
             </thead>
             <tbody className="divide-y divide-white/5">
               {users.map((user) => (
-                <tr key={user.id} className="transition hover:bg-white/[0.03]">
+                <tr key={user.id} className="transition hover:bg-[var(--adm-surface)]">
                   <td className="px-4 py-3">
                     <div className="min-w-0">
                       <Link
                         href={`/admin/users/${user.id}`}
-                        className="truncate font-semibold text-slate-100 underline-offset-4 hover:text-cyan-300 hover:underline"
+                        className="truncate font-semibold text-[var(--adm-text)] underline-offset-4 hover:text-[var(--adm-primary)] hover:underline"
                       >
                         {user.email ?? "Unknown email"}
                       </Link>
-                      <div className="truncate text-xs text-slate-500">
+                      <div className="truncate text-xs text-[var(--adm-text-faint)]">
                         {user.name ?? "No public name"}
                       </div>
                     </div>
@@ -799,7 +799,7 @@ export default function AdminUsersClient({
                           });
                         }}
                         disabled={savingId === user.id}
-                        className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-100"
+                        className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-xs font-semibold text-[var(--adm-text)]"
                       >
                         {ROLES.map((role) => (
                           <option key={role} value={role}>
@@ -809,13 +809,13 @@ export default function AdminUsersClient({
                       </select>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">
+                  <td className="px-4 py-3 text-[var(--adm-text-muted)]">
                     {new Date(user.createdAt).toLocaleDateString("de-DE")}
                   </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/users/${user.id}`}
-                      className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200"
+                      className="inline-flex items-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-xs font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
                     >
                       Open profile
                     </Link>
@@ -824,7 +824,7 @@ export default function AdminUsersClient({
               ))}
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-[var(--adm-text-faint)]">
                     No users found for this query.
                   </td>
                 </tr>
@@ -834,10 +834,10 @@ export default function AdminUsersClient({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--adm-text-muted)]">
         <div>
-          Showing <span className="font-semibold text-slate-100">{users.length}</span> of{" "}
-          <span className="font-semibold text-slate-100">{totalCount}</span>
+          Showing <span className="font-semibold text-[var(--adm-text)]">{users.length}</span> of{" "}
+          <span className="font-semibold text-[var(--adm-text)]">{totalCount}</span>
         </div>
         <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
           <PagerLink
@@ -846,7 +846,7 @@ export default function AdminUsersClient({
           >
             Prev
           </PagerLink>
-          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2">
+          <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2">
             {currentPage} / {totalPages}
           </span>
           <PagerLink
@@ -871,9 +871,9 @@ export default function AdminUsersClient({
             }}
             aria-label="Close dialog"
           />
-          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
-            <h3 className="text-lg font-semibold text-white">Confirm role change</h3>
-            <p className="mt-2 text-sm text-slate-400">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-xl sm:p-6">
+            <h3 className="text-lg font-semibold text-[var(--adm-text)]">Confirm role change</h3>
+            <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
               Enter your admin password to apply this access change.
             </p>
             <input
@@ -883,7 +883,7 @@ export default function AdminUsersClient({
                 setRoleReason(event.target.value);
                 if (rolePasswordError) setRolePasswordError("");
               }}
-              className="mt-4 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-slate-500"
+              className="mt-4 h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
               placeholder="Reason for the role change"
             />
             <input
@@ -893,11 +893,11 @@ export default function AdminUsersClient({
                 setRolePassword(event.target.value);
                 if (rolePasswordError) setRolePasswordError("");
               }}
-              className="mt-4 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-slate-500"
+              className="mt-4 h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
               placeholder="Admin password"
             />
             {rolePasswordError ? (
-              <p className="mt-2 text-xs text-red-300">{rolePasswordError}</p>
+              <p className="mt-2 text-xs text-[var(--adm-error)]">{rolePasswordError}</p>
             ) : null}
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
@@ -908,14 +908,14 @@ export default function AdminUsersClient({
                   setRolePassword("");
                   setRolePasswordError("");
                 }}
-                className="h-10 rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                className="h-8 rounded-xl border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => void confirmRoleChange()}
-                className="h-10 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950"
+                className="h-8 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-white"
               >
                 Apply
               </button>
@@ -937,22 +937,22 @@ export default function AdminUsersClient({
             }}
             aria-label="Close dialog"
           />
-          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
-            <h3 className="text-lg font-semibold text-white">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-xl sm:p-6">
+            <h3 className="text-lg font-semibold text-[var(--adm-text)]">
               {GOVERNANCE_ACTION_COPY[governanceConfirm.action].title}
             </h3>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
               {GOVERNANCE_ACTION_COPY[governanceConfirm.action].description}
             </p>
 
             {GOVERNANCE_ACTION_COPY[governanceConfirm.action].reasonLabel ? (
-              <label className="mt-4 block text-xs font-semibold text-slate-400">
+              <label className="mt-4 block text-xs font-semibold text-[var(--adm-text-muted)]">
                 {GOVERNANCE_ACTION_COPY[governanceConfirm.action].reasonLabel}
                 <input
                   type="text"
                   value={governanceReason}
                   onChange={(event) => setGovernanceReason(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-slate-500"
+                  className="mt-2 h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
                   placeholder={
                     GOVERNANCE_ACTION_COPY[governanceConfirm.action].reasonPlaceholder
                   }
@@ -967,11 +967,11 @@ export default function AdminUsersClient({
                 setGovernancePassword(event.target.value);
                 if (governanceError) setGovernanceError("");
               }}
-              className="mt-4 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-slate-500"
+              className="mt-4 h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
               placeholder="Admin password"
             />
             {governanceError ? (
-              <p className="mt-2 text-xs text-red-300">{governanceError}</p>
+              <p className="mt-2 text-xs text-[var(--adm-error)]">{governanceError}</p>
             ) : null}
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
@@ -982,14 +982,14 @@ export default function AdminUsersClient({
                   setGovernanceReason("");
                   setGovernanceError("");
                 }}
-                className="h-10 rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                className="h-8 rounded-xl border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => void runGovernanceAction()}
-                className="h-10 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950"
+                className="h-8 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-white"
               >
                 {GOVERNANCE_ACTION_COPY[governanceConfirm.action].buttonLabel}
               </button>
@@ -1011,41 +1011,41 @@ export default function AdminUsersClient({
             }}
             aria-label="Close dialog"
           />
-          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-[24px] border border-white/10 bg-[#090d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
-            <h3 className="text-lg font-semibold text-white">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-xl sm:p-6">
+            <h3 className="text-lg font-semibold text-[var(--adm-text)]">
               {MFA_ACTION_COPY[mfaDialog.action].title}
             </h3>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
               {MFA_ACTION_COPY[mfaDialog.action].description}
             </p>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+            <div className="mt-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               {mfaDialog.email ?? mfaDialog.id}
             </div>
 
             {mfaDialog.secret ? (
-              <div className="mt-4 space-y-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+              <div className="mt-4 space-y-3 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] p-4">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-primary)]/80">
                     Account label
                   </div>
-                  <div className="mt-2 break-all rounded-xl border border-white/10 bg-[#050912] px-3 py-2 text-sm text-white">
+                  <div className="mt-2 break-all rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-sm text-[var(--adm-text)]">
                     {mfaDialog.accountName}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-primary)]/80">
                     Manual secret
                   </div>
-                  <div className="mt-2 break-all rounded-xl border border-white/10 bg-[#050912] px-3 py-2 font-mono text-sm text-white">
+                  <div className="mt-2 break-all rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 font-mono text-sm text-[var(--adm-text)]">
                     {mfaDialog.secret}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-primary)]/80">
                     OTP auth URL
                   </div>
-                  <div className="mt-2 break-all rounded-xl border border-white/10 bg-[#050912] px-3 py-2 text-xs text-slate-300">
+                  <div className="mt-2 break-all rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-xs text-[var(--adm-text-muted)]">
                     {mfaDialog.otpAuthUrl}
                   </div>
                 </div>
@@ -1059,7 +1059,7 @@ export default function AdminUsersClient({
                 setMfaPassword(event.target.value);
                 if (mfaError) setMfaError("");
               }}
-              className="mt-4 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-slate-500"
+              className="mt-4 h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
               placeholder="Admin password"
             />
 
@@ -1072,12 +1072,12 @@ export default function AdminUsersClient({
                   if (mfaError) setMfaError("");
                 }}
                 inputMode="numeric"
-                className="mt-3 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-slate-500"
+                className="mt-3 h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
                 placeholder="Authenticator code"
               />
             ) : null}
 
-            {mfaError ? <p className="mt-2 text-xs text-red-300">{mfaError}</p> : null}
+            {mfaError ? <p className="mt-2 text-xs text-[var(--adm-error)]">{mfaError}</p> : null}
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
@@ -1087,14 +1087,14 @@ export default function AdminUsersClient({
                   setMfaCode("");
                   setMfaError("");
                 }}
-                className="h-10 rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                className="h-8 rounded-xl border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => void runMfaAction()}
-                className="h-10 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950"
+                className="h-8 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-white"
               >
                 {MFA_ACTION_COPY[mfaDialog.action].buttonLabel}
               </button>
@@ -1108,11 +1108,11 @@ export default function AdminUsersClient({
 
 function StatChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
         {label}
       </div>
-      <div className="mt-1 text-sm font-semibold text-white">{value}</div>
+      <div className="mt-1 text-sm font-semibold text-[var(--adm-text)]">{value}</div>
     </div>
   );
 }
@@ -1137,10 +1137,10 @@ function PagerLink({
           event.preventDefault();
         }
       }}
-      className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 font-semibold transition ${
+      className={`inline-flex h-8 items-center justify-center rounded-xl border px-4 font-semibold transition ${
         disabled
-          ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600"
-          : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200"
+          ? "cursor-not-allowed border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-faint)]"
+          : "border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text)] hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
       }`}
     >
       {children}

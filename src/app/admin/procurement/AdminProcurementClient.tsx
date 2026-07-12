@@ -15,6 +15,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminSplitView } from "@/components/admin/ui";
 
 type PurchaseOrderListItem = {
   id: string;
@@ -71,11 +72,11 @@ type Props = {
 };
 
 const STATUS_TONE: Record<PurchaseOrderListItem["status"], string> = {
-  DRAFT: "border-white/10 bg-white/[0.05] text-slate-200",
-  SUBMITTED: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
-  PARTIALLY_RECEIVED: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-  RECEIVED: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-  CANCELED: "border-red-400/20 bg-red-400/10 text-red-200",
+  DRAFT: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)]",
+  SUBMITTED: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
+  PARTIALLY_RECEIVED: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  RECEIVED: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+  CANCELED: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
 };
 
 const formatDate = (value: string | null) =>
@@ -224,21 +225,21 @@ export default function AdminProcurementClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="queue">
       <AdminPageIntro
         eyebrow="Admin / Procurement"
         title="Purchase orders and receiving"
         description="Draft supplier orders, move them into receiving, and track open inbound stock against the live catalog."
         metrics={
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <AdminKpiStrip>
             <AdminMetricCard label="Purchase orders" value={String(purchaseOrders.length)} />
             <AdminMetricCard label="Open POs" value={String(openPurchaseOrderCount)} />
             <AdminMetricCard label="Late POs" value={String(latePurchaseOrderCount)} />
             <AdminMetricCard label="Open units" value={String(totalOpenUnits)} />
-          </div>
+          </AdminKpiStrip>
         }
         actions={
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
             {userRole} access
           </div>
         }
@@ -247,7 +248,7 @@ export default function AdminProcurementClient({
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <AdminSplitView>
         <AdminPanel
           eyebrow="Create"
           title="New purchase order"
@@ -321,7 +322,7 @@ export default function AdminProcurementClient({
             {form.lines.map((line, index) => (
               <div
                 key={`draft-line-${index}`}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
                 <div className="grid gap-3 lg:grid-cols-[2.2fr_0.8fr_0.9fr_auto]">
                   <AdminField label={`Line ${index + 1}`}>
@@ -429,25 +430,25 @@ export default function AdminProcurementClient({
               suppliers.map((supplier) => (
                 <div
                   key={supplier.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">{supplier.name}</div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">{supplier.name}</div>
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {supplier.contactName || supplier.email || "No primary contact"}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-                      <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-200">
+                      <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-primary)]">
                         {supplier.openPurchaseOrderCount} open
                       </span>
-                      <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-amber-200">
+                      <span className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-2.5 py-1 text-[#81560e]">
                         {supplier.latePurchaseOrderCount} late
                       </span>
                     </div>
                   </div>
-                  <div className="mt-3 grid gap-2 text-xs text-slate-400 sm:grid-cols-2">
+                  <div className="mt-3 grid gap-2 text-xs text-[var(--adm-text-muted)] sm:grid-cols-2">
                     <div>
                       Lead time:{" "}
                       {typeof supplier.leadTimeDays === "number"
@@ -461,7 +462,7 @@ export default function AdminProcurementClient({
             )}
           </div>
         </AdminPanel>
-      </div>
+      </AdminSplitView>
 
       <AdminPanel
         eyebrow="Directory"
@@ -476,7 +477,7 @@ export default function AdminProcurementClient({
             placeholder="Search by PO number, supplier, status, or reference"
             className="min-w-[280px] flex-1"
           />
-          <div className="text-xs text-slate-500">{filteredPurchaseOrders.length} results</div>
+          <div className="text-xs text-[var(--adm-text-faint)]">{filteredPurchaseOrders.length} results</div>
         </div>
 
         <div className="space-y-3">
@@ -490,12 +491,12 @@ export default function AdminProcurementClient({
               <Link
                 key={purchaseOrder.id}
                 href={`/admin/procurement/${purchaseOrder.id}`}
-                className="block rounded-[24px] border border-white/10 bg-white/[0.03] p-4 transition hover:border-cyan-400/30 hover:bg-white/[0.05]"
+                className="block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-surface-2)]"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="text-lg font-semibold text-white">
+                      <div className="text-lg font-semibold text-[var(--adm-text)]">
                         PO #{purchaseOrder.purchaseOrderNumber}
                       </div>
                       <span
@@ -504,25 +505,25 @@ export default function AdminProcurementClient({
                         {purchaseOrder.status.replaceAll("_", " ")}
                       </span>
                     </div>
-                    <div className="mt-2 text-sm text-slate-300">
+                    <div className="mt-2 text-sm text-[var(--adm-text-muted)]">
                       {purchaseOrder.supplierName}
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       {purchaseOrder.reference || "No reference"} · Updated{" "}
                       {formatDate(purchaseOrder.updatedAt)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">
                       {purchaseOrder.receivedUnits}/{purchaseOrder.orderedUnits} units
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       Open {purchaseOrder.openUnits} · Expected{" "}
                       {formatDate(purchaseOrder.expectedDeliveryAt)}
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--adm-text-muted)]">
                   <span>Submitted {formatDate(purchaseOrder.submittedAt)}</span>
                   <span>Received {formatDate(purchaseOrder.receivedAt)}</span>
                 </div>
@@ -531,6 +532,6 @@ export default function AdminProcurementClient({
           )}
         </div>
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

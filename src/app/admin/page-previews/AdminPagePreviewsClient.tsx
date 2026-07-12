@@ -13,6 +13,7 @@ import {
   AdminPageIntro,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage } from "@/components/admin/ui";
 
 type AdminPagePreviewsClientProps = {
   previews: AdminPagePreview[];
@@ -25,9 +26,9 @@ const statusLabel: Record<AdminPagePreviewStatus, string> = {
 };
 
 const statusClassName: Record<AdminPagePreviewStatus, string> = {
-  ready: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
-  contextual: "border-amber-400/20 bg-amber-400/10 text-amber-100",
-  "missing-context": "border-slate-500/20 bg-white/[0.03] text-slate-400",
+  ready: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+  contextual: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  "missing-context": "border-slate-500/20 bg-[var(--adm-surface)] text-[var(--adm-text-muted)]",
 };
 
 export default function AdminPagePreviewsClient({
@@ -84,7 +85,7 @@ export default function AdminPagePreviewsClient({
   };
 
   return (
-    <div className="admin-route-frame space-y-5 text-slate-100">
+    <AdminPage layout="console" className="admin-route-frame text-[var(--adm-text)]">
       <AdminPageIntro
         eyebrow="Utilities"
         title="Page previews"
@@ -108,7 +109,7 @@ export default function AdminPagePreviewsClient({
             <>
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                className="inline-flex h-8 items-center justify-center gap-2 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                 onClick={() => void copyUrl(selectedPreview.url)}
               >
                 <ClipboardDocumentIcon className="h-4 w-4" />
@@ -118,7 +119,7 @@ export default function AdminPagePreviewsClient({
                 href={selectedPreview.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
+                className="inline-flex h-8 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-3 text-sm font-semibold text-white transition hover:bg-cyan-200"
               >
                 <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                 Open page
@@ -129,13 +130,13 @@ export default function AdminPagePreviewsClient({
       >
         <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(420px,1.08fr)]">
           <div className="space-y-3">
-            <label className="flex h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-slate-300">
-              <MagnifyingGlassIcon className="h-4 w-4 text-slate-500" />
+            <label className="flex h-9 items-center gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm text-[var(--adm-text-muted)]">
+              <MagnifyingGlassIcon className="h-4 w-4 text-[var(--adm-text-faint)]" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search checkout, auth, orders..."
-                className="min-w-0 flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+                className="min-w-0 flex-1 bg-transparent text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
               />
             </label>
 
@@ -143,7 +144,7 @@ export default function AdminPagePreviewsClient({
               <select
                 value={group}
                 onChange={(event) => setGroup(event.target.value)}
-                className="h-10 rounded-xl border border-white/10 bg-[#070b11] px-3 text-sm text-slate-200 outline-none"
+                className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm text-[var(--adm-text)] outline-none"
                 aria-label="Filter by preview group"
               >
                 {groups.map((entry) => (
@@ -155,7 +156,7 @@ export default function AdminPagePreviewsClient({
               <select
                 value={storefront}
                 onChange={(event) => setStorefront(event.target.value)}
-                className="h-10 rounded-xl border border-white/10 bg-[#070b11] px-3 text-sm text-slate-200 outline-none"
+                className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm text-[var(--adm-text)] outline-none"
                 aria-label="Filter by storefront"
               >
                 {storefronts.map((entry) => (
@@ -176,14 +177,14 @@ export default function AdminPagePreviewsClient({
                     onClick={() => setSelectedId(preview.id)}
                     className={`w-full rounded-xl border px-3 py-3 text-left transition ${
                       selected
-                        ? "border-cyan-300/35 bg-cyan-300/10"
-                        : "border-white/10 bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.05]"
+                        ? "border-cyan-300/35 bg-[var(--adm-primary-soft)]"
+                        : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white">{preview.title}</p>
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">
+                        <p className="truncate text-sm font-semibold text-[var(--adm-text)]">{preview.title}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--adm-text-muted)]">
                           {preview.description}
                         </p>
                       </div>
@@ -193,7 +194,7 @@ export default function AdminPagePreviewsClient({
                         {statusLabel[preview.status]}
                       </span>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-[var(--adm-text-faint)]">
                       <span>{preview.storefrontLabel}</span>
                       <span>/</span>
                       <span>{preview.group}</span>
@@ -204,7 +205,7 @@ export default function AdminPagePreviewsClient({
                 );
               })}
               {filteredPreviews.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-center text-sm text-[var(--adm-text-faint)]">
                   No preview routes match this filter.
                 </div>
               ) : null}
@@ -214,16 +215,16 @@ export default function AdminPagePreviewsClient({
           <div className="min-w-0 space-y-3">
             {selectedPreview ? (
               <>
-                <div className="rounded-xl border border-white/10 bg-[#070b11] p-3">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                         Selected preview
                       </p>
-                      <h2 className="mt-1 text-base font-semibold text-white">
+                      <h2 className="mt-1 text-base font-semibold text-[var(--adm-text)]">
                         {selectedPreview.title}
                       </h2>
-                      <p className="mt-1 break-all text-xs text-slate-500">{selectedPreview.url}</p>
+                      <p className="mt-1 break-all text-xs text-[var(--adm-text-faint)]">{selectedPreview.url}</p>
                     </div>
                     <span
                       className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusClassName[selectedPreview.status]}`}
@@ -232,12 +233,12 @@ export default function AdminPagePreviewsClient({
                     </span>
                   </div>
                   {copyNotice ? (
-                    <p className="mt-3 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-100">
+                    <p className="mt-3 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-2 text-xs text-[var(--adm-primary)]">
                       {copyNotice}
                     </p>
                   ) : null}
                   {selectedPreview.status !== "ready" ? (
-                    <div className="mt-3 flex gap-2 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100">
+                    <div className="mt-3 flex gap-2 rounded-xl border border-[#e2a136] bg-[#fff4dd] px-3 py-2 text-xs leading-5 text-[#81560e]">
                       <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
                       <p>
                         {selectedPreview.status === "contextual"
@@ -248,10 +249,10 @@ export default function AdminPagePreviewsClient({
                   ) : null}
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
-                  <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-3 py-2">
-                    <p className="text-xs font-semibold text-slate-400">Live frame</p>
-                    <p className="truncate text-xs text-slate-500">{selectedPreview.storefrontLabel}</p>
+                <div className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-black">
+                  <div className="flex items-center justify-between border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2">
+                    <p className="text-xs font-semibold text-[var(--adm-text-muted)]">Live frame</p>
+                    <p className="truncate text-xs text-[var(--adm-text-faint)]">{selectedPreview.storefrontLabel}</p>
                   </div>
                   <iframe
                     key={selectedPreview.id}
@@ -263,13 +264,13 @@ export default function AdminPagePreviewsClient({
                 </div>
               </>
             ) : (
-              <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-12 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-12 text-center text-sm text-[var(--adm-text-faint)]">
                 Select a preview route.
               </div>
             )}
           </div>
         </div>
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

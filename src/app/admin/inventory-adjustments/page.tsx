@@ -8,6 +8,7 @@ import {
 } from "@/lib/adminStorageGuards";
 import { prisma } from "@/lib/prisma";
 import AdminInventoryAdjustmentsClient from "./AdminInventoryAdjustmentsClient";
+import { AdminPage, AdminPageHeader, AdminPrimaryGrid } from "@/components/admin/ui";
 
 const PAGE_SIZE = 50;
 
@@ -262,9 +263,9 @@ export default async function AdminInventoryAdjustmentsPage({
   };
 
   return (
-    <div className="admin-console-page space-y-6">
+    <AdminPage layout="master-detail" className="admin-console-page">
       {!inventoryStorageAvailable ? (
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           Inventory-Ledger-Storage ist in der aktuellen Datenbank nicht vollst&auml;ndig
           verf&uuml;gbar. Bewegungen mit Purchase-Order-Referenzen und neuere Ledger-Felder
           bleiben leer, bis die fehlenden Inventory- und Procurement-Migrationen angewendet
@@ -272,35 +273,23 @@ export default async function AdminInventoryAdjustmentsPage({
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-              Admin / Inventory
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">Stock ledger</h1>
-            <p className="mt-3 max-w-2xl text-sm text-slate-400">
-              Filter inventory movements by product, variant, supplier, source type, order reference, or purchase-order receipt.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-slate-300">
-              {totalCount} adjustments
-            </div>
-          </div>
-        </div>
-
-        <form className="mt-6 grid gap-3 lg:grid-cols-[1.8fr_1fr_1fr_1fr_auto]">
+      <AdminPageHeader
+        eyebrow="Admin / Inventory"
+        title="Stock adjustments and ledger"
+        description="Create audited corrections and trace movements by product, supplier, source, or reference."
+        actions={<span className="inline-flex h-8 items-center rounded-[10px] border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-[13px] font-semibold text-[var(--adm-text-muted)]">{totalCount} adjustments</span>}
+      >
+        <form className="grid gap-2 lg:grid-cols-[1.8fr_1fr_1fr_1fr_auto]">
           <input
             name="query"
             defaultValue={query}
             placeholder="Search product, manufacturer, variant, SKU..."
-            className="h-11 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30"
+            className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-primary)]"
           />
           <select
             name="sourceType"
             defaultValue={sourceType}
-            className="h-11 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none focus:border-cyan-400/30"
+            className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none focus:border-[var(--adm-primary)]"
           >
             <option value="">All sources</option>
             <option value="ORDER">Orders</option>
@@ -309,7 +298,7 @@ export default async function AdminInventoryAdjustmentsPage({
           <select
             name="supplierId"
             defaultValue={supplierId}
-            className="h-11 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none focus:border-cyan-400/30"
+            className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none focus:border-[var(--adm-primary)]"
           >
             <option value="">All suppliers</option>
             {suppliers.map((supplier) => (
@@ -322,28 +311,30 @@ export default async function AdminInventoryAdjustmentsPage({
             name="reference"
             defaultValue={reference}
             placeholder="Order # or PO #"
-            className="h-11 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/30"
+            className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-primary)]"
           />
           <button
             type="submit"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+            className="inline-flex h-9 items-center justify-center rounded-xl bg-[var(--adm-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--adm-primary-dim)]"
           >
             Apply filters
           </button>
         </form>
-      </section>
+      </AdminPageHeader>
 
+      <AdminPrimaryGrid rail="balanced">
       <AdminInventoryAdjustmentsClient
         inventoryStorageAvailable={inventoryStorageAvailable}
       />
 
+      <section className="min-w-0">
       {adjustments.length === 0 ? (
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-500">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-6 text-sm text-[var(--adm-text-faint)]">
           No inventory adjustments match the current filters.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#090d12] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-          <div className="grid grid-cols-1 gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 sm:grid-cols-[1.45fr_1fr_1fr_0.7fr_1.35fr_1.2fr]">
+        <div className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+          <div className="grid grid-cols-1 gap-3 border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)] sm:grid-cols-[1.45fr_1fr_1fr_0.7fr_1.35fr_1.2fr]">
             <div>Item</div>
             <div>Reference</div>
             <div>Supplier</div>
@@ -351,7 +342,7 @@ export default async function AdminInventoryAdjustmentsPage({
             <div>Source</div>
             <div>Time</div>
           </div>
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-[var(--adm-border)]">
             {adjustments.map((entry) => {
               const productName = entry.product.manufacturer
                 ? `${entry.product.manufacturer} ${entry.product.title}`
@@ -370,27 +361,27 @@ export default async function AdminInventoryAdjustmentsPage({
               return (
                 <div
                   key={entry.id}
-                  className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-slate-300 sm:grid-cols-[1.45fr_1fr_1fr_0.7fr_1.35fr_1.2fr]"
+                  className="grid grid-cols-1 gap-3 px-4 py-3 text-sm text-[var(--adm-text-muted)] sm:grid-cols-[1.45fr_1fr_1fr_0.7fr_1.35fr_1.2fr]"
                 >
                   <div>
-                    <div className="font-semibold text-slate-100">{productName}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="font-semibold text-[var(--adm-text)]">{productName}</div>
+                    <div className="text-xs text-[var(--adm-text-faint)]">
                       {entry.variant.title}
                       {entry.variant.sku ? ` · SKU ${entry.variant.sku}` : ""}
                     </div>
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--adm-text-muted)]">
                     {entry.order ? (
                       <Link
                         href={`/admin/orders/${entry.order.id}`}
-                        className="text-cyan-300 transition hover:text-cyan-200"
+                        className="text-[var(--adm-primary)] transition hover:text-[var(--adm-primary)]"
                       >
                         Order #{entry.order.orderNumber}
                       </Link>
                     ) : purchaseReceipt ? (
                       <Link
                         href={`/admin/procurement/${purchaseReceipt.purchaseOrderId}`}
-                        className="text-cyan-300 transition hover:text-cyan-200"
+                        className="text-[var(--adm-primary)] transition hover:text-[var(--adm-primary)]"
                       >
                         PO #{purchaseReceipt.purchaseOrder.purchaseOrderNumber}
                       </Link>
@@ -398,51 +389,53 @@ export default async function AdminInventoryAdjustmentsPage({
                       "—"
                     )}
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--adm-text-muted)]">
                     {purchaseReceipt?.purchaseOrder.supplier.name ??
                       entry.product.supplierRef?.name ??
                       "—"}
                   </div>
                   <div
                     className={`text-xs font-semibold ${
-                      entry.quantityDelta >= 0 ? "text-emerald-300" : "text-amber-300"
+                      entry.quantityDelta >= 0 ? "text-[var(--adm-success)]" : "text-[#81560e]"
                     }`}
                   >
                     {entry.quantityDelta > 0 ? `+${entry.quantityDelta}` : entry.quantityDelta}
                   </div>
-                  <div className="text-xs text-cyan-300">
+                  <div className="text-xs text-[var(--adm-primary)]">
                     <div>{sourceLabel}</div>
-                    <div className="mt-1 text-slate-500">{entry.reason}</div>
+                    <div className="mt-1 text-[var(--adm-text-faint)]">{entry.reason}</div>
                     {entry.sourceReference ? (
-                      <div className="mt-1 text-slate-500">Ref: {entry.sourceReference}</div>
+                      <div className="mt-1 text-[var(--adm-text-faint)]">Ref: {entry.sourceReference}</div>
                     ) : null}
-                    {entry.note ? <div className="mt-1 text-slate-500">{entry.note}</div> : null}
+                    {entry.note ? <div className="mt-1 text-[var(--adm-text-faint)]">{entry.note}</div> : null}
                     {entry.actorId ? (
-                      <div className="mt-1 text-slate-500">
+                      <div className="mt-1 text-[var(--adm-text-faint)]">
                         Actor: {actorById.get(entry.actorId) ?? entry.actorId}
                       </div>
                     ) : null}
                   </div>
-                  <div className="text-xs text-slate-500">{formatDate(entry.createdAt)}</div>
+                  <div className="text-xs text-[var(--adm-text-faint)]">{formatDate(entry.createdAt)}</div>
                 </div>
               );
             })}
           </div>
         </div>
       )}
+      </section>
+      </AdminPrimaryGrid>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-[var(--adm-text-faint)]">
           Page {page} of {totalPages}
         </div>
         <div className="flex items-center gap-2">
           <Link
             href={buildPageHref(Math.max(1, page - 1))}
             aria-disabled={page <= 1}
-            className={`inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
+            className={`inline-flex h-8 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
               page <= 1
-                ? "pointer-events-none border border-white/10 bg-white/[0.03] text-slate-600"
-                : "border border-white/10 bg-white/[0.03] text-slate-200 transition hover:border-white/15 hover:bg-white/[0.05]"
+                ? "pointer-events-none border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-faint)]"
+                : "border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
             }`}
           >
             Previous
@@ -450,16 +443,16 @@ export default async function AdminInventoryAdjustmentsPage({
           <Link
             href={buildPageHref(Math.min(totalPages, page + 1))}
             aria-disabled={page >= totalPages}
-            className={`inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
+            className={`inline-flex h-8 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
               page >= totalPages
-                ? "pointer-events-none border border-white/10 bg-white/[0.03] text-slate-600"
-                : "border border-white/10 bg-white/[0.03] text-slate-200 transition hover:border-white/15 hover:bg-white/[0.05]"
+                ? "pointer-events-none border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-faint)]"
+                : "border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
             }`}
           >
             Next
           </Link>
         </div>
       </div>
-    </div>
+    </AdminPage>
   );
 }

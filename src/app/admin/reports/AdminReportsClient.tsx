@@ -14,6 +14,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminPrimaryGrid } from "@/components/admin/ui";
 import { buildAdminSearchHref } from "@/lib/adminTimeRange";
 import type { getAdminReportSnapshot } from "@/lib/adminReports";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
@@ -219,7 +220,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="dashboard">
       <AdminPageIntro
         eyebrow="Admin / Reports"
         title="Saved reports and exports"
@@ -228,7 +229,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
           <>
             <Link
               href={exportHref}
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/15"
+              className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-success)] transition hover:bg-emerald-400/15"
             >
               Export CSV
             </Link>
@@ -364,7 +365,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
         </div>
       </AdminPanel>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <AdminPrimaryGrid rail="wide">
         <AdminPanel
           eyebrow="Presets"
           title="Saved reports"
@@ -372,30 +373,30 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
         >
           <div className="space-y-3">
             {initialSnapshot.savedReports.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
                 No saved reports yet.
               </div>
             ) : (
               initialSnapshot.savedReports.map((report) => (
                 <div
                   key={report.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-white">{report.name}</div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">{report.name}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       {report.reportType} · {report.days}d · {report.sourceStorefront} · {report.paymentState}
                     </div>
-                    <div className="mt-1 text-xs text-cyan-200/80">
+                    <div className="mt-1 text-xs text-[var(--adm-primary)]/80">
                       {formatDeliverySummary(report)}
                     </div>
                     {report.deliveryRecipients.length > 0 ? (
-                      <div className="mt-1 text-xs text-slate-400">
+                      <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                         {report.deliveryRecipients.join(", ")}
                       </div>
                     ) : null}
                     {report.nextDeliveryAt ? (
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         Next run {new Date(report.nextDeliveryAt).toLocaleString("de-DE")}
                         {report.lastDeliveredAt
                           ? ` · last sent ${new Date(report.lastDeliveredAt).toLocaleString("de-DE")}`
@@ -403,7 +404,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
                       </div>
                     ) : null}
                     {report.lastDeliveryError ? (
-                      <div className="mt-1 text-xs text-amber-200">
+                      <div className="mt-1 text-xs text-[#81560e]">
                         Last delivery error: {report.lastDeliveryError}
                       </div>
                     ) : null}
@@ -417,7 +418,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
                         sourceStorefront: report.sourceStorefront,
                         paymentState: report.paymentState,
                       })}
-                      className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
+                      className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
                     >
                       Open
                     </Link>
@@ -446,23 +447,23 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
         >
           <div className="space-y-3">
             {initialSnapshot.topSources.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
                 No source data for the current filters.
               </div>
             ) : (
               initialSnapshot.topSources.map((source) => (
                 <div
                   key={source.label}
-                  className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">{source.label}</div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">{source.label}</div>
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {source.orders} order(s)
                       </div>
                     </div>
-                    <div className="text-sm font-semibold text-cyan-300">
+                    <div className="text-sm font-semibold text-[var(--adm-primary)]">
                       {formatMoney(source.revenueCents, initialSnapshot.currency)}
                     </div>
                   </div>
@@ -471,7 +472,7 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
             )}
           </div>
         </AdminPanel>
-      </div>
+      </AdminPrimaryGrid>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <AdminPanel
@@ -481,20 +482,20 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
         >
           <div className="space-y-3">
             {initialSnapshot.topProducts.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
                 No product sales in the current filters.
               </div>
             ) : (
               initialSnapshot.topProducts.map((product) => (
                 <div
                   key={`${product.productId}-${product.title}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-white">{product.title}</div>
-                    <div className="mt-1 text-xs text-slate-500">{product.units} units</div>
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">{product.title}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{product.units} units</div>
                   </div>
-                  <div className="text-sm font-semibold text-cyan-300">
+                  <div className="text-sm font-semibold text-[var(--adm-primary)]">
                     {formatMoney(product.revenueCents, initialSnapshot.currency)}
                   </div>
                 </div>
@@ -510,23 +511,23 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
         >
           <div className="space-y-3">
             {initialSnapshot.topCustomers.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
                 No customer revenue in the current filters.
               </div>
             ) : (
               initialSnapshot.topCustomers.map((customer) => (
                 <div
                   key={customer.email}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-white">{customer.email}</div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">{customer.email}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       {customer.orders} order(s) · last order{" "}
                       {new Date(customer.lastOrderAt).toLocaleDateString("de-DE")}
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-cyan-300">
+                  <div className="text-sm font-semibold text-[var(--adm-primary)]">
                     {formatMoney(customer.revenueCents, initialSnapshot.currency)}
                   </div>
                 </div>
@@ -543,20 +544,20 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
       >
         <div className="space-y-3">
           {initialSnapshot.recentOrders.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-sm text-[var(--adm-text-faint)]">
               No orders found for the current filters.
             </div>
           ) : (
             initialSnapshot.recentOrders.map((order) => (
               <div
                 key={order.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
               >
                 <div>
-                  <div className="text-sm font-semibold text-white">
+                  <div className="text-sm font-semibold text-[var(--adm-text)]">
                     Order #{order.orderNumber}
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                     {order.customerEmail ?? "Unknown"} ·{" "}
                     {new Date(order.createdAt).toLocaleString("de-DE")} ·{" "}
                     {formatOrderSourceLabel(
@@ -567,10 +568,10 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold text-cyan-300">
+                  <div className="text-sm font-semibold text-[var(--adm-primary)]">
                     {formatMoney(order.amountTotal, order.currency)}
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                     {order.paymentStatus}
                   </div>
                 </div>
@@ -588,12 +589,12 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
             aria-label="Close schedule dialog"
             onClick={() => setScheduleDialog(null)}
           />
-          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-[24px] border border-white/10 bg-[#0b1220] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-xl sm:p-6">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-primary)]/80">
               Scheduled delivery
             </div>
-            <h3 className="mt-2 text-xl font-semibold text-white">{scheduleDialog.name}</h3>
-            <p className="mt-2 text-sm text-slate-400">
+            <h3 className="mt-2 text-xl font-semibold text-[var(--adm-text)]">{scheduleDialog.name}</h3>
+            <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
               Deliver this saved report by email on a fixed UTC schedule.
             </p>
 
@@ -680,6 +681,6 @@ export default function AdminReportsClient({ initialSnapshot }: { initialSnapsho
           </div>
         </div>
       ) : null}
-    </div>
+    </AdminPage>
   );
 }

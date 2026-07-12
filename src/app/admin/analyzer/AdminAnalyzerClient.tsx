@@ -13,6 +13,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminSplitView } from "@/components/admin/ui";
 
 type AnalyzerRunRecord = {
   id: string;
@@ -579,7 +580,7 @@ export default function AdminAnalyzerClient({
   const showGrowvaultBridgeWarning = activeView === "shared" && !growvaultBridge.ok;
 
   return (
-    <div className="space-y-5">
+    <AdminPage layout="console">
       <AdminPageIntro
         eyebrow="Analyzer"
         title={pageCopy.title}
@@ -592,12 +593,12 @@ export default function AdminAnalyzerClient({
                 href={tab.href}
                 className={`shrink-0 rounded-full border px-3 py-2 transition sm:shrink ${
                   tab.active
-                    ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-                    : "border-white/10 bg-white/[0.05] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
+                    ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
+                    : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                 }`}
               >
                 <span className="block">{tab.label}</span>
-                <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-slate-400">
+                <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-[var(--adm-text-muted)]">
                   {tab.description}
                 </span>
               </Link>
@@ -606,63 +607,63 @@ export default function AdminAnalyzerClient({
         }
         metrics={
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-8">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                 Loaded
               </p>
-              <p className="mt-2 text-2xl font-semibold text-white">{summary.total}</p>
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{summary.total}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                 Unresolved
               </p>
-              <p className="mt-2 text-2xl font-semibold text-white">{summary.unresolved}</p>
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{summary.unresolved}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                 Disputed
               </p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
                 {summary.disputed}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                 Submitted
               </p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
                 {summary.submitted}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                 Source
               </p>
-              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-200">
+              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--adm-primary)]">
                 {sourceLabel}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                 Unassigned
               </p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
                 {summary.unassigned ?? 0}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                 Due today
               </p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
                 {summary.dueToday ?? 0}
               </p>
             </div>
-            <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-200">
+            <div className="rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-error)]">
                 Overdue
               </p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
                 {summary.overdue ?? 0}
               </p>
             </div>
@@ -692,34 +693,34 @@ export default function AdminAnalyzerClient({
         description="Work from left to right so the queue, review trail, and storefront override stay distinct."
       >
         <div className="grid gap-3 lg:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-primary)]">
               1. Pick the case
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
+            <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">
               The queue explains why a run is here and what action is expected next.
             </p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-primary)]">
               2. Check evidence
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
+            <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">
               Review the image, detected issues, latest feedback, and recent activity from the same user before changing status.
             </p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-primary)]">
               3. Save in the right field
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
+            <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">
               Review status updates the queue. Review notes explain the decision. Recommendation override replaces storefront-facing guidance.
             </p>
           </div>
         </div>
       </AdminPanel>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(420px,600px)_minmax(0,1fr)]">
+      <AdminSplitView>
         <AdminPanel
           title="Queue"
           description={pageCopy.queueDescription}
@@ -767,7 +768,7 @@ export default function AdminAnalyzerClient({
               <option value="lowest-confidence">Sort: lowest confidence</option>
             </AdminSelect>
           </div>
-          <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+          <label className="mt-3 flex items-center gap-2 text-sm text-[var(--adm-text-muted)]">
             <input
               type="checkbox"
               checked={includeResolved}
@@ -775,12 +776,12 @@ export default function AdminAnalyzerClient({
             />
             Include resolved
           </label>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.06] px-4 py-3 text-xs text-slate-300">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cyan-400/15 bg-[var(--adm-primary)]/[0.06] px-4 py-3 text-xs text-[var(--adm-text-muted)]">
             <span>
-              <span className="font-semibold text-cyan-100">{sortedRuns.length}</span>{" "}
+              <span className="font-semibold text-[var(--adm-primary)]">{sortedRuns.length}</span>{" "}
               visible cases
             </span>
-            <span className="text-slate-400">
+            <span className="text-[var(--adm-text-muted)]">
               Sorted by{" "}
               {sortMode === "attention"
                 ? "attention"
@@ -791,9 +792,9 @@ export default function AdminAnalyzerClient({
                     : sortMode}
             </span>
           </div>
-          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="mt-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">
                 Bulk actions · {selectedIds.length} selected
               </p>
               <button
@@ -805,7 +806,7 @@ export default function AdminAnalyzerClient({
                       : sortedRuns.map((run) => run.id),
                   )
                 }
-                className="text-xs font-semibold text-cyan-200 underline-offset-4 hover:underline"
+                className="text-xs font-semibold text-[var(--adm-primary)] underline-offset-4 hover:underline"
               >
                 {selectedIds.length === sortedRuns.length ? "Clear" : "Select visible"}
               </button>
@@ -837,16 +838,16 @@ export default function AdminAnalyzerClient({
               >
                 Apply bulk update
               </AdminButton>
-              {bulkNotice ? <span className="text-xs text-emerald-200">{bulkNotice}</span> : null}
+              {bulkNotice ? <span className="text-xs text-[var(--adm-success)]">{bulkNotice}</span> : null}
             </div>
           </div>
           <div className="mt-4 space-y-3">
             {loading ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-8 text-sm text-slate-400">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-8 text-sm text-[var(--adm-text-muted)]">
                 Loading analyzer runs...
               </div>
             ) : filteredRuns.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-8 text-sm text-slate-400">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-8 text-sm text-[var(--adm-text-muted)]">
                 No analyzer runs match the current filters.
               </div>
             ) : (
@@ -862,14 +863,14 @@ export default function AdminAnalyzerClient({
                       selectAnalyzerRun(run.id);
                     }
                   }}
-                  className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                  className={`w-full rounded-xl border px-4 py-4 text-left transition ${
                     selectedId === run.id
-                      ? "border-cyan-400/40 bg-cyan-400/10"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                      ? "border-cyan-400/40 bg-[var(--adm-primary-soft)]"
+                      : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:border-[var(--adm-border-strong)]"
                   }`}
                 >
                   <div className="mb-3 flex items-center justify-between gap-3">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[var(--adm-text-muted)]">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(run.id)}
@@ -890,63 +891,63 @@ export default function AdminAnalyzerClient({
                         event.stopPropagation();
                         selectAnalyzerRun(run.id);
                       }}
-                      className="text-xs font-semibold text-cyan-200 underline-offset-4 hover:underline"
+                      className="text-xs font-semibold text-[var(--adm-primary)] underline-offset-4 hover:underline"
                     >
                       Open case
                     </button>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                    <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">
                       {run.reviewStatus}
                     </span>
-                    <span className="text-xs text-slate-500">P{run.priority}</span>
+                    <span className="text-xs text-[var(--adm-text-faint)]">P{run.priority}</span>
                     {run.needsHumanReview ? (
-                      <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                      <span className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#81560e]">
                         Human review
                       </span>
                     ) : null}
                     {run.publicationStatus === "SUBMITTED" ? (
-                      <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+                      <span className="rounded-full border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-success)]">
                         Fall eingereicht
                       </span>
                     ) : null}
                     {(run.incorrectFeedbackCount ?? 0) > 0 ? (
-                      <span className="rounded-full border border-red-400/20 bg-red-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-200">
+                      <span className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-error)]">
                         {(run.incorrectFeedbackCount ?? 0)} dispute
                       </span>
                     ) : null}
                     {run.assignedReviewerEmail ? (
-                      <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                      <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-primary)]">
                         {run.assignedReviewerEmail}
                       </span>
                     ) : null}
                     {run.overdue ? (
-                      <span className="rounded-full border border-rose-400/20 bg-rose-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-100">
+                      <span className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-error)]">
                         Overdue
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-3 text-sm font-semibold text-white">
+                  <p className="mt-3 text-sm font-semibold text-[var(--adm-text)]">
                     {(run.issues[0]?.label ?? run.species) || "Analyzer case"}
                   </p>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--adm-primary)]">
                     {getAnalyzerNextAction(run)}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-[var(--adm-text-muted)]">
                     {run.userEmail ?? "Unknown user"} · {Math.round(run.confidence * 100)}% ·{" "}
                     {formatAnalyzerTimestamp(run.createdAt)}
                     {run.reviewDueAt ? ` · due ${formatAnalyzerTimestamp(run.reviewDueAt)}` : ""}
                   </p>
                   {run.lastFeedback ? (
-                    <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    <div className="mt-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-muted)]">
                         Latest user feedback
                       </p>
-                      <p className="mt-1 text-xs text-slate-200">
+                      <p className="mt-1 text-xs text-[var(--adm-text)]">
                         {(run.lastFeedback.label ?? run.lastFeedback.source).replaceAll("_", " ")}
                       </p>
                       {run.lastFeedback.comment ? (
-                        <p className="mt-1 text-xs text-slate-400">{run.lastFeedback.comment}</p>
+                        <p className="mt-1 text-xs text-[var(--adm-text-muted)]">{run.lastFeedback.comment}</p>
                       ) : null}
                     </div>
                   ) : null}
@@ -966,13 +967,13 @@ export default function AdminAnalyzerClient({
           }
         >
           {!selectedRun ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-8 text-sm text-slate-400">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-8 text-sm text-[var(--adm-text-muted)]">
               Select an analyzer case to review it.
             </div>
           ) : (
             <div className="space-y-5">
               <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                <div className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
                   {selectedRun.imageUri ? (
                     <div className="relative aspect-square">
                       <Image
@@ -985,51 +986,51 @@ export default function AdminAnalyzerClient({
                       />
                     </div>
                   ) : (
-                    <div className="flex aspect-square items-center justify-center text-sm text-slate-500">
+                    <div className="flex aspect-square items-center justify-center text-sm text-[var(--adm-text-faint)]">
                       No image
                     </div>
                   )}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                       User
                     </p>
-                    <p className="mt-2 text-sm text-white">{selectedRun.userEmail ?? "Unknown"}</p>
+                    <p className="mt-2 text-sm text-[var(--adm-text)]">{selectedRun.userEmail ?? "Unknown"}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                       Confidence
                     </p>
-                    <p className="mt-2 text-sm text-white">
+                    <p className="mt-2 text-sm text-[var(--adm-text)]">
                       {Math.round(selectedRun.confidence * 100)}%
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                       Species
                     </p>
-                    <p className="mt-2 text-sm text-white">{selectedRun.species || "Unknown"}</p>
+                    <p className="mt-2 text-sm text-[var(--adm-text)]">{selectedRun.species || "Unknown"}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                       Model
                     </p>
-                    <p className="mt-2 text-sm text-white">{selectedRun.model}</p>
+                    <p className="mt-2 text-sm text-[var(--adm-text)]">{selectedRun.model}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                       User feedback
                     </p>
-                    <p className="mt-2 text-sm text-white">
+                    <p className="mt-2 text-sm text-[var(--adm-text)]">
                       {selectedRun.feedbackCount ?? 0} total · {selectedRun.incorrectFeedbackCount ?? 0} disputed
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                       Publication state
                     </p>
-                    <p className="mt-2 text-sm text-white">
+                    <p className="mt-2 text-sm text-[var(--adm-text)]">
                       {selectedRun.publicationStatus ?? "Not submitted"}
                     </p>
                   </div>
@@ -1037,25 +1038,25 @@ export default function AdminAnalyzerClient({
               </div>
 
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Queue reason
                   </p>
-                  <p className="mt-3 text-sm font-semibold text-white">
+                  <p className="mt-3 text-sm font-semibold text-[var(--adm-text)]">
                     {getAnalyzerNextAction(selectedRun)}
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                  <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">
                     Priority P{selectedRun.priority}. Review this run because it is{" "}
                     {getAnalyzerReasonSummary(selectedRun)}.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Recent user activity
                   </p>
                   {selectedUserRuns.length <= 1 ? (
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                    <p className="mt-3 text-sm leading-6 text-[var(--adm-text-muted)]">
                       No other loaded analyzer runs are linked to this user in the current queue snapshot.
                     </p>
                   ) : (
@@ -1065,21 +1066,21 @@ export default function AdminAnalyzerClient({
                           key={run.id}
                           type="button"
                           onClick={() => selectAnalyzerRun(run.id)}
-                          className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
+                          className={`w-full rounded-xl border px-3 py-3 text-left transition ${
                             run.id === selectedRun.id
-                              ? "border-cyan-400/40 bg-cyan-400/10"
-                              : "border-white/10 bg-black/20 hover:border-white/20"
+                              ? "border-cyan-400/40 bg-[var(--adm-primary-soft)]"
+                              : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] hover:border-[var(--adm-border-strong)]"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
+                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-muted)]">
                               {run.reviewStatus}
                             </span>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-[var(--adm-text-faint)]">
                               {formatAnalyzerTimestamp(run.createdAt)}
                             </span>
                           </div>
-                          <p className="mt-2 text-sm text-white">
+                          <p className="mt-2 text-sm text-[var(--adm-text)]">
                             {(run.issues[0]?.label ?? run.species) || "Analyzer case"}
                           </p>
                         </button>
@@ -1089,15 +1090,15 @@ export default function AdminAnalyzerClient({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Detected issues
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedRun.issues.map((issue) => (
                     <span
                       key={issue.id}
-                      className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-slate-200"
+                      className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1 text-xs text-[var(--adm-text)]"
                     >
                       {issue.label} · {Math.round(issue.confidence * 100)}%
                     </span>
@@ -1106,19 +1107,19 @@ export default function AdminAnalyzerClient({
               </div>
 
               {selectedRun.lastFeedback ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Latest user feedback
                   </p>
-                  <p className="mt-3 text-sm font-semibold text-white">
+                  <p className="mt-3 text-sm font-semibold text-[var(--adm-text)]">
                     {(selectedRun.lastFeedback.label ?? selectedRun.lastFeedback.source).replaceAll("_", " ")}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-[var(--adm-text-muted)]">
                     {formatAnalyzerTimestamp(selectedRun.lastFeedback.createdAt)} ·{" "}
                     {selectedRun.lastFeedback.isCorrect ? "helpful" : "disputed"}
                   </p>
                   {selectedRun.lastFeedback.comment ? (
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                    <p className="mt-3 text-sm leading-6 text-[var(--adm-text-muted)]">
                       {selectedRun.lastFeedback.comment}
                     </p>
                   ) : null}
@@ -1127,7 +1128,7 @@ export default function AdminAnalyzerClient({
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Review status
                   </p>
                   <AdminSelect
@@ -1150,10 +1151,10 @@ export default function AdminAnalyzerClient({
                   </AdminSelect>
                 </div>
                 <div>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Suggested recommendation override
                   </p>
-                  <p className="mb-2 text-sm text-slate-400">
+                  <p className="mb-2 text-sm text-[var(--adm-text-muted)]">
                     Use this only when the diagnosis needs different storefront guidance. Do not use it just to explain your review decision.
                   </p>
                   <AdminTextarea
@@ -1166,10 +1167,10 @@ export default function AdminAnalyzerClient({
               </div>
 
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Review notes
                 </p>
-                <p className="mb-2 text-sm text-slate-400">
+                <p className="mb-2 text-sm text-[var(--adm-text-muted)]">
                   These notes stay with the audit trail. Put reviewer reasoning here, not customer-facing recommendation copy.
                 </p>
                 <AdminTextarea
@@ -1181,7 +1182,7 @@ export default function AdminAnalyzerClient({
               </div>
 
               {error ? (
-                <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                <div className="rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-4 py-3 text-sm text-[var(--adm-error)]">
                   {error}
                 </div>
               ) : null}
@@ -1194,7 +1195,7 @@ export default function AdminAnalyzerClient({
             </div>
           )}
         </AdminPanel>
-      </div>
-    </div>
+      </AdminSplitView>
+    </AdminPage>
   );
 }

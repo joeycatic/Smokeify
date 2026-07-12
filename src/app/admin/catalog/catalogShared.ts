@@ -196,7 +196,7 @@ export const getTrendTone = (direction: ProductInsightSnapshot["trendDirection"]
     case "cooling":
       return "border-amber-400/20 bg-amber-400/10 text-amber-200";
     default:
-      return "border-white/10 bg-white/[0.04] text-slate-300";
+      return "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]";
   }
 };
 

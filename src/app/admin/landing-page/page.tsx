@@ -27,7 +27,7 @@ export default async function AdminLandingPage({
   ]);
 
   return (
-    <div className="w-full text-slate-100">
+    <div className="w-full text-[var(--adm-text)]">
       <AdminLandingPageClient
         initialSections={sections}
         initialScheduledSections={scheduledSections}

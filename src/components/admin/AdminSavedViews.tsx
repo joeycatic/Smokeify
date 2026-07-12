@@ -179,9 +179,9 @@ export default function AdminSavedViews({
   };
 
   return (
-    <div className="space-y-3 border-t border-white/10 pt-3">
+    <div className="space-y-3 border-t border-[var(--adm-border)] pt-3">
       <div>
-        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
           My Work
         </p>
         <div className="mt-1 space-y-0.5">
@@ -189,9 +189,9 @@ export default function AdminSavedViews({
             <Link
               key={view.href}
               href={view.href}
-              className="flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-400 transition hover:bg-white/[0.04] hover:text-slate-100"
+              className="flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"
             >
-              <BookmarkIcon className="h-4 w-4 shrink-0 text-slate-600" />
+              <BookmarkIcon className="h-4 w-4 shrink-0 text-[var(--adm-text-faint)]" />
               <span className="truncate">{view.label}</span>
             </Link>
           ))}
@@ -200,32 +200,32 @@ export default function AdminSavedViews({
 
       <div>
         <div className="flex items-center justify-between gap-3 px-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
             Saved Views
           </p>
           <button
             type="button"
             onClick={() => void saveCurrentView()}
             disabled={saving}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-50"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-surface-2)] disabled:opacity-50"
             aria-label="Save current admin view"
             title="Save current view"
           >
             <PlusIcon className="h-4 w-4" />
           </button>
         </div>
-        {error ? <p className="mt-2 px-2 text-xs text-rose-200">{error}</p> : null}
+        {error ? <p className="mt-2 px-2 text-xs text-[var(--adm-error)]">{error}</p> : null}
         <div className="mt-1 space-y-0.5">
           {views.slice(0, 5).map((view) => (
             <div
               key={view.id}
-              className="group flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
+              className="group flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"
             >
               <button
                 type="button"
                 onClick={() => void togglePinned(view)}
                 className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-                  view.pinned ? "text-amber-200" : "text-slate-500 hover:text-slate-200"
+                  view.pinned ? "text-[#81560e]" : "text-[var(--adm-text-faint)] hover:text-[var(--adm-text)]"
                 }`}
                 aria-label={view.pinned ? "Unpin saved view" : "Pin saved view"}
                 title={view.pinned ? "Unpin saved view" : "Pin saved view"}
@@ -238,7 +238,7 @@ export default function AdminSavedViews({
               <button
                 type="button"
                 onClick={() => void deleteView(view.id)}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-600 opacity-0 transition hover:text-rose-200 group-hover:opacity-100"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--adm-text-faint)] opacity-0 transition hover:text-[var(--adm-error)] group-hover:opacity-100"
                 aria-label="Delete saved view"
                 title="Delete saved view"
               >
@@ -247,13 +247,13 @@ export default function AdminSavedViews({
             </div>
           ))}
           {views.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-slate-600">No saved views for this page.</p>
+            <p className="px-2 py-1 text-xs text-[var(--adm-text-faint)]">No saved views for this page.</p>
           ) : null}
         </div>
       </div>
 
       <div>
-        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
           Recent
         </p>
         <div className="mt-1 space-y-0.5">
@@ -261,7 +261,7 @@ export default function AdminSavedViews({
             <Link
               key={view.href}
               href={view.href}
-              className="flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-100"
+              className="flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-[var(--adm-text-faint)] transition hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"
             >
               <ClockIcon className="h-4 w-4 shrink-0" />
               <span className="truncate">{view.label}</span>

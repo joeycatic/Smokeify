@@ -292,18 +292,18 @@ export default function AdminVariantPricingProfiles({
   return (
     <section
       id="pricing"
-      className="admin-product-section admin-reveal scroll-mt-32 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(9,14,21,0.9))] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+      className="admin-product-section admin-reveal scroll-mt-32 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-6 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
     >
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-sm font-semibold text-[var(--adm-primary)]">
             05
           </span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--adm-primary)]">
               Pricing automation
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--adm-text-muted)]">
               Per-variant pricing profiles for Smokeify’s local automation engine.
             </p>
           </div>
@@ -328,25 +328,25 @@ export default function AdminVariantPricingProfiles({
             return (
               <div
                 key={variant.id}
-                className="grid gap-4 rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4 lg:grid-cols-[1.3fr_0.9fr_0.9fr_0.7fr]"
+                className="grid gap-4 rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 lg:grid-cols-[1.3fr_0.9fr_0.9fr_0.7fr]"
               >
                 <div>
-                  <div className="text-sm font-semibold text-white">{variant.title}</div>
-                  <div className="mt-1 text-xs text-slate-400">
+                  <div className="text-sm font-semibold text-[var(--adm-text)]">{variant.title}</div>
+                  <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                     {variant.sku ? `SKU ${variant.sku}` : "No SKU"} · Current price{" "}
                     {formatCurrency(variant.priceCents)}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.16em]">
                     {record ? (
                       <>
-                        <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+                        <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-1 text-[var(--adm-primary)]">
                           {record.pricingProfile.productSegment}
                         </span>
                         <span
                           className={`rounded-full border px-3 py-1 ${
                             record.pricingProfile.autoRepriceEnabled
-                              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                              : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+                              ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                              : "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
                           }`}
                         >
                           {record.pricingProfile.autoRepriceEnabled
@@ -355,15 +355,15 @@ export default function AdminVariantPricingProfiles({
                         </span>
                       </>
                     ) : (
-                      <span className="rounded-full border border-red-400/20 bg-red-400/10 px-3 py-1 text-red-200">
+                      <span className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-3 py-1 text-[var(--adm-error)]">
                         Pricing profile missing
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-400">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <div className="text-xs text-[var(--adm-text-muted)]">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
                     Shipping + handling inputs
                   </div>
                   <div className="mt-2">
@@ -374,8 +374,8 @@ export default function AdminVariantPricingProfiles({
                   <div>Handling {record ? toInputString(record.pricingProfile.handlingCostCents) : "n/a"}</div>
                 </div>
 
-                <div className="text-xs text-slate-400">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <div className="text-xs text-[var(--adm-text-muted)]">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
                     Competitor inputs
                   </div>
                   <div className="mt-2">
@@ -396,7 +396,7 @@ export default function AdminVariantPricingProfiles({
                 </div>
 
                 <div className="flex flex-col items-start justify-between gap-3">
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--adm-text-muted)]">
                     Last pricing update {record ? formatDateTime(record.variantUpdatedAt) : "n/a"}
                   </div>
                   <AdminButton
@@ -568,8 +568,8 @@ function ProfileFieldGrid({
   ) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+      <div className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
         {title}
       </div>
       <div className="grid gap-4 md:grid-cols-2">

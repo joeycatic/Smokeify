@@ -23,6 +23,7 @@ import {
   AdminTableShell,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage } from "@/components/admin/ui";
 import { fetchAdminJson } from "@/lib/adminClientFetch";
 import { formatAdminMoney, formatAdminPercent } from "@/lib/adminFormatting";
 import type {
@@ -247,7 +248,7 @@ export default function AdminMccClient({
   const metrics = data.overview.metrics;
 
   return (
-    <div className="space-y-4">
+    <AdminPage layout="dashboard">
       <AdminPageIntro
         eyebrow="Marketing Command Center"
         title="MCC"
@@ -318,7 +319,7 @@ export default function AdminMccClient({
 
       {notice ? <AdminNotice tone={notice.tone}>{notice.text}</AdminNotice> : null}
 
-      <div className="admin-scroll-x flex gap-2 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03] p-1">
+      <div className="admin-scroll-x flex gap-2 overflow-x-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -326,8 +327,8 @@ export default function AdminMccClient({
             onClick={() => setActiveTab(tab.id)}
             className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${
               activeTab === tab.id
-                ? "bg-cyan-400 text-slate-950"
-                : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
+                ? "bg-[var(--adm-primary)] text-white"
+                : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)]"
             }`}
           >
             {tab.label}
@@ -344,21 +345,21 @@ export default function AdminMccClient({
           >
             <div className="grid gap-3 sm:grid-cols-2">
               {Object.entries(data.overview.split).map(([storefront, row]) => (
-                <div key={storefront} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div key={storefront} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="font-semibold text-white">{storefront === "MAIN" ? "Smokeify" : "GrowVault"}</div>
-                    <div className="text-xs text-slate-500">{formatNumber(row.orders)} orders</div>
+                    <div className="font-semibold text-[var(--adm-text)]">{storefront === "MAIN" ? "Smokeify" : "GrowVault"}</div>
+                    <div className="text-xs text-[var(--adm-text-faint)]">{formatNumber(row.orders)} orders</div>
                   </div>
-                  <div className="mt-3 text-2xl font-semibold text-white">{formatNumber(row.contacts)}</div>
-                  <div className="mt-1 text-sm text-slate-400">{formatAdminMoney(row.revenueCents)}</div>
+                  <div className="mt-3 text-2xl font-semibold text-[var(--adm-text)]">{formatNumber(row.contacts)}</div>
+                  <div className="mt-1 text-sm text-[var(--adm-text-muted)]">{formatAdminMoney(row.revenueCents)}</div>
                 </div>
               ))}
             </div>
             <div className="mt-4 grid gap-2">
               {data.overview.lifecycle.map((row) => (
-                <div key={row.stage} className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2">
-                  <span className="text-sm text-slate-300">{row.stage}</span>
-                  <span className="text-sm font-semibold text-white">{formatNumber(row.count)}</span>
+                <div key={row.stage} className="flex items-center justify-between rounded-lg bg-[var(--adm-surface)] px-3 py-2">
+                  <span className="text-sm text-[var(--adm-text-muted)]">{row.stage}</span>
+                  <span className="text-sm font-semibold text-[var(--adm-text)]">{formatNumber(row.count)}</span>
                 </div>
               ))}
             </div>
@@ -369,13 +370,13 @@ export default function AdminMccClient({
             description="Use MCC Tasks for retention playbooks and service recovery."
           >
             <div className="grid gap-2">
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="text-sm text-slate-400">Open CRM tasks</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{metrics.openCrmTasks}</div>
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                <div className="text-sm text-[var(--adm-text-muted)]">Open CRM tasks</div>
+                <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{metrics.openCrmTasks}</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="text-sm text-slate-400">Open support cases</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{metrics.openSupportCases}</div>
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                <div className="text-sm text-[var(--adm-text-muted)]">Open support cases</div>
+                <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{metrics.openSupportCases}</div>
               </div>
             </div>
           </AdminPanel>
@@ -406,7 +407,7 @@ export default function AdminMccClient({
         >
           <AdminTableShell>
             <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-              <thead className="bg-white/[0.03] text-xs uppercase tracking-[0.16em] text-slate-500">
+              <thead className="bg-[var(--adm-surface)] text-xs uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
                 <tr>
                   <th className="px-3 py-3">Contact</th>
                   <th className="px-3 py-3">Stage</th>
@@ -419,13 +420,13 @@ export default function AdminMccClient({
                 {data.contacts.contacts.map((contact) => (
                   <tr key={contact.id}>
                     <td className="px-3 py-3">
-                      <div className="font-semibold text-white">{contact.name ?? contact.email}</div>
-                      <div className="text-xs text-slate-500">{contact.email}</div>
+                      <div className="font-semibold text-[var(--adm-text)]">{contact.name ?? contact.email}</div>
+                      <div className="text-xs text-[var(--adm-text-faint)]">{contact.email}</div>
                     </td>
-                    <td className="px-3 py-3 text-slate-300">{contact.lifecycleStage}</td>
-                    <td className="px-3 py-3 text-slate-400">{contact.signals.slice(0, 4).join(", ") || "-"}</td>
-                    <td className="px-3 py-3 font-semibold text-white">{formatAdminMoney(contact.totalRevenueCents)}</td>
-                    <td className="px-3 py-3 text-slate-400">{formatDate(contact.lastOrderAt)}</td>
+                    <td className="px-3 py-3 text-[var(--adm-text-muted)]">{contact.lifecycleStage}</td>
+                    <td className="px-3 py-3 text-[var(--adm-text-muted)]">{contact.signals.slice(0, 4).join(", ") || "-"}</td>
+                    <td className="px-3 py-3 font-semibold text-[var(--adm-text)]">{formatAdminMoney(contact.totalRevenueCents)}</td>
+                    <td className="px-3 py-3 text-[var(--adm-text-muted)]">{formatDate(contact.lastOrderAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -469,7 +470,7 @@ export default function AdminMccClient({
                   <option value="not_opted_in">Not opted in</option>
                 </AdminSelect>
               </AdminField>
-              <label className="flex items-center gap-2 text-sm text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-[var(--adm-text-muted)]">
                 <input
                   type="checkbox"
                   checked={audienceFilters.hasBackInStockIntent === true}
@@ -496,13 +497,13 @@ export default function AdminMccClient({
                   key={audience.id}
                   type="button"
                   onClick={() => setCampaignAudienceId(audience.id)}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-cyan-400/30"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3 text-left transition hover:border-[var(--adm-primary)]"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="font-semibold text-white">{audience.name}</div>
-                    <div className="text-sm text-cyan-200">{formatNumber(audience.computedCount)}</div>
+                    <div className="font-semibold text-[var(--adm-text)]">{audience.name}</div>
+                    <div className="text-sm text-[var(--adm-primary)]">{formatNumber(audience.computedCount)}</div>
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                     {audience.storefrontScope} · updated {formatDate(audience.updatedAt)}
                   </div>
                 </button>
@@ -554,9 +555,9 @@ export default function AdminMccClient({
                 </AdminSelect>
               </AdminField>
               {selectedCampaign ? (
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <div className="font-semibold text-white">{selectedCampaign.name}</div>
-                  <div className="mt-1 text-sm text-slate-400">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                  <div className="font-semibold text-[var(--adm-text)]">{selectedCampaign.name}</div>
+                  <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
                     {selectedCampaign.audienceName ?? "No audience"} · {selectedCampaign.sentCount} sent · {selectedCampaign.status}
                   </div>
                 </div>
@@ -591,13 +592,13 @@ export default function AdminMccClient({
         <AdminPanel eyebrow="Lifecycle" title="Automations" description="Existing growth and recovery flows are surfaced with MCC-owned automation definitions.">
           <div className="grid gap-3 lg:grid-cols-2">
             {data.automations.map((flow) => (
-              <div key={flow.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <div key={flow.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-semibold text-white">{flow.name}</div>
-                    <div className="mt-1 text-xs text-slate-500">{flow.type} · {flow.storefrontScope}</div>
+                    <div className="font-semibold text-[var(--adm-text)]">{flow.name}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{flow.type} · {flow.storefrontScope}</div>
                   </div>
-                  <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-semibold text-slate-200">
+                  <span className="rounded-full border border-[var(--adm-border)] px-2.5 py-1 text-xs font-semibold text-[var(--adm-text)]">
                     {flow.status}
                   </span>
                 </div>
@@ -616,9 +617,9 @@ export default function AdminMccClient({
               ["/admin/recommendations", "Recommendations", "Cross-sell and offer logic"],
               ["/admin/growth", "Growth Hub", "GrowVault content cadence and capture"],
             ].map(([href, title, description]) => (
-              <Link key={href} href={href} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 transition hover:border-cyan-400/30">
-                <div className="font-semibold text-white">{title}</div>
-                <div className="mt-2 text-sm text-slate-400">{description}</div>
+              <Link key={href} href={href} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3 transition hover:border-[var(--adm-primary)]">
+                <div className="font-semibold text-[var(--adm-text)]">{title}</div>
+                <div className="mt-2 text-sm text-[var(--adm-text-muted)]">{description}</div>
               </Link>
             ))}
           </div>
@@ -628,20 +629,20 @@ export default function AdminMccClient({
       {activeTab === "attribution" ? (
         <AdminPanel eyebrow="Measurement" title="Attribution context">
           <div className="grid gap-3 md:grid-cols-3">
-            <Link href={buildScopeHref(storefrontScope, rangeDays, query)} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <ChartBarSquareIcon className="h-5 w-5 text-cyan-300" />
-              <div className="mt-3 font-semibold text-white">MCC scope</div>
-              <div className="mt-1 text-sm text-slate-400">{ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}</div>
+            <Link href={buildScopeHref(storefrontScope, rangeDays, query)} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+              <ChartBarSquareIcon className="h-5 w-5 text-[var(--adm-primary)]" />
+              <div className="mt-3 font-semibold text-[var(--adm-text)]">MCC scope</div>
+              <div className="mt-1 text-sm text-[var(--adm-text-muted)]">{ADMIN_STOREFRONT_SCOPE_LABELS[storefrontScope]}</div>
             </Link>
-            <Link href="/admin/attribution" className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <FunnelIcon className="h-5 w-5 text-cyan-300" />
-              <div className="mt-3 font-semibold text-white">Attribution repair</div>
-              <div className="mt-1 text-sm text-slate-400">Resolve orders missing storefront attribution.</div>
+            <Link href="/admin/attribution" className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+              <FunnelIcon className="h-5 w-5 text-[var(--adm-primary)]" />
+              <div className="mt-3 font-semibold text-[var(--adm-text)]">Attribution repair</div>
+              <div className="mt-1 text-sm text-[var(--adm-text-muted)]">Resolve orders missing storefront attribution.</div>
             </Link>
-            <Link href="/admin/analytics" className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <UserGroupIcon className="h-5 w-5 text-cyan-300" />
-              <div className="mt-3 font-semibold text-white">Analytics</div>
-              <div className="mt-1 text-sm text-slate-400">Funnel, acquisition, and storefront reporting.</div>
+            <Link href="/admin/analytics" className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+              <UserGroupIcon className="h-5 w-5 text-[var(--adm-primary)]" />
+              <div className="mt-3 font-semibold text-[var(--adm-text)]">Analytics</div>
+              <div className="mt-1 text-sm text-[var(--adm-text-muted)]">Funnel, acquisition, and storefront reporting.</div>
             </Link>
           </div>
         </AdminPanel>
@@ -653,9 +654,9 @@ export default function AdminMccClient({
             <div className="grid gap-2">
               {data.overview.openTasks.length === 0 ? <AdminEmptyState copy="No open CRM tasks." /> : null}
               {data.overview.openTasks.map((task) => (
-                <Link key={task.id} href="/admin/customers" className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <div className="font-semibold text-white">{task.title}</div>
-                  <div className="mt-1 text-sm text-slate-400">{task.status} · due {formatDate(task.dueAt)}</div>
+                <Link key={task.id} href="/admin/customers" className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                  <div className="font-semibold text-[var(--adm-text)]">{task.title}</div>
+                  <div className="mt-1 text-sm text-[var(--adm-text-muted)]">{task.status} · due {formatDate(task.dueAt)}</div>
                 </Link>
               ))}
             </div>
@@ -664,16 +665,16 @@ export default function AdminMccClient({
             <div className="grid gap-2">
               {data.activities.length === 0 ? <AdminEmptyState copy="No MCC timeline activity yet." /> : null}
               {data.activities.map((activity) => (
-                <div key={activity.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <div className="font-semibold text-white">{activity.title}</div>
-                  <div className="mt-1 text-sm text-slate-400">{activity.activityType} · {formatDate(activity.createdAt)}</div>
-                  {activity.summary ? <div className="mt-2 text-sm text-slate-300">{activity.summary}</div> : null}
+                <div key={activity.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+                  <div className="font-semibold text-[var(--adm-text)]">{activity.title}</div>
+                  <div className="mt-1 text-sm text-[var(--adm-text-muted)]">{activity.activityType} · {formatDate(activity.createdAt)}</div>
+                  {activity.summary ? <div className="mt-2 text-sm text-[var(--adm-text-muted)]">{activity.summary}</div> : null}
                 </div>
               ))}
             </div>
           </AdminPanel>
         </div>
       ) : null}
-    </div>
+    </AdminPage>
   );
 }

@@ -14,6 +14,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminSplitView } from "@/components/admin/ui";
 import {
   getStorefrontAssignmentValue,
   getDefaultStorefrontAssignmentValue,
@@ -253,11 +254,11 @@ export default function AdminCategoriesClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="master-detail">
       <AdminPageIntro
         eyebrow="Admin / Categories"
         title="Taxonomy management"
-        description="Manage the category hierarchy with a dedicated dark workspace instead of the old stacked form layout."
+        description="Search and maintain the category hierarchy in a focused list-and-editor workspace."
         actions={
           <AdminButton tone="secondary" onClick={() => void loadCategories()} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
@@ -275,7 +276,7 @@ export default function AdminCategoriesClient() {
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(360px,0.82fr)_minmax(0,1.18fr)]">
+      <AdminSplitView>
         <div className="grid gap-6">
           <AdminPanel
             eyebrow="Create"
@@ -369,22 +370,22 @@ export default function AdminCategoriesClient() {
                   return (
                     <div
                       key={category.id}
-                      className="rounded-2xl border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(12,17,24,0.95),rgba(7,10,15,0.95))] p-2 shadow-[0_22px_60px_rgba(0,0,0,0.28)]"
+                      className="rounded-xl border border-cyan-400/10 bg-[var(--adm-surface)] p-2 shadow-[0_22px_60px_rgba(0,0,0,0.28)]"
                     >
                       <button
                         type="button"
                         onClick={() => setSelectedId(category.id)}
                         className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition ${
                           activeRoot
-                            ? "border-cyan-400/30 bg-cyan-400/12 text-cyan-200"
-                            : "border-transparent text-slate-200 hover:border-white/10 hover:bg-white/[0.04]"
+                            ? "border-[var(--adm-primary)] bg-[var(--adm-primary)]/12 text-[var(--adm-primary)]"
+                            : "border-transparent text-[var(--adm-text)] hover:border-[var(--adm-border)] hover:bg-[var(--adm-surface-2)]"
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
                           <div>
                             <div className="font-semibold">{category.name}</div>
-                            <div className="mt-1 text-xs text-slate-500">
+                            <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                               /{category.handle}
                             </div>
                             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -402,18 +403,18 @@ export default function AdminCategoriesClient() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                          <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">
                             {children.length} child{children.length === 1 ? "" : "ren"}
                           </span>
-                          <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200">
+                          <span className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-[var(--adm-primary)]">
                             Root
                           </span>
                         </div>
                       </button>
-                      <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                      <div className="mt-2 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                           <div className="min-w-0 flex-1">
-                            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                               Storefront visibility
                             </div>
                             <AdminSelect
@@ -422,7 +423,7 @@ export default function AdminCategoriesClient() {
                                 void updateRootStorefronts(category, event.target.value)
                               }
                               disabled={savingId === category.id}
-                              className="h-10 rounded-xl text-xs"
+                              className="h-8 rounded-xl text-xs"
                             >
                               {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
                                 <option key={`${category.id}-${option.value}`} value={option.value}>
@@ -431,7 +432,7 @@ export default function AdminCategoriesClient() {
                               ))}
                             </AdminSelect>
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-[var(--adm-text-faint)]">
                             {savingId === category.id
                               ? "Saving visibility..."
                               : "Applies to this top-level category."}
@@ -448,14 +449,14 @@ export default function AdminCategoriesClient() {
                               className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm transition ${
                                 selectedId === child.id
                                   ? "border-violet-400/30 bg-violet-400/12 text-violet-200"
-                                  : "border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.04]"
+                                  : "border-transparent text-[var(--adm-text-muted)] hover:border-[var(--adm-border)] hover:bg-[var(--adm-surface-2)]"
                               }`}
                             >
                               <div className="flex items-center gap-3">
                                 <span className="h-2.5 w-2.5 rounded-full bg-violet-300" />
                                 <div>
                                   <div>{child.name}</div>
-                                  <div className="mt-1 text-xs text-slate-500">
+                                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                                     /{child.handle}
                                   </div>
                                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -479,7 +480,7 @@ export default function AdminCategoriesClient() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-3 rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-slate-500">
+                        <div className="mt-3 rounded-xl border border-dashed border-[var(--adm-border)] px-3 py-3 text-xs text-[var(--adm-text-faint)]">
                           No child categories under this root yet.
                         </div>
                       )}
@@ -501,13 +502,13 @@ export default function AdminCategoriesClient() {
             <div className="space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                     Selected node
                   </div>
-                  <div className="mt-2 text-lg font-semibold text-white">
+                  <div className="mt-2 text-lg font-semibold text-[var(--adm-text)]">
                     {selectedCategory.name}
                   </div>
-                  <div className="mt-1 text-sm text-slate-400">
+                  <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
                     {selectedCategory.parentId ? "Child category" : "Top-level category"}
                   </div>
                 </div>
@@ -576,11 +577,11 @@ export default function AdminCategoriesClient() {
                     ))}
                   </AdminSelect>
                 </AdminField>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Metadata
                   </div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-300">
+                  <div className="mt-3 space-y-2 text-sm text-[var(--adm-text-muted)]">
                     <div>Created: {new Date(selectedCategory.createdAt).toLocaleDateString("de-DE")}</div>
                     <div>Updated: {new Date(selectedCategory.updatedAt).toLocaleDateString("de-DE")}</div>
                     <div>Children: {selectedChildren.length}</div>
@@ -619,7 +620,7 @@ export default function AdminCategoriesClient() {
             />
           )}
         </AdminPanel>
-      </div>
+      </AdminSplitView>
 
       <AdminDialog
         open={Boolean(deleteTarget)}
@@ -654,7 +655,7 @@ export default function AdminCategoriesClient() {
         }
       >
         <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
             {deleteTarget?.name}
           </div>
           <AdminInput
@@ -667,10 +668,10 @@ export default function AdminCategoriesClient() {
             placeholder="Admin password"
           />
           {deletePasswordError ? (
-            <div className="text-xs text-red-300">{deletePasswordError}</div>
+            <div className="text-xs text-[var(--adm-error)]">{deletePasswordError}</div>
           ) : null}
         </div>
       </AdminDialog>
-    </div>
+    </AdminPage>
   );
 }

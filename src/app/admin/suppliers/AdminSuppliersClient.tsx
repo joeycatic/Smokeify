@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { HorizontalBarsChart, type AdminChartPoint } from "@/components/admin/AdminCharts";
+import {
+  AdminKpiStrip,
+  AdminPage,
+  AdminPageHeader,
+  AdminSplitView,
+  AdminStat,
+} from "@/components/admin/ui";
 
 type Supplier = {
   id: string;
@@ -302,54 +309,45 @@ export default function AdminSuppliersClient({
   };
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-              Admin / Suppliers
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">
-              Supplier CRM and exposure overview
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm text-slate-400">
-              Contact maintenance, lead time visibility, supplier exposure, and
-              stock pressure across catalog relationships.
-            </p>
-          </div>
+    <AdminPage layout="master-detail">
+      <AdminPageHeader
+        eyebrow="Admin / Suppliers"
+        title="Supplier records"
+        description="Contact maintenance, lead-time visibility, catalog exposure, and stock pressure."
+        actions={
           <button
             type="button"
             onClick={loadSuppliers}
-            className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+            className="inline-flex h-8 items-center rounded-[10px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-[13px] font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
             disabled={loading}
           >
             {loading ? "Refreshing..." : "Refresh suppliers"}
           </button>
-        </div>
-
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <MetricCard label="Suppliers" value={String(totalSuppliers)} />
-          <MetricCard label="Catalog products" value={String(totalProducts)} />
-          <MetricCard label="Avg. lead time" value={`${averageLeadTime} days`} />
-          <MetricCard label="Low-stock products" value={String(totalLowStockProducts)} />
-          <MetricCard label="Open POs" value={String(totalOpenPurchaseOrders)} />
-          <MetricCard label="Late POs" value={String(totalLatePurchaseOrders)} />
-        </div>
-      </section>
+        }
+      >
+        <AdminKpiStrip>
+          <AdminStat label="Suppliers" value={totalSuppliers} />
+          <AdminStat label="Catalog products" value={totalProducts} />
+          <AdminStat label="Avg. lead time" value={`${averageLeadTime}d`} />
+          <AdminStat label="Low stock" value={totalLowStockProducts} />
+          <AdminStat label="Open POs" value={totalOpenPurchaseOrders} />
+          <AdminStat label="Late POs" value={totalLatePurchaseOrders} deltaTone="error" />
+        </AdminKpiStrip>
+      </AdminPageHeader>
 
       {(error || notice) ? (
         <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
+          className={`rounded-xl border px-4 py-3 text-sm ${
             error
-              ? "border-red-500/20 bg-red-500/10 text-red-200"
-              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+              ? "border-red-500/20 bg-[#fae7e3] text-[var(--adm-error)]"
+              : "border-emerald-500/20 bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
           }`}
         >
           {error || notice}
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <AdminSplitView>
         <Panel
           eyebrow="Exposure"
           title="Supplier footprint"
@@ -357,7 +355,7 @@ export default function AdminSuppliersClient({
         >
           <HorizontalBarsChart
             data={supplierBars}
-            colorClassName="bg-cyan-400"
+            colorClassName="bg-[var(--adm-primary)]"
             valueFormatter={(value) => `${value} products`}
           />
         </Panel>
@@ -453,20 +451,20 @@ export default function AdminSuppliersClient({
             <button
               type="button"
               onClick={createSupplier}
-              className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950"
+              className="inline-flex h-8 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-white"
             >
               Create supplier
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+              className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
             >
               Reset
             </button>
           </div>
         </Panel>
-      </div>
+      </AdminSplitView>
 
       <Panel
         eyebrow="Directory"
@@ -479,52 +477,52 @@ export default function AdminSuppliersClient({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search suppliers by name, email, contact..."
-            className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-white/20 sm:min-w-[260px]"
+            className="h-8 min-w-0 flex-1 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-border-strong)] sm:min-w-[260px]"
           />
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-[var(--adm-text-faint)]">
             {filteredSuppliers.length} suppliers
           </span>
         </div>
 
         <div className="grid gap-4">
           {filteredSuppliers.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-6 text-sm text-[var(--adm-text-faint)]">
               No suppliers found.
             </div>
           ) : (
             filteredSuppliers.map((supplier) => (
               <div
                 key={supplier.id}
-                className="rounded-[24px] border border-white/10 bg-[#090d12] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">{supplier.name}</h3>
+                    <h3 className="text-lg font-semibold text-[var(--adm-text)]">{supplier.name}</h3>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
-                      <span className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-cyan-300">
+                      <span className="rounded-full bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-primary)]">
                         {supplier.productCount} products
                       </span>
-                      <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-300">
+                      <span className="rounded-full bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-success)]">
                         {supplier.activeProductCount} active
                       </span>
-                      <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-amber-300">
+                      <span className="rounded-full bg-[#fff4dd] px-2.5 py-1 text-[#81560e]">
                         {supplier.lowStockProductCount} low stock
                       </span>
                       <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-sky-300">
                         {supplier.openPurchaseOrderCount} open POs
                       </span>
-                      <span className="rounded-full bg-rose-400/10 px-2.5 py-1 text-rose-300">
+                      <span className="rounded-full bg-[#fae7e3] px-2.5 py-1 text-[var(--adm-error)]">
                         {supplier.latePurchaseOrderCount} late
                       </span>
                     </div>
-                    <div className="mt-2 text-xs text-slate-500">
+                    <div className="mt-2 text-xs text-[var(--adm-text-faint)]">
                       Last receipt{" "}
                       {supplier.lastReceiptAt
                         ? new Date(supplier.lastReceiptAt).toLocaleDateString("de-DE")
                         : "—"}
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-[var(--adm-text-faint)]">
                     Updated {new Date(supplier.updatedAt).toLocaleDateString("de-DE")}
                   </div>
                 </div>
@@ -652,7 +650,7 @@ export default function AdminSuppliersClient({
                     type="button"
                     onClick={() => void updateSupplier(supplier)}
                     disabled={savingId === supplier.id}
-                    className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                    className="inline-flex h-8 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-white disabled:opacity-60"
                   >
                     {savingId === supplier.id ? "Saving..." : "Save supplier"}
                   </button>
@@ -663,7 +661,7 @@ export default function AdminSuppliersClient({
                       setDeletePasswordError("");
                       setDeleteTarget({ id: supplier.id, name: supplier.name });
                     }}
-                    className="inline-flex h-10 items-center rounded-full border border-red-400/20 bg-red-400/10 px-4 text-sm font-semibold text-red-200"
+                    className="inline-flex h-8 items-center rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-4 text-sm font-semibold text-[var(--adm-error)]"
                   >
                     Delete
                   </button>
@@ -682,10 +680,10 @@ export default function AdminSuppliersClient({
             onClick={() => setDeleteTarget(null)}
             aria-label="Close dialog"
           />
-          <div className="relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[#0a0d12] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-[28px] sm:p-6">
-            <h3 className="text-lg font-semibold text-white">Delete supplier?</h3>
-            <p className="mt-2 text-sm text-slate-400">
-              This will permanently delete <span className="font-semibold text-slate-100">{deleteTarget.name}</span>.
+          <div className="relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:rounded-xl sm:p-6">
+            <h3 className="text-lg font-semibold text-[var(--adm-text)]">Delete supplier?</h3>
+            <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
+              This will permanently delete <span className="font-semibold text-[var(--adm-text)]">{deleteTarget.name}</span>.
             </p>
             <input
               type="password"
@@ -695,16 +693,16 @@ export default function AdminSuppliersClient({
                 if (deletePasswordError) setDeletePasswordError("");
               }}
               placeholder="Admin password"
-              className="mt-4 h-10 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none placeholder:text-slate-500"
+              className="mt-4 h-8 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]"
             />
             {deletePasswordError ? (
-              <p className="mt-2 text-xs text-red-300">{deletePasswordError}</p>
+              <p className="mt-2 text-xs text-[var(--adm-error)]">{deletePasswordError}</p>
             ) : null}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
               >
                 Cancel
               </button>
@@ -723,7 +721,7 @@ export default function AdminSuppliersClient({
                   if (!target) return;
                   await deleteSupplier(target.id, adminPassword);
                 }}
-                className="inline-flex h-10 items-center rounded-full bg-red-500 px-4 text-sm font-semibold text-white"
+                className="inline-flex h-8 items-center rounded-full bg-red-500 px-4 text-sm font-semibold text-[var(--adm-text)]"
               >
                 Delete supplier
               </button>
@@ -731,12 +729,12 @@ export default function AdminSuppliersClient({
           </div>
         </div>
       ) : null}
-    </div>
+    </AdminPage>
   );
 }
 
 const inputClass =
-  "mt-1 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-500";
+  "mt-1 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-2.5 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)]";
 
 function Panel({
   eyebrow,
@@ -750,27 +748,16 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+    <section className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
       <div className="mb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
           {eyebrow}
         </p>
-        <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-slate-400">{description}</p>
+        <h2 className="mt-2 text-lg font-semibold text-[var(--adm-text)]">{title}</h2>
+        <p className="mt-1 text-sm text-[var(--adm-text-muted)]">{description}</p>
       </div>
       {children}
     </section>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-    </div>
   );
 }
 
@@ -784,7 +771,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className={`block text-xs font-semibold text-slate-400 ${className}`}>
+    <label className={`block text-xs font-semibold text-[var(--adm-text-muted)] ${className}`}>
       {label}
       {children}
     </label>

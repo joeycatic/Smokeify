@@ -247,7 +247,7 @@
 
 .workspace
   :global([role="tabpanel"])
-  :is(.rounded-lg, .rounded-xl, .rounded-2xl):not(button):not(a):not(label) {
+  :is(.rounded-lg, .rounded-xl, .rounded-xl):not(button):not(a):not(label) {
   border-color: var(--product-line) !important;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 50%),
@@ -402,7 +402,7 @@
   transform: translateY(-2px);
 }
 
-.workspace :global(#variants .rounded-2xl) {
+.workspace :global(#variants .rounded-xl) {
   border-radius: 16px !important;
 }
 

@@ -14,7 +14,7 @@ export default async function AdminSuppliersPage({
     : resolvedSearchParams.query ?? "";
 
   return (
-    <div className="admin-route-frame text-slate-100">
+    <div className="admin-route-frame text-[var(--adm-text)]">
       <AdminSuppliersClient initialSearchQuery={initialSearchQuery} />
     </div>
   );

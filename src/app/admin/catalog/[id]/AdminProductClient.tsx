@@ -32,6 +32,12 @@ import {
   STOREFRONT_LABELS,
   type StorefrontCode,
 } from "@/lib/storefronts";
+import {
+  AdminKpiStrip,
+  AdminPage,
+  AdminPageHeader,
+  AdminStat,
+} from "@/components/admin/ui";
 
 type ImageItem = {
   id: string;
@@ -710,10 +716,10 @@ export default function AdminProductClient({
         : "Steady";
   const trendTone =
     insights.trendDirection === "trending"
-      ? "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-200"
+      ? "border-[var(--adm-success)] bg-emerald-400/[0.08] text-[var(--adm-success)]"
       : insights.trendDirection === "cooling"
-        ? "border-amber-400/20 bg-amber-400/[0.08] text-amber-200"
-        : "border-white/10 bg-white/[0.06] text-slate-200";
+        ? "border-[#e2a136] bg-amber-400/[0.08] text-[#81560e]"
+        : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)]";
 
   useEffect(() => {
     if (activeParentId && parentCategories.some((item) => item.id === activeParentId)) {
@@ -1775,11 +1781,29 @@ export default function AdminProductClient({
   };
 
   return (
-    <div className={`${styles.workspace} admin-console-page admin-product-redesign space-y-4 rounded-[22px] border border-white/10 bg-[radial-gradient(circle_at_8%_0%,rgba(34,211,238,0.11),transparent_26%),radial-gradient(circle_at_94%_4%,rgba(245,158,11,0.08),transparent_25%),repeating-linear-gradient(135deg,rgba(255,255,255,0.012)_0,rgba(255,255,255,0.012)_1px,transparent_1px,transparent_12px),linear-gradient(180deg,#070b11_0%,#05070a_100%)] p-3 pb-44 text-slate-100 shadow-[0_30px_120px_rgba(0,0,0,0.45)] sm:p-5 md:rounded-[30px] md:p-6 md:pb-40`}>
-      <header className="admin-product-hero admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(125deg,rgba(10,14,20,0.98),rgba(12,20,29,0.94)_58%,rgba(16,19,24,0.98))] p-4 text-white shadow-[0_24px_90px_rgba(0,0,0,0.4)] sm:rounded-[26px] sm:p-5">
+    <AdminPage layout="editor" className={`${styles.workspace} admin-console-page admin-product-redesign pb-44 md:pb-40`}>
+      <AdminPageHeader
+        eyebrow="Catalog / Product workspace"
+        title={details.title}
+        description={`${details.status} · Updated ${new Date(productUpdatedAt).toLocaleDateString("de-DE")} · Compliance ${product.complianceStatus.replace("_", " ")}`}
+        actions={
+          <Link href="/admin/catalog" className="inline-flex h-8 items-center rounded-[10px] border border-[var(--adm-border-strong)] px-3 text-[13px] font-semibold text-[var(--adm-text)]">
+            <ArrowLeftIcon className="mr-2 h-4 w-4" aria-hidden="true" />Back to catalog
+          </Link>
+        }
+      >
+        <AdminKpiStrip>
+          <AdminStat label="Availability" value={totalAvailableInventory} delta="Units across variants" />
+          <AdminStat label="Variants" value={variants.length} delta={`${lowStockVariantCount} low-stock`} deltaTone={lowStockVariantCount ? "warning" : "success"} />
+          <AdminStat label="30d Revenue" value={formatCurrency(insights.revenue30dCents)} delta={`Margin ${formatPercent(insights.marginRate30d)}`} deltaTone="success" />
+          <AdminStat label="Conversion" value={formatPercent(insights.conversionRate30d)} delta={`${insights.views30d} views`} />
+          <AdminStat label="Returns" value={formatPercent(insights.returnRate30d)} delta={`${insights.returnedUnits30d} units`} deltaTone={insights.returnedUnits30d ? "error" : "neutral"} />
+        </AdminKpiStrip>
+      </AdminPageHeader>
+      <header className="hidden">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200/75">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-primary)]/75">
               <span>Catalog</span>
               <span className="h-px w-5 bg-cyan-300/30" />
               <span>Product workspace</span>
@@ -1787,19 +1811,19 @@ export default function AdminProductClient({
             <h1 className="mt-2 max-w-4xl break-words text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
               {details.title}
             </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-semibold text-white">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--adm-text)]/80">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1 font-semibold text-[var(--adm-text)]">
                 {details.status}
               </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1">
                 Updated {new Date(productUpdatedAt).toLocaleDateString("de-DE")}
               </span>
               {hasUnsavedChanges ? (
-                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 font-semibold text-amber-200">
+                <span className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-3 py-1 font-semibold text-[#81560e]">
                   Unsaved changes
                 </span>
               ) : (
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 font-semibold text-emerald-200">
+                <span className="rounded-full border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-3 py-1 font-semibold text-[var(--adm-success)]">
                   Synced
                 </span>
               )}
@@ -1814,7 +1838,7 @@ export default function AdminProductClient({
           <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
             <Link
               href="/admin/catalog"
-              className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+              className="inline-flex min-h-8 items-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-2 text-sm font-semibold text-[var(--adm-text)] shadow-sm transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
             >
               <ArrowLeftIcon className="mr-2 h-4 w-4" aria-hidden="true" />
               Back to catalog
@@ -1823,63 +1847,63 @@ export default function AdminProductClient({
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
-          <div className="admin-product-stat admin-lift rounded-xl border border-cyan-400/20 bg-cyan-400/[0.07] p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
+          <div className="admin-product-stat admin-lift rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary)]/[0.07] p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-primary)]">
               Availability
             </div>
-            <div className="mt-2 text-2xl font-semibold text-white">{totalAvailableInventory}</div>
-            <div className="mt-1 text-xs text-cyan-100/70">Units across all variants</div>
+            <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{totalAvailableInventory}</div>
+            <div className="mt-1 text-xs text-[var(--adm-primary)]/70">Units across all variants</div>
           </div>
           <div className="admin-product-stat admin-lift rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
               Variants
             </div>
-            <div className="mt-2 text-2xl font-semibold text-white">{variants.length}</div>
+            <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{variants.length}</div>
             <div className="mt-1 text-xs text-violet-100/70">
               {lowStockVariantCount} low-stock alert{lowStockVariantCount === 1 ? "" : "s"}
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-xl border border-emerald-400/20 bg-emerald-400/[0.07] p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
+          <div className="admin-product-stat admin-lift rounded-xl border border-[var(--adm-success)] bg-emerald-400/[0.07] p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-success)]">
               30d Revenue
             </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
+            <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
               {formatCurrency(insights.revenue30dCents)}
             </div>
-            <div className="mt-1 text-xs text-emerald-100/70">
+            <div className="mt-1 text-xs text-[var(--adm-success)]/70">
               Margin {formatPercent(insights.marginRate30d)}
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-xl border border-amber-400/20 bg-amber-400/[0.07] p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">
+          <div className="admin-product-stat admin-lift rounded-xl border border-[#e2a136] bg-amber-400/[0.07] p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#81560e]">
               Conversion
             </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
+            <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
               {formatPercent(insights.conversionRate30d)}
             </div>
-            <div className="mt-1 text-xs text-amber-100/70">
+            <div className="mt-1 text-xs text-[#81560e]/70">
               {insights.views30d} views / {insights.purchases30d} purchases
             </div>
           </div>
-          <div className="admin-product-stat admin-lift rounded-xl border border-rose-400/20 bg-rose-400/[0.07] p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-200">
+          <div className="admin-product-stat admin-lift rounded-xl border border-[var(--adm-error)] bg-rose-400/[0.07] p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-error)]">
               Returns
             </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
+            <div className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">
               {formatPercent(insights.returnRate30d)}
             </div>
-            <div className="mt-1 text-xs text-rose-100/70">
+            <div className="mt-1 text-xs text-[var(--adm-error)]/70">
               {insights.returnedUnits30d} returned units in the last 30 days
             </div>
           </div>
-          <div className="admin-product-stat admin-lift col-span-2 rounded-xl border border-white/10 bg-white/[0.05] p-3 sm:col-span-1">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300">
+          <div className="admin-product-stat admin-lift col-span-2 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-3 sm:col-span-1">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-muted)]">
               Compliance
             </div>
-            <div className="mt-2 text-lg font-semibold text-white">
+            <div className="mt-2 text-lg font-semibold text-[var(--adm-text)]">
               {product.complianceStatus.replace("_", " ")}
             </div>
-            <div className="mt-1 text-xs text-slate-300/70">
+            <div className="mt-1 text-xs text-[var(--adm-text-muted)]/70">
               Feed {product.complianceFeedEligible ? "on" : "off"} · Ads{" "}
               {product.complianceAdsEligible ? "on" : "off"} ·{" "}
               {product.complianceOwnerEmail ?? "Unassigned"}
@@ -1890,10 +1914,10 @@ export default function AdminProductClient({
 
       {(message || error) && (
         <div
-          className={`admin-product-alert rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_50px_rgba(0,0,0,0.25)] ${
+          className={`admin-product-alert rounded-xl border px-4 py-3 text-sm shadow-[0_18px_50px_rgba(0,0,0,0.25)] ${
             error
-              ? "border-red-400/20 bg-red-400/10 text-red-200"
-              : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+              ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
+              : "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
           }`}
         >
           {error || message}
@@ -1901,13 +1925,13 @@ export default function AdminProductClient({
       )}
 
       {draftMessage ? (
-        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100 shadow-[0_18px_50px_rgba(0,0,0,0.25)]">
+        <div className="rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 py-3 text-sm text-[var(--adm-primary)] shadow-[0_18px_50px_rgba(0,0,0,0.25)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span>{draftMessage}</span>
             <button
               type="button"
               onClick={discardLocalDraft}
-              className="rounded-full border border-cyan-300/20 bg-black/20 px-3 py-1.5 text-xs font-semibold text-cyan-100"
+              className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-surface-2)] px-3 py-1.5 text-xs font-semibold text-[var(--adm-primary)]"
             >
               Discard local draft
             </button>
@@ -1916,13 +1940,13 @@ export default function AdminProductClient({
       ) : null}
 
       {staleConflictMessage ? (
-        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 shadow-sm">
+        <div className="rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e] shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span>{staleConflictMessage}</span>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="rounded-full border border-amber-300/20 bg-black/20 px-3 py-1.5 text-xs font-semibold text-amber-100"
+              className="rounded-full border border-[#e2a136] bg-[var(--adm-surface-2)] px-3 py-1.5 text-xs font-semibold text-[#81560e]"
             >
               Reload latest product
             </button>
@@ -1932,10 +1956,10 @@ export default function AdminProductClient({
 
       <div
         id="product-editor-workspace"
-        className="sticky top-[4.75rem] z-20 rounded-[18px] border border-white/10 bg-[#05070a]/92 p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:top-20 sm:rounded-[22px]"
+        className="sticky top-[4.75rem] z-20 rounded-[18px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:top-20 sm:rounded-[22px]"
       >
         <div
-          className={`${styles.tabList} admin-scroll-x grid auto-cols-[minmax(154px,1fr)] grid-flow-col gap-2 overflow-x-auto lg:grid-flow-row lg:grid-cols-7`}
+          className={`${styles.tabList} admin-scroll-x flex gap-1 overflow-x-auto`}
           role="tablist"
           aria-label="Product editor sections"
         >
@@ -1954,10 +1978,10 @@ export default function AdminProductClient({
               tabIndex={activeSection === section.id ? 0 : -1}
               onClick={() => selectSection(section.id)}
               onKeyDown={(event) => handleTabKeyDown(event, section.id)}
-              className={`${styles.tab} group relative min-h-[62px] rounded-[14px] border px-3 py-2.5 text-left transition ${
+              className={`${styles.tab} group relative inline-flex h-8 min-w-max items-center rounded-[10px] border px-3 text-left text-[13px] transition ${
                 activeSection === section.id
-                  ? "border-cyan-300/35 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(34,211,238,0.06))] text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(8,145,178,0.12)]"
-                  : "border-white/[0.08] bg-white/[0.025] text-slate-300 hover:border-cyan-400/25 hover:bg-cyan-400/[0.07] hover:text-cyan-100"
+                  ? "border-cyan-300/35 bg-[var(--adm-surface)] text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_30px_rgba(8,145,178,0.12)]"
+                  : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)] hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/[0.07] hover:text-[var(--adm-primary)]"
               }`}
             >
               <span className="flex items-center justify-between gap-2">
@@ -1965,8 +1989,8 @@ export default function AdminProductClient({
                   <span
                     className={`flex h-7 w-7 items-center justify-center rounded-lg border ${
                       activeSection === section.id
-                        ? "border-cyan-200/25 bg-cyan-200/10 text-cyan-100"
-                        : "border-white/10 bg-black/20 text-slate-400 group-hover:text-cyan-200"
+                        ? "border-cyan-200/25 bg-cyan-200/10 text-[var(--adm-primary)]"
+                        : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)] group-hover:text-[var(--adm-primary)]"
                     }`}
                   >
                     {sectionIcon(section.id)}
@@ -1980,12 +2004,7 @@ export default function AdminProductClient({
                   />
                 ) : null}
               </span>
-              <span className="mt-1.5 flex items-center justify-between gap-2 pl-9 text-[10px] text-slate-500">
-                <span className="truncate">{section.description}</span>
-                <span className="shrink-0 font-semibold text-slate-400">
-                  {sectionSummary(section.id)}
-                </span>
-              </span>
+              <span className="sr-only">{section.description} · {sectionSummary(section.id)}</span>
             </button>
           ))}
         </div>
@@ -1997,18 +2016,18 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-performance"
         hidden={activeSection !== "performance"}
-        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-sm font-semibold text-[var(--adm-primary)]">
               P
             </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--adm-primary)]">
                 Performance
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[var(--adm-text-muted)]">
                 Views, conversion, margin, return pressure, and traffic quality.
               </p>
             </div>
@@ -2056,21 +2075,21 @@ export default function AdminProductClient({
         </div>
 
         <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
               Top traffic sources
             </p>
             <div className="mt-4 space-y-3">
               {insights.topTrafficSources.length === 0 ? (
-                <p className="text-sm text-slate-500">No source data captured for this product yet.</p>
+                <p className="text-sm text-[var(--adm-text-faint)]">No source data captured for this product yet.</p>
               ) : (
                 insights.topTrafficSources.map((source) => (
                   <div
                     key={source.label}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                   >
-                    <span className="truncate text-sm text-slate-200">{source.label}</span>
-                    <span className="shrink-0 text-sm font-semibold text-cyan-200">
+                    <span className="truncate text-sm text-[var(--adm-text)]">{source.label}</span>
+                    <span className="shrink-0 text-sm font-semibold text-[var(--adm-primary)]">
                       {source.count} views
                     </span>
                   </div>
@@ -2079,21 +2098,21 @@ export default function AdminProductClient({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
               Return reasons
             </p>
             <div className="mt-4 space-y-3">
               {insights.topReturnReasons.length === 0 ? (
-                <p className="text-sm text-slate-500">No return reasons recorded in the last 30 days.</p>
+                <p className="text-sm text-[var(--adm-text-faint)]">No return reasons recorded in the last 30 days.</p>
               ) : (
                 insights.topReturnReasons.map((reason) => (
                   <div
                     key={reason.reason}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                   >
-                    <span className="truncate text-sm text-slate-200">{reason.reason}</span>
-                    <span className="shrink-0 text-sm font-semibold text-rose-200">
+                    <span className="truncate text-sm text-[var(--adm-text)]">{reason.reason}</span>
+                    <span className="shrink-0 text-sm font-semibold text-[var(--adm-error)]">
                       {reason.count}
                     </span>
                   </div>
@@ -2110,22 +2129,22 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-overview"
         hidden={activeSection !== "overview"}
-        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-400/10 text-sm font-semibold text-cyan-200">01</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-sm font-semibold text-[var(--adm-primary)]">01</span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Details</p>
-              <p className="text-xs text-slate-400">Core product information.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--adm-primary)]">Details</p>
+              <p className="text-xs text-[var(--adm-text-muted)]">Core product information.</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {details.storefronts.map((storefront) => (
                   <span
                     key={`hero-${storefront}`}
                     className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
                       storefront === "GROW"
-                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                        : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                        ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                        : "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
                     }`}
                   >
                     {STOREFRONT_LABELS[storefront]}
@@ -2136,17 +2155,17 @@ export default function AdminProductClient({
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Title
             <input
               value={details.title}
               onChange={(event) =>
                 setDetails((prev) => ({ ...prev, title: event.target.value }))
               }
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Handle
             <input
               value={details.handle}
@@ -2154,17 +2173,17 @@ export default function AdminProductClient({
                 setHandleError("");
                 setDetails((prev) => ({ ...prev, handle: event.target.value }));
               }}
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
             {handleError && (
-              <span className="mt-1 block text-[11px] font-medium text-rose-300">
+              <span className="mt-1 block text-[11px] font-medium text-[var(--adm-error)]">
                 {handleError}
               </span>
             )}
           </label>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Manufacturer
             <input
               value={details.manufacturer}
@@ -2172,10 +2191,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, manufacturer: event.target.value }))
               }
               placeholder="e.g. AC Infinity"
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Produktgruppe
             <input
               value={details.productGroup}
@@ -2183,10 +2202,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, productGroup: event.target.value }))
               }
               placeholder="z.B. growbox-60x60"
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Lead time (days)
             <input
               type="number"
@@ -2199,10 +2218,10 @@ export default function AdminProductClient({
                 }))
               }
               placeholder="e.g. 3"
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Storefront visibility
             <select
               value={details.storefronts.join(",")}
@@ -2215,7 +2234,7 @@ export default function AdminProductClient({
                     .filter(Boolean) as StorefrontCode[],
                 }))
               }
-              className="mt-1 h-10 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm"
             >
               {STOREFRONT_ASSIGNMENT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -2226,12 +2245,12 @@ export default function AdminProductClient({
           </label>
         </div>
         {showZelteFields && (
-          <div className="mt-4 rounded-lg border border-emerald-400/25 bg-emerald-400/10 p-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
+          <div className="mt-4 rounded-lg border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--adm-success)]">
               Zelte
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-400">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                 Plant count min
                 <input
                   type="number"
@@ -2247,10 +2266,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 2"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-slate-400">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                 Plant count max
                 <input
                   type="number"
@@ -2266,10 +2285,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 6"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-slate-400">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                 Size
                 <input
                   value={details.growboxSize}
@@ -2280,10 +2299,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 80x80x180 cm"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-slate-400 md:col-span-2">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)] md:col-span-2">
                 Connection diameters (mm)
                 <input
                   value={details.growboxConnectionDiameterMm.join(", ")}
@@ -2297,7 +2316,7 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 100, 125, 150"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
             </div>
@@ -2309,7 +2328,7 @@ export default function AdminProductClient({
               Licht
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-400">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                 Light size
                 <input
                   value={details.lightSize}
@@ -2320,7 +2339,7 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 80x80"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
             </div>
@@ -2332,7 +2351,7 @@ export default function AdminProductClient({
               Luft
             </p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-400">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                 Diameter (mm)
                 <input
                   type="number"
@@ -2348,21 +2367,21 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 125"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
             </div>
           </div>
         )}
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Supplier
             <select
               value={details.supplierId}
               onChange={(event) =>
                 setDetails((prev) => ({ ...prev, supplierId: event.target.value }))
               }
-              className="mt-1 h-10 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm"
             >
               <option value="">No supplier</option>
               {suppliers.map((supplier) => (
@@ -2371,7 +2390,7 @@ export default function AdminProductClient({
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-[11px] text-slate-500">
+            <span className="mt-1 block text-[11px] text-[var(--adm-text-faint)]">
               Manage suppliers in{" "}
               <Link href="/admin/suppliers" className="underline">
                 CRM
@@ -2379,7 +2398,7 @@ export default function AdminProductClient({
               .
             </span>
           </label>
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Seller name
             <input
               value={details.sellerName}
@@ -2387,10 +2406,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, sellerName: event.target.value }))
               }
               placeholder="e.g. Smokeify Marketplace"
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             Seller link
             <input
               type="url"
@@ -2399,11 +2418,11 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, sellerUrl: event.target.value }))
               }
               placeholder="https://seller.example/product"
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
           </label>
           {legacySupplierName && (
-            <div className="rounded-md border border-amber-200/70 bg-amber-50/60 px-3 py-2 text-[11px] text-amber-700 md:col-span-2">
+            <div className="rounded-md border border-amber-200/70 bg-amber-50/60 px-3 py-2 text-[11px] text-[#81560e] md:col-span-2">
               Unlinked supplier: {legacySupplierName}. Pick a CRM supplier to link.
             </div>
           )}
@@ -2415,11 +2434,11 @@ export default function AdminProductClient({
             className="flex w-full items-center justify-between gap-3 text-left"
             aria-expanded={shippingOpen}
           >
-            <p className="text-sm font-semibold text-amber-700">
+            <p className="text-sm font-semibold text-[#81560e]">
               Shipping & dimensions
             </p>
             <span
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/70 text-amber-700 transition hover:border-amber-300"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/70 text-[#81560e] transition hover:border-amber-300"
               aria-hidden="true"
             >
               <svg
@@ -2440,7 +2459,7 @@ export default function AdminProductClient({
           </button>
           {shippingOpen && (
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-400">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                 Weight (g)
                 <input
                   type="number"
@@ -2454,10 +2473,10 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. 1200"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
-              <label className="text-xs font-semibold text-slate-400">
+              <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                 Shipping class
                 <input
                   value={details.shippingClass}
@@ -2468,11 +2487,11 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="e.g. bulky"
-                  className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
               <div className="grid gap-3 md:col-span-2 md:grid-cols-3">
-                <label className="text-xs font-semibold text-slate-400">
+                <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                   Length (mm)
                   <input
                     type="number"
@@ -2486,10 +2505,10 @@ export default function AdminProductClient({
                       }))
                     }
                     placeholder="e.g. 600"
-                    className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                    className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                   />
                 </label>
-                <label className="text-xs font-semibold text-slate-400">
+                <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                   Width (mm)
                   <input
                     type="number"
@@ -2503,10 +2522,10 @@ export default function AdminProductClient({
                       }))
                     }
                     placeholder="e.g. 400"
-                    className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                    className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                   />
                 </label>
-                <label className="text-xs font-semibold text-slate-400">
+                <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                   Height (mm)
                   <input
                     type="number"
@@ -2520,14 +2539,14 @@ export default function AdminProductClient({
                       }))
                     }
                     placeholder="e.g. 300"
-                    className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                    className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                   />
                 </label>
               </div>
             </div>
           )}
         </div>
-        <label className="mt-3 block text-xs font-semibold text-slate-400">
+        <label className="mt-3 block text-xs font-semibold text-[var(--adm-text-muted)]">
           Tags
           <input
             value={details.tags}
@@ -2535,9 +2554,9 @@ export default function AdminProductClient({
               setDetails((prev) => ({ ...prev, tags: event.target.value }))
             }
             placeholder="e.g. led, premium, grow"
-            className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+            className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
           />
-          <span className="mt-1 block text-[11px] text-slate-500">
+          <span className="mt-1 block text-[11px] text-[var(--adm-text-faint)]">
             Separate tags with commas.
           </span>
         </label>
@@ -2545,11 +2564,11 @@ export default function AdminProductClient({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
             Merchant metadata
           </p>
-          <p className="mt-1 text-[11px] text-slate-500">
+          <p className="mt-1 text-[11px] text-[var(--adm-text-faint)]">
             Optional metadata for Google Merchant and light certificate feeds.
           </p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
               Unit pricing measure
               <input
                 value={details.merchantUnitPricingMeasure}
@@ -2560,10 +2579,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. 100W"
-                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
               Unit pricing base measure
               <input
                 value={details.merchantUnitPricingBaseMeasure}
@@ -2574,10 +2593,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. 1W"
-                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
               Certificate authority
               <input
                 value={details.merchantCertificationAuthority}
@@ -2588,10 +2607,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. EU"
-                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
               Certificate name
               <input
                 value={details.merchantCertificationName}
@@ -2602,10 +2621,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. EPREL"
-                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
               Certificate code
               <input
                 value={details.merchantCertificationCode}
@@ -2616,10 +2635,10 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. 123456"
-                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
               />
             </label>
-            <label className="text-xs font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
               Certificate value
               <input
                 value={details.merchantCertificationValue}
@@ -2630,7 +2649,7 @@ export default function AdminProductClient({
                   }))
                 }
                 placeholder="e.g. A++"
-                className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
               />
             </label>
           </div>
@@ -2639,7 +2658,7 @@ export default function AdminProductClient({
           id="seo"
           className="scroll-mt-32 mt-3 grid gap-3 md:grid-cols-2"
         >
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             SEO title
             <input
               value={details.seoTitle}
@@ -2647,10 +2666,10 @@ export default function AdminProductClient({
                 setDetails((prev) => ({ ...prev, seoTitle: event.target.value }))
               }
               placeholder="Search result title"
-              className="mt-1 h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+              className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
             />
           </label>
-          <label className="text-xs font-semibold text-slate-400">
+          <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
             SEO description
             <textarea
               value={details.seoDescription}
@@ -2662,7 +2681,7 @@ export default function AdminProductClient({
               }
               rows={3}
               placeholder="Search result description"
-              className="mt-1 w-full rounded-md border border-white/10 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-[var(--adm-border)] px-3 py-2 text-sm"
             />
           </label>
         </div>
@@ -2676,11 +2695,11 @@ export default function AdminProductClient({
             className="flex w-full items-center justify-between gap-3 text-left"
             aria-expanded={descriptionsOpen}
           >
-            <p className="text-sm font-semibold text-amber-700">
+            <p className="text-sm font-semibold text-[#81560e]">
               Descriptions
             </p>
             <span
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/70 text-amber-700 transition hover:border-amber-300"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-200/70 text-[#81560e] transition hover:border-amber-300"
               aria-hidden="true"
             >
               <svg
@@ -2704,7 +2723,7 @@ export default function AdminProductClient({
           {descriptionsOpen && (
             <div className="mt-3 space-y-4">
               <div>
-                <p className="text-xs font-semibold text-slate-400">
+                <p className="text-xs font-semibold text-[var(--adm-text-muted)]">
                   Description
                 </p>
                 <RichTextEditor
@@ -2714,12 +2733,12 @@ export default function AdminProductClient({
                   }
                   placeholder="Write a short, clear product description."
                 />
-                <p className="mt-2 text-[11px] text-slate-500">
+                <p className="mt-2 text-[11px] text-[var(--adm-text-faint)]">
                   Use the toolbar to format text. Links and headings are
                   supported.
                 </p>
               </div>
-              <label className="block text-xs font-semibold text-slate-400">
+              <label className="block text-xs font-semibold text-[var(--adm-text-muted)]">
                 Short description
                 <textarea
                   value={details.shortDescription}
@@ -2731,15 +2750,15 @@ export default function AdminProductClient({
                   }
                   rows={3}
                   placeholder="Short summary for product cards and PDP."
-                  className="mt-1 w-full rounded-md border border-white/10 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-[var(--adm-border)] px-3 py-2 text-sm"
                 />
-                <span className="mt-1 block text-[11px] text-slate-500">
+                <span className="mt-1 block text-[11px] text-[var(--adm-text-faint)]">
                   Plain text only. Use this for the product grid and a quick PDP
                   summary.
                 </span>
               </label>
               <div>
-                <p className="text-xs font-semibold text-slate-400">
+                <p className="text-xs font-semibold text-[var(--adm-text-muted)]">
                   Technical details
                 </p>
                 <RichTextEditor
@@ -2776,8 +2795,8 @@ export default function AdminProductClient({
               key={`footer-${storefront}`}
               className={`inline-flex items-center rounded-full border px-3 py-2 text-xs font-semibold ${
                 storefront === "GROW"
-                  ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200"
-                  : "border-cyan-200 bg-cyan-50 text-cyan-700"
+                  ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                  : "border-cyan-200 bg-cyan-50 text-[var(--adm-primary)]"
               }`}
             >
               {STOREFRONT_LABELS[storefront]}
@@ -2791,7 +2810,7 @@ export default function AdminProductClient({
                 status: event.target.value as ProductDetail["status"],
               }))
             }
-            className="h-10 rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm"
+            className="h-8 rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -2803,7 +2822,7 @@ export default function AdminProductClient({
             type="button"
             onClick={saveDetails}
             disabled={hasEditorPolicyViolations}
-            className="h-10 rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-8 rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-white transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Save details
           </button>
@@ -2816,18 +2835,18 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-associations"
         hidden={activeSection !== "associations"}
-        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-sm font-semibold text-amber-200">02</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e2a136] bg-[#fff4dd] text-sm font-semibold text-[#81560e]">02</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Categories & collections</p>
-            <p className="text-xs text-slate-400">Organize where this product appears.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#81560e]">Categories & collections</p>
+            <p className="text-xs text-[var(--adm-text-muted)]">Organize where this product appears.</p>
           </div>
         </div>
         <div className="space-y-4">
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-300">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--adm-success)]">
               <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
                 <path
                   d="M21 21l-4.2-4.2m1.7-5.1a6.8 6.8 0 11-13.6 0 6.8 6.8 0 0113.6 0z"
@@ -2842,7 +2861,7 @@ export default function AdminProductClient({
               value={categorySearch}
               onChange={(event) => setCategorySearch(event.target.value)}
               placeholder="Kategorie / Subkategorie suchen ..."
-              className="h-11 w-full rounded-full border border-white/10 bg-white/[0.03] px-10 text-sm shadow-sm"
+              className="h-9 w-full rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-10 text-sm shadow-sm"
             />
           </div>
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
@@ -2864,8 +2883,8 @@ export default function AdminProductClient({
                   }
                   className={`h-9 rounded-full border px-4 transition ${
                     active
-                      ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
-                      : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-cyan-400/30 hover:text-cyan-200"
+                      ? "border-emerald-300/35 bg-emerald-400/15 text-[var(--adm-success)]"
+                      : "border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-muted)] hover:border-[var(--adm-primary)] hover:text-[var(--adm-primary)]"
                   }`}
                 >
                   {item.label}
@@ -2874,8 +2893,8 @@ export default function AdminProductClient({
             })}
           </div>
           <div className="grid gap-4 lg:grid-cols-[1.05fr_1.35fr_0.9fr]">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs font-semibold text-slate-400">Kategorien</p>
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+              <p className="text-xs font-semibold text-[var(--adm-text-muted)]">Kategorien</p>
               <div className="mt-3 space-y-2">
                 {filteredParentCategories.map((item) => {
                   const selected = categoryIds.has(item.id);
@@ -2885,8 +2904,8 @@ export default function AdminProductClient({
                       key={item.id}
                       className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                         selected
-                          ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
-                          : "border-emerald-400/20 bg-emerald-400/10 text-slate-200 hover:border-emerald-400/25 hover:bg-emerald-400/15"
+                          ? "border-emerald-300/35 bg-emerald-400/15 text-[var(--adm-success)]"
+                          : "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-text)] hover:border-[var(--adm-success)] hover:bg-emerald-400/15"
                       } ${isActive ? "ring-1 ring-emerald-300" : ""}`}
                       onClick={() => setActiveParentId(item.id)}
                     >
@@ -2917,16 +2936,16 @@ export default function AdminProductClient({
                   );
                 })}
                 {filteredParentCategories.length === 0 && (
-                  <p className="text-xs text-slate-500">No categories yet.</p>
+                  <p className="text-xs text-[var(--adm-text-faint)]">No categories yet.</p>
                 )}
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-200">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--adm-text)]">
                 <span>Subkategorien für:</span>
-                <span className="text-emerald-200">{activeParentName}</span>
+                <span className="text-[var(--adm-success)]">{activeParentName}</span>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-[var(--adm-text-faint)]">
                 <button
                   type="button"
                   onClick={() => {
@@ -2936,11 +2955,11 @@ export default function AdminProductClient({
                       return next;
                     });
                   }}
-                  className="hover:text-emerald-200"
+                  className="hover:text-[var(--adm-success)]"
                 >
                   Alle auswählen
                 </button>
-                <span className="text-slate-500">|</span>
+                <span className="text-[var(--adm-text-faint)]">|</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -2950,7 +2969,7 @@ export default function AdminProductClient({
                       return next;
                     });
                   }}
-                  className="hover:text-emerald-200"
+                  className="hover:text-[var(--adm-success)]"
                 >
                   Alle abwählen
                 </button>
@@ -2963,8 +2982,8 @@ export default function AdminProductClient({
                       key={item.id}
                       className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                         selected
-                          ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
-                          : "border-emerald-400/20 bg-emerald-400/10 text-slate-200 hover:border-emerald-400/25 hover:bg-emerald-400/15"
+                          ? "border-emerald-300/35 bg-emerald-400/15 text-[var(--adm-success)]"
+                          : "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-text)] hover:border-[var(--adm-success)] hover:bg-emerald-400/15"
                       }`}
                     >
                       <input
@@ -2988,22 +3007,22 @@ export default function AdminProductClient({
                   );
                 })}
                 {visibleChildCategories.length === 0 && (
-                  <p className="text-xs text-slate-500">No subcategories yet.</p>
+                  <p className="text-xs text-[var(--adm-text-faint)]">No subcategories yet.</p>
                 )}
               </div>
               <div className="mt-4">
                 <button
                   type="button"
                   onClick={saveCategories}
-                  className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                  className="h-8 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-xs font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15"
                 >
                   Save categories
                 </button>
               </div>
             </div>
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-xs font-semibold text-slate-400">Collections</p>
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                <p className="text-xs font-semibold text-[var(--adm-text-muted)]">Collections</p>
                 <div className="mt-3 space-y-2">
                   {collections.map((item) => {
                     const selected = collectionIds.has(item.id);
@@ -3012,8 +3031,8 @@ export default function AdminProductClient({
                         key={item.id}
                         className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                           selected
-                            ? "border-emerald-300/35 bg-emerald-400/15 text-emerald-100"
-                            : "border-emerald-400/20 bg-emerald-400/10 text-slate-200 hover:border-emerald-400/25 hover:bg-emerald-400/15"
+                            ? "border-emerald-300/35 bg-emerald-400/15 text-[var(--adm-success)]"
+                            : "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-text)] hover:border-[var(--adm-success)] hover:bg-emerald-400/15"
                         }`}
                       >
                         <input
@@ -3037,24 +3056,24 @@ export default function AdminProductClient({
                     );
                   })}
                   {collections.length === 0 && (
-                    <p className="text-xs text-slate-500">No collections yet.</p>
+                    <p className="text-xs text-[var(--adm-text-faint)]">No collections yet.</p>
                   )}
                 </div>
                 <div className="mt-4">
                   <button
                     type="button"
                     onClick={saveCollections}
-                    className="h-10 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                    className="h-8 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-xs font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15"
                   >
                     Save collections
                   </button>
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--adm-text-faint)]">
                   Auswahl Übersicht
                 </p>
-                <div className="mt-3 space-y-2 text-sm text-slate-400">
+                <div className="mt-3 space-y-2 text-sm text-[var(--adm-text-muted)]">
                   <p>Kategorien: {selectedCategoryCount} gewählt</p>
                   <p>Subkategorien: {selectedChildCount} gewählt</p>
                   <p>Collections: {selectedCollectionCount} gewählt</p>
@@ -3065,7 +3084,7 @@ export default function AdminProductClient({
                     setCategoryIds(new Set());
                     setCollectionIds(new Set());
                   }}
-                  className="mt-4 h-10 w-full rounded-md border border-amber-200 bg-amber-50 text-xs font-semibold text-amber-700 hover:border-amber-300"
+                  className="mt-4 h-8 w-full rounded-md border border-amber-200 bg-amber-50 text-xs font-semibold text-[#81560e] hover:border-amber-300"
                 >
                   Reset
                 </button>
@@ -3081,20 +3100,20 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-media"
         hidden={activeSection !== "media"}
-        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sm font-semibold text-sky-200">03</span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">Images</p>
-            <p className="text-xs text-slate-400">Upload, reorder, and describe media.</p>
+            <p className="text-xs text-[var(--adm-text-muted)]">Upload, reorder, and describe media.</p>
           </div>
         </div>
           <div
             className={`rounded-md border border-dashed px-4 py-3 mb-5 transition ${
               uploadDragActive
-                ? "border-cyan-400/40 bg-cyan-400/10"
-                : "border-white/10 bg-white/[0.03]"
+                ? "border-cyan-400/40 bg-[var(--adm-primary-soft)]"
+                : "border-[var(--adm-border)] bg-[var(--adm-surface)]"
             }`}
             onDragOver={(event) => {
               event.preventDefault();
@@ -3103,8 +3122,8 @@ export default function AdminProductClient({
             onDragLeave={() => setUploadDragActive(false)}
             onDrop={handleUploadDrop}
           >
-          <p className="text-xs font-semibold text-slate-400">Upload images</p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="text-xs font-semibold text-[var(--adm-text-muted)]">Upload images</p>
+          <p className="mt-1 text-xs text-[var(--adm-text-muted)]">
             JPG, PNG, or WEBP up to 5MB. Stored locally in `public/uploads`.
           </p>
           <input
@@ -3116,17 +3135,17 @@ export default function AdminProductClient({
             className="mt-3 block w-full text-sm"
           />
           {uploading && (
-            <p className="mt-2 text-xs text-slate-500">Uploading...</p>
+            <p className="mt-2 text-xs text-[var(--adm-text-faint)]">Uploading...</p>
           )}
         </div>
-        <p className="mb-3 text-xs text-slate-500">
+        <p className="mb-3 text-xs text-[var(--adm-text-faint)]">
           Drag and drop rows to reorder images.
         </p>
         <div className="space-y-4">
           {images.map((image) => (
             <div
               key={image.id}
-              className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+              className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
                 if (draggingImageId) {
@@ -3138,7 +3157,7 @@ export default function AdminProductClient({
                 <div className="grid items-start gap-3 md:grid-cols-[32px_96px_1.6fr_1fr_120px_auto]">
                   <div className="flex h-20 items-center justify-center self-start">
                     <span
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-slate-500 shadow-sm cursor-grab select-none"
+                      className="flex h-8 w-10 items-center justify-center rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-faint)] shadow-sm cursor-grab select-none"
                       draggable
                       onDragStart={() => setDraggingImageId(image.id)}
                       onDragEnd={() => setDraggingImageId(null)}
@@ -3146,7 +3165,7 @@ export default function AdminProductClient({
                       ⋮⋮
                     </span>
                   </div>
-                  <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+                  <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface)]">
                     {image.url ? (
                       <Image
                         src={image.url}
@@ -3157,12 +3176,12 @@ export default function AdminProductClient({
                         sizes="96px"
                       />
                     ) : (
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-[var(--adm-text-faint)]">
                         No preview
                       </span>
                     )}
                   </div>
-                  <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold text-[var(--adm-text-faint)] flex flex-col gap-1">
                     <span>Image URL</span>
                     <input
                       value={image.url}
@@ -3175,10 +3194,10 @@ export default function AdminProductClient({
                           )
                         )
                       }
-                      className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                      className="h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                     />
                   </label>
-                  <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold text-[var(--adm-text-faint)] flex flex-col gap-1">
                     <span>Alt text</span>
                     <input
                       value={image.altText ?? ""}
@@ -3192,10 +3211,10 @@ export default function AdminProductClient({
                         )
                       }
                       placeholder="Alt text"
-                      className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                      className="h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                     />
                   </label>
-                  <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold text-[var(--adm-text-faint)] flex flex-col gap-1">
                     <span>Position</span>
                     <input
                       type="number"
@@ -3209,7 +3228,7 @@ export default function AdminProductClient({
                           )
                         )
                       }
-                      className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                      className="h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                     />
                   </label>
                   <div className="flex flex-col gap-1 items-center">
@@ -3219,7 +3238,7 @@ export default function AdminProductClient({
                     <button
                       type="button"
                       onClick={() => void deleteImage(image.id)}
-                      className="flex h-10 items-center justify-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                      className="flex h-8 items-center justify-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-[var(--adm-error)]"
                       aria-label="Delete image"
                     >
                       <TrashIcon className="h-4 w-4" />
@@ -3230,13 +3249,13 @@ export default function AdminProductClient({
             </div>
           ))}
           {images.length === 0 && (
-            <p className="text-xs text-slate-500">No images yet.</p>
+            <p className="text-xs text-[var(--adm-text-faint)]">No images yet.</p>
           )}
         </div>
         <div className="mt-4">
           <div className="mx-auto w-full max-w-5xl">
             <div className="grid items-start gap-3 md:grid-cols-[96px_1.6fr_1fr_120px_auto]">
-              <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+              <div className="flex h-20 w-24 items-center justify-center overflow-hidden rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface)]">
                 {newImage.url ? (
                   <Image
                     src={newImage.url}
@@ -3247,10 +3266,10 @@ export default function AdminProductClient({
                     sizes="96px"
                   />
                 ) : (
-                  <span className="text-[10px] text-slate-500">Preview</span>
+                  <span className="text-[10px] text-[var(--adm-text-faint)]">Preview</span>
                 )}
               </div>
-              <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-[var(--adm-text-faint)] flex flex-col gap-1">
                 <span>Image URL</span>
                 <input
                   value={newImage.url}
@@ -3258,10 +3277,10 @@ export default function AdminProductClient({
                     setNewImage((prev) => ({ ...prev, url: event.target.value }))
                   }
                   placeholder="Image URL"
-                  className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
-              <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-[var(--adm-text-faint)] flex flex-col gap-1">
                 <span>Alt text</span>
                 <input
                   value={newImage.altText}
@@ -3269,10 +3288,10 @@ export default function AdminProductClient({
                     setNewImage((prev) => ({ ...prev, altText: event.target.value }))
                   }
                   placeholder="Alt text"
-                  className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
-              <label className="text-[11px] font-semibold text-slate-500 flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-[var(--adm-text-faint)] flex flex-col gap-1">
                 <span>Position</span>
                 <input
                   type="number"
@@ -3283,7 +3302,7 @@ export default function AdminProductClient({
                       position: Number(event.target.value),
                     }))
                   }
-                  className="h-10 w-full rounded-md border border-white/10 px-3 text-sm"
+                  className="h-8 w-full rounded-md border border-[var(--adm-border)] px-3 text-sm"
                 />
               </label>
               <div className="flex flex-col gap-1 items-center">
@@ -3293,7 +3312,7 @@ export default function AdminProductClient({
                 <button
                   type="button"
                   onClick={addImage}
-                  className="h-10 rounded-xl bg-cyan-300 px-3 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200"
+                  className="h-8 rounded-xl bg-cyan-300 px-3 text-xs font-semibold text-white transition hover:bg-cyan-200"
                 >
                   Add image
                 </button>
@@ -3309,20 +3328,20 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-variants"
         hidden={activeSection !== "variants"}
-        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/10 text-sm font-semibold text-violet-200">04</span>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Variants & stock</p>
-              <p className="text-xs text-slate-400">Pricing, inventory, and options.</p>
+              <p className="text-xs text-[var(--adm-text-muted)]">Pricing, inventory, and options.</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setAddVariantOpen(true)}
-            className="min-h-10 rounded-xl border border-violet-400/25 bg-violet-400/10 px-4 text-xs font-semibold text-violet-100 shadow-[0_10px_28px_rgba(76,29,149,0.16)] hover:border-violet-300/40 hover:bg-violet-400/15"
+            className="min-h-8 rounded-xl border border-violet-400/25 bg-violet-400/10 px-4 text-xs font-semibold text-violet-100 shadow-[0_10px_28px_rgba(76,29,149,0.16)] hover:border-violet-300/40 hover:bg-violet-400/15"
           >
             Add variant
           </button>
@@ -3331,7 +3350,7 @@ export default function AdminProductClient({
           {variantRows.map((variant) => (
             <div
               key={variant.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+              className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => {
                 if (draggingVariantId) {
@@ -3340,7 +3359,7 @@ export default function AdminProductClient({
               }}
             >
               <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2 text-xs text-[var(--adm-text-faint)]">
                   <span
                     className="cursor-grab select-none"
                     draggable
@@ -3352,7 +3371,7 @@ export default function AdminProductClient({
                 </div>
                 <div className="space-y-3">
                   <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       Variant name
                       <input
                         value={variant.title}
@@ -3365,10 +3384,10 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       Price (EUR)
                       <input
                         value={priceDrafts[variant.id] ?? ""}
@@ -3402,15 +3421,15 @@ export default function AdminProductClient({
                         }}
                         placeholder="0.00"
                         inputMode="decimal"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                       {!((priceDrafts[variant.id] ?? "").trim()) && (
-                        <span className="mt-1 block text-[11px] font-medium text-rose-300">
+                        <span className="mt-1 block text-[11px] font-medium text-[var(--adm-error)]">
                           Price required
                         </span>
                       )}
                     </label>
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       Cost (EUR)
                       <input
                         value={costDrafts[variant.id] ?? ""}
@@ -3454,10 +3473,10 @@ export default function AdminProductClient({
                         }}
                         placeholder="0.00"
                         inputMode="decimal"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       Compare at
                       <input
                         value={compareDrafts[variant.id] ?? ""}
@@ -3501,12 +3520,12 @@ export default function AdminProductClient({
                         }}
                         placeholder="0.00"
                         inputMode="decimal"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                     </label>
                   </div>
                   <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,140px)_minmax(0,140px)_minmax(0,140px)]">
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       SKU (optional)
                       <input
                         value={variant.sku ?? ""}
@@ -3520,10 +3539,10 @@ export default function AdminProductClient({
                           )
                         }
                         placeholder="e.g. GROW-LED-300"
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       Low stock
                       <input
                         type="number"
@@ -3541,10 +3560,10 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       On hand
                       <input
                         type="number"
@@ -3564,10 +3583,10 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-slate-400">
+                    <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
                       Reserved
                       <input
                         type="number"
@@ -3588,38 +3607,38 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="mt-1 h-10 w-full min-w-0 rounded-md border border-white/10 px-3 text-sm"
+                        className="mt-1 h-8 w-full min-w-0 rounded-md border border-[var(--adm-border)] px-3 text-sm"
                       />
                     </label>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-3">
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-[var(--adm-text-faint)]">
                     Available:{" "}
-                    <span className="font-semibold text-slate-100">
+                    <span className="font-semibold text-[var(--adm-text)]">
                       {variant.available}
                     </span>
                   </div>
                   {variant.available <= variant.lowStockThreshold && (
-                    <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-[#81560e]">
                       Low stock
                     </span>
                   )}
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-[var(--adm-text-faint)]">
                     Profit:{" "}
                     <span
                       className={`font-semibold ${
                         variant.priceCents - variant.costCents >= 0
-                          ? "text-slate-100"
-                          : "text-rose-300"
+                          ? "text-[var(--adm-text)]"
+                          : "text-[var(--adm-error)]"
                       }`}
                     >
                       {toEuro(variant.priceCents - variant.costCents)}
                     </span>
                   </div>
-                  <div className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-slate-400">
-                    <div className="mb-1 font-semibold text-slate-200">
+                  <div className="w-full rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-[11px] text-[var(--adm-text-muted)]">
+                    <div className="mb-1 font-semibold text-[var(--adm-text)]">
                       Cost incl. payment fees
                     </div>
                     <div className="grid gap-1 sm:grid-cols-2">
@@ -3635,7 +3654,7 @@ export default function AdminProductClient({
                             {toEuro(adjusted.adjustedCost)}{" "}
                             <span
                               className={
-                                adjusted.profit >= 0 ? "text-slate-200" : "text-rose-300"
+                                adjusted.profit >= 0 ? "text-[var(--adm-text)]" : "text-[var(--adm-error)]"
                               }
                             >
                               (Profit {toEuro(adjusted.profit)})
@@ -3644,7 +3663,7 @@ export default function AdminProductClient({
                         );
                       })}
                     </div>
-                    <div className="mt-1 text-[10px] text-slate-500">
+                    <div className="mt-1 text-[10px] text-[var(--adm-text-faint)]">
                       Shipping fee base estimate: +7.90 EUR only for items {"\u003e="} 100 EUR.
                     </div>
                   </div>
@@ -3659,20 +3678,20 @@ export default function AdminProductClient({
                       setConfirmVariantPassword("");
                       setConfirmVariantPasswordError("");
                     }}
-                    className="flex h-10 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                    className="flex h-8 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-[var(--adm-error)]"
                     aria-label="Delete variant"
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-sm">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-slate-200">
+                        <p className="text-sm font-semibold text-[var(--adm-text)]">
                           Options
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-[var(--adm-text-muted)]">
                           Create multiple attribute options for this product.
                         </p>
                       </div>
@@ -3698,14 +3717,14 @@ export default function AdminProductClient({
                             )
                           )
                         }
-                        className="inline-flex h-9 items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 text-xs font-semibold text-emerald-200 hover:border-emerald-300/35"
+                        className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-4 text-xs font-semibold text-[var(--adm-success)] hover:border-emerald-300/35"
                       >
                         <span className="text-base leading-none">＋</span>
                         Add value
                       </button>
                     </div>
-                    <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
-                      <div className="grid gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_120px_88px]">
+                    <div className="mt-4 overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
+                      <div className="grid gap-2 border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--adm-text-faint)] md:grid-cols-[24px_minmax(0,1fr)_minmax(0,1fr)_120px_88px]">
                         <span />
                         <span>Option</span>
                         <span>Value</span>
@@ -3734,7 +3753,7 @@ export default function AdminProductClient({
                           >
                             <div className="flex h-9 items-center justify-center">
                               <span
-                                className="cursor-grab select-none text-slate-500"
+                                className="cursor-grab select-none text-[var(--adm-text-faint)]"
                                 draggable
                                 onDragStart={() =>
                                   setDraggingOption({
@@ -3768,7 +3787,7 @@ export default function AdminProductClient({
                                 )
                               }
                               placeholder="Option name"
-                              className="h-9 w-full min-w-0 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs"
+                              className="h-9 w-full min-w-0 rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs"
                             />
                             <input
                               value={opt.value}
@@ -3790,7 +3809,7 @@ export default function AdminProductClient({
                                 )
                               }
                               placeholder="Option value"
-                              className="h-9 w-full min-w-0 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs"
+                              className="h-9 w-full min-w-0 rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs"
                             />
                             <input
                               type="number"
@@ -3825,7 +3844,7 @@ export default function AdminProductClient({
                                 );
                               }}
                               placeholder="0"
-                              className="h-9 w-full min-w-0 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs"
+                              className="h-9 w-full min-w-0 rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs"
                             />
                             <div className="flex items-center justify-end gap-2">
                               <button
@@ -3844,7 +3863,7 @@ export default function AdminProductClient({
                                     )
                                   )
                                 }
-                                className="inline-flex h-9 w-10 items-center justify-center rounded-md border border-white/10 text-slate-500 hover:border-rose-300/35 hover:text-rose-300"
+                                className="inline-flex h-9 w-10 items-center justify-center rounded-md border border-[var(--adm-border)] text-[var(--adm-text-faint)] hover:border-rose-300/35 hover:text-[var(--adm-error)]"
                                 aria-label="Remove option"
                               >
                                 <TrashIcon className="h-4 w-4" aria-hidden="true" />
@@ -3859,7 +3878,7 @@ export default function AdminProductClient({
             </div>
           ))}
           {variants.length === 0 && (
-            <p className="text-xs text-slate-500">No variants yet.</p>
+            <p className="text-xs text-[var(--adm-text-faint)]">No variants yet.</p>
           )}
         </div>
 
@@ -3891,20 +3910,20 @@ export default function AdminProductClient({
         tabIndex={-1}
         aria-labelledby="product-editor-tab-cross-sells"
         hidden={activeSection !== "cross-sells"}
-        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.97),rgba(9,14,21,0.92))] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
+        className={`${styles.panel} admin-product-section admin-tab-panel admin-reveal rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.35)] sm:p-5`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-base font-semibold text-[var(--adm-text)]">
               Manual recommendation overrides
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--adm-text-muted)]">
               Bis zu 3 Produkte manuell priorisieren. Zentrale Regeln verwaltest du separat im Recommendation Center.
             </p>
           </div>
           <Link
             href="/admin/recommendations"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-400/15"
+            className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-primary)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/15"
           >
             Open Recommendation Center
           </Link>
@@ -3916,10 +3935,10 @@ export default function AdminProductClient({
               {fbtItems.map((item, index) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-slate-400">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-[var(--adm-text-muted)]">
                       {index + 1}
                     </span>
                     {item.imageUrl ? (
@@ -3928,16 +3947,16 @@ export default function AdminProductClient({
                         alt={item.title}
                         width={40}
                         height={40}
-                        className="h-10 w-10 rounded-md border border-white/10 object-cover"
+                        className="h-8 w-10 rounded-md border border-[var(--adm-border)] object-cover"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-md border border-dashed border-white/10 bg-white/[0.03]" />
+                      <div className="h-8 w-10 rounded-md border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)]" />
                     )}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-100">
+                      <p className="truncate text-sm font-medium text-[var(--adm-text)]">
                         {item.title}
                       </p>
-                      <p className="truncate text-xs text-slate-500">/{item.handle}</p>
+                      <p className="truncate text-xs text-[var(--adm-text-faint)]">/{item.handle}</p>
                     </div>
                   </div>
                   <button
@@ -3946,7 +3965,7 @@ export default function AdminProductClient({
                       setFbtItems((prev) => prev.filter((entry) => entry.id !== item.id));
                       setFbtMessage("");
                     }}
-                    className="h-8 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                    className="h-8 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-[var(--adm-error)]"
                   >
                     Entfernen
                   </button>
@@ -3954,11 +3973,11 @@ export default function AdminProductClient({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-500">Noch keine manuellen Overrides ausgewählt.</p>
+            <p className="text-xs text-[var(--adm-text-faint)]">Noch keine manuellen Overrides ausgewählt.</p>
           )}
 
-          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-            <label className="text-xs font-semibold text-slate-400">
+          <div className="rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3">
+            <label className="text-xs font-semibold text-[var(--adm-text-muted)]">
               Produkt suchen
               <input
                 value={fbtSearch}
@@ -3967,16 +3986,16 @@ export default function AdminProductClient({
                   setFbtMessage("");
                 }}
                 placeholder="Titel eingeben..."
-                className="mt-1 h-10 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm outline-none focus:border-cyan-400/35"
+                className="mt-1 h-8 w-full rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-sm outline-none focus:border-cyan-400/35"
               />
             </label>
 
             {fbtSearching ? (
-              <p className="mt-2 text-xs text-slate-500">Suche...</p>
+              <p className="mt-2 text-xs text-[var(--adm-text-faint)]">Suche...</p>
             ) : null}
 
             {!fbtSearching && fbtSearch.trim() && fbtResults.length > 0 ? (
-              <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-md border border-white/10 bg-white/[0.03] p-1">
+              <div className="mt-2 max-h-56 space-y-1 overflow-auto rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface)] p-1">
                 {fbtResults.map((result) => (
                   <button
                     key={result.id}
@@ -3992,24 +4011,24 @@ export default function AdminProductClient({
                       setFbtResults([]);
                       setFbtMessage("");
                     }}
-                    className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-white/[0.03]"
+                    className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-[var(--adm-surface)]"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm text-slate-100">
+                      <span className="block truncate text-sm text-[var(--adm-text)]">
                         {result.title}
                       </span>
-                      <span className="block truncate text-xs text-slate-500">
+                      <span className="block truncate text-xs text-[var(--adm-text-faint)]">
                         /{result.handle}
                       </span>
                     </span>
-                    <span className="text-xs font-semibold text-cyan-200">Hinzufügen</span>
+                    <span className="text-xs font-semibold text-[var(--adm-primary)]">Hinzufügen</span>
                   </button>
                 ))}
               </div>
             ) : null}
 
             {fbtItems.length >= 3 ? (
-              <p className="mt-2 text-xs text-amber-700">
+              <p className="mt-2 text-xs text-[#81560e]">
                 Maximum erreicht (3 Produkte).
               </p>
             ) : null}
@@ -4018,7 +4037,7 @@ export default function AdminProductClient({
           {fbtMessage ? (
             <p
               className={`text-xs font-medium ${
-                fbtMessage === "Saved" ? "text-emerald-200" : "text-rose-300"
+                fbtMessage === "Saved" ? "text-[var(--adm-success)]" : "text-[var(--adm-error)]"
               }`}
             >
               {fbtMessage}
@@ -4028,26 +4047,26 @@ export default function AdminProductClient({
       </section>
 
       <div className="fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:bottom-4 sm:px-4 sm:pb-0">
-        <div className="mx-auto w-full max-w-6xl rounded-[18px] border border-white/10 bg-[#05070a]/94 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-[24px] sm:p-3">
+        <div className="mx-auto w-full max-w-6xl rounded-[18px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:rounded-xl sm:p-3">
           <div className="flex items-center gap-2 sm:gap-3 lg:justify-between">
             <div className="hidden flex-wrap items-center gap-2 text-xs font-semibold sm:flex">
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-slate-300">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1 text-[var(--adm-text-muted)]">
                 {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
               </span>
               {dirtySections.map((section) => (
                 <span
                   key={section}
-                  className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-amber-200"
+                  className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-3 py-1 text-[#81560e]"
                 >
                   {section}
                 </span>
               ))}
             </div>
             <span
-              className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border sm:hidden ${
+              className={`inline-flex h-8 w-10 shrink-0 items-center justify-center rounded-xl border sm:hidden ${
                 hasUnsavedChanges
-                  ? "border-amber-300/20 bg-amber-300/10 text-amber-200"
-                  : "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
+                  ? "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
+                  : "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
               }`}
               aria-label={hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
               title={hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
@@ -4063,7 +4082,7 @@ export default function AdminProductClient({
                 type="button"
                 onClick={discardLocalDraft}
                 disabled={!hasUnsavedChanges}
-                className="min-h-10 truncate rounded-xl border border-amber-300/20 bg-amber-300/10 px-2 text-[11px] font-semibold text-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-500 sm:rounded-full sm:px-4 sm:text-xs"
+                className="min-h-8 truncate rounded-xl border border-[#e2a136] bg-[#fff4dd] px-2 text-[11px] font-semibold text-[#81560e] disabled:cursor-not-allowed disabled:border-[var(--adm-border)] disabled:bg-[var(--adm-surface-2)] disabled:text-[var(--adm-text-faint)] sm:rounded-full sm:px-4 sm:text-xs"
               >
                 <span className="sm:hidden">Discard</span>
                 <span className="hidden sm:inline">Discard local draft</span>
@@ -4072,7 +4091,7 @@ export default function AdminProductClient({
                 type="button"
                 onClick={saveAllChanges}
                 disabled={!hasUnsavedChanges || savingAllChanges}
-                className="min-h-10 truncate rounded-xl bg-cyan-300 px-2 text-[11px] font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300 sm:rounded-full sm:px-4 sm:text-xs"
+                className="min-h-8 truncate rounded-xl bg-cyan-300 px-2 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-[var(--adm-text-muted)] sm:rounded-full sm:px-4 sm:text-xs"
               >
                 {savingAllChanges ? (
                   "Saving..."
@@ -4086,7 +4105,7 @@ export default function AdminProductClient({
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="min-h-10 truncate rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-2 text-[11px] font-semibold text-cyan-200 sm:rounded-full sm:px-4 sm:text-xs"
+                className="min-h-8 truncate rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2 text-[11px] font-semibold text-[var(--adm-primary)] sm:rounded-full sm:px-4 sm:text-xs"
               >
                 <span className="sm:hidden">Reload</span>
                 <span className="hidden sm:inline">Reload latest</span>
@@ -4104,20 +4123,20 @@ export default function AdminProductClient({
             onClick={() => setAddVariantOpen(false)}
             aria-label="Close dialog"
           />
-          <div className="admin-product-modal relative max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:rounded-[28px] sm:p-6">
+          <div className="admin-product-modal relative max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:rounded-xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-slate-50">
+                <h3 className="text-lg font-semibold text-[var(--adm-text)]">
                   Add variant
                 </h3>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--adm-text-muted)]">
                   Fill in pricing, inventory, and option details.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setAddVariantOpen(false)}
-                className="h-9 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
+                className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               >
                 Close
               </button>
@@ -4130,7 +4149,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, title: event.target.value }))
                   }
                   placeholder="Title"
-                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                  className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                 />
                 <input
                   value={newVariant.sku}
@@ -4138,7 +4157,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, sku: event.target.value }))
                   }
                   placeholder="SKU"
-                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                  className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                 />
                 <input
                   value={newVariant.price}
@@ -4146,7 +4165,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, price: event.target.value }))
                   }
                   placeholder="Price EUR"
-                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                  className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                 />
                 <input
                   value={newVariant.cost}
@@ -4154,7 +4173,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, cost: event.target.value }))
                   }
                   placeholder="Cost EUR"
-                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                  className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                 />
               </div>
               <div className="grid gap-3 md:grid-cols-[minmax(140px,180px)_minmax(140px,180px)]">
@@ -4164,7 +4183,7 @@ export default function AdminProductClient({
                     setNewVariant((prev) => ({ ...prev, compareAt: event.target.value }))
                   }
                   placeholder="Compare at"
-                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                  className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                 />
                 <input
                   type="number"
@@ -4177,7 +4196,7 @@ export default function AdminProductClient({
                     }))
                   }
                   placeholder="Low stock"
-                  className="h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                  className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                 />
               </div>
             </div>
@@ -4201,7 +4220,7 @@ export default function AdminProductClient({
                         }))
                       }
                       placeholder="Option name"
-                      className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                      className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-xs text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                     />
                     <input
                       value={opt.value}
@@ -4216,7 +4235,7 @@ export default function AdminProductClient({
                         }))
                       }
                       placeholder="Option value"
-                      className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                      className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-xs text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                     />
                     <input
                       type="number"
@@ -4244,7 +4263,7 @@ export default function AdminProductClient({
                         }));
                       }}
                       placeholder="Image #"
-                      className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+                      className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-xs text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
                     />
                     <button
                       type="button"
@@ -4254,7 +4273,7 @@ export default function AdminProductClient({
                           options: prev.options.filter((_, rowIndex) => rowIndex !== index),
                         }))
                       }
-                      className="h-9 rounded-xl border border-rose-400/20 bg-rose-400/10 px-2 text-xs font-semibold text-rose-200 transition hover:border-rose-300/35 hover:bg-rose-400/15"
+                      className="h-9 rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-2 text-xs font-semibold text-[var(--adm-error)] transition hover:border-rose-300/35 hover:bg-[#fae7e3]"
                     >
                       Remove
                     </button>
@@ -4269,7 +4288,7 @@ export default function AdminProductClient({
                     options: [...prev.options, { name: "", value: "", imagePosition: null }],
                   }))
                 }
-                className="h-9 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
+                className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-xs font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               >
                 New option
               </button>
@@ -4278,14 +4297,14 @@ export default function AdminProductClient({
               <button
                 type="button"
                 onClick={() => setAddVariantOpen(false)}
-                className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
+                className="h-8 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-xs font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={addVariant}
-                className="h-10 rounded-xl bg-cyan-300 px-4 text-xs font-semibold text-slate-950 transition hover:bg-cyan-200"
+                className="h-8 rounded-xl bg-cyan-300 px-4 text-xs font-semibold text-white transition hover:bg-cyan-200"
               >
                 Add variant
               </button>
@@ -4296,15 +4315,15 @@ export default function AdminProductClient({
 
       {confirmVariantId && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 py-3 sm:items-center sm:px-4">
-          <div className="admin-product-modal max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.98),rgba(5,7,10,0.98))] p-4 text-sm text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-5">
-            <h3 className="text-base font-semibold text-slate-50">
+          <div className="admin-product-modal max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 text-sm text-[var(--adm-text)] shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-5">
+            <h3 className="text-base font-semibold text-[var(--adm-text)]">
               Variante löschen
             </h3>
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-[var(--adm-text-muted)]">
               Tippe{" "}
-              <span className="font-semibold text-rose-300">Bestätigen</span>{" "}
+              <span className="font-semibold text-[var(--adm-error)]">Bestätigen</span>{" "}
               ein, um{" "}
-              <span className="font-semibold text-slate-100">
+              <span className="font-semibold text-[var(--adm-text)]">
                 {confirmVariantTitle}
               </span>{" "}
               zu löschen.
@@ -4313,7 +4332,7 @@ export default function AdminProductClient({
               type="text"
               value={confirmVariantText}
               onChange={(event) => setConfirmVariantText(event.target.value)}
-              className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+              className="mt-3 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
               placeholder="Bestätigen"
             />
             <textarea
@@ -4325,7 +4344,7 @@ export default function AdminProductClient({
                 }
               }}
               rows={3}
-              className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+              className="mt-3 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
               placeholder="Grund für das Löschen"
             />
             <input
@@ -4337,14 +4356,14 @@ export default function AdminProductClient({
                   setConfirmVariantPasswordError("");
                 }
               }}
-              className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/35"
+              className="mt-3 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/35"
               placeholder="Admin-Passwort"
             />
             {confirmVariantError && (
-              <p className="mt-2 text-xs text-rose-300">{confirmVariantError}</p>
+              <p className="mt-2 text-xs text-[var(--adm-error)]">{confirmVariantError}</p>
             )}
             {confirmVariantPasswordError && (
-              <p className="mt-2 text-xs text-rose-300">
+              <p className="mt-2 text-xs text-[var(--adm-error)]">
                 {confirmVariantPasswordError}
               </p>
             )}
@@ -4360,7 +4379,7 @@ export default function AdminProductClient({
                   setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
-                className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-60"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2 text-xs font-semibold text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] disabled:opacity-60"
               >
                 Abbrechen
               </button>
@@ -4395,7 +4414,7 @@ export default function AdminProductClient({
                   setConfirmVariantText("");
                 }}
                 disabled={confirmVariantLoading}
-                className="rounded-xl border border-rose-400/20 bg-rose-500/85 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-400 disabled:opacity-60"
+                className="rounded-xl border border-[var(--adm-error)] bg-rose-500/85 px-3 py-2 text-xs font-semibold text-[var(--adm-text)] hover:bg-rose-400 disabled:opacity-60"
               >
                 {confirmVariantLoading ? "Löschen..." : "Löschen"}
               </button>
@@ -4447,19 +4466,19 @@ export default function AdminProductClient({
         }
 
         .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
-          :is(.rounded-lg, .rounded-xl, .rounded-2xl) {
+          :is(.rounded-lg, .rounded-xl, .rounded-xl) {
           border-color: rgba(255, 255, 255, 0.08);
           background: rgba(255, 255, 255, 0.03);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
         }
 
         .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
-          :is(.text-slate-500, .text-slate-400) {
+          :is(.text-[var(--adm-text-faint)], .text-[var(--adm-text-muted)]) {
           color: #94a3b8;
         }
 
         .admin-product-redesign :is(#overview, #associations, #media, #variants, #cross-sells)
-          :is(.text-slate-200, .text-slate-100, .text-slate-50) {
+          :is(.text-[var(--adm-text)], .text-[var(--adm-text)], .text-[var(--adm-text)]) {
           color: #f8fafc;
         }
 
@@ -4483,11 +4502,11 @@ export default function AdminProductClient({
           box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.12);
         }
 
-        .admin-product-redesign .admin-product-modal :is(.text-slate-500, .text-slate-400, .text-slate-200) {
+        .admin-product-redesign .admin-product-modal :is(.text-[var(--adm-text-faint)], .text-[var(--adm-text-muted)], .text-[var(--adm-text)]) {
           color: #94a3b8;
         }
 
-        .admin-product-redesign .admin-product-modal :is(.text-slate-100, .text-slate-50) {
+        .admin-product-redesign .admin-product-modal :is(.text-[var(--adm-text)], .text-[var(--adm-text)]) {
           color: #f8fafc;
         }
 
@@ -4497,7 +4516,7 @@ export default function AdminProductClient({
           }
         }
       `}</style>
-    </div>
+    </AdminPage>
   );
 }
 
@@ -4511,12 +4530,12 @@ function InsightCard({
   detail: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0b1016] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      <p className="mt-1 text-sm text-slate-400">{detail}</p>
+      <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{value}</p>
+      <p className="mt-1 text-sm text-[var(--adm-text-muted)]">{detail}</p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   AdminButton,
@@ -13,6 +14,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminSplitView } from "@/components/admin/ui";
 
 type SupportCase = {
   id: string;
@@ -246,11 +248,19 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="master-detail">
       <AdminPageIntro
         eyebrow="Admin / Support"
         title="Support inbox"
         description="Track return-linked, contact-form, and manual support cases in one operational queue."
+        actions={
+          <Link
+            href="/admin/returns"
+            className="inline-flex h-8 items-center justify-center rounded-[10px] border border-[var(--adm-border-strong)] bg-[var(--adm-surface)] px-3 text-[13px] font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
+          >
+            Open returns
+          </Link>
+        }
         metrics={
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <AdminMetricCard label="Total cases" value={String(supportCases.length)} />
@@ -264,7 +274,7 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
       {!error && notice ? <AdminNotice tone="success">{notice}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+      <AdminSplitView>
         <AdminPanel
           eyebrow="Create"
           title="Manual support case"
@@ -389,20 +399,20 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
                   key={supportCase.id}
                   type="button"
                   onClick={() => setSelectedCaseId(supportCase.id)}
-                  className={`block w-full rounded-2xl border p-4 text-left transition ${
+                  className={`block w-full rounded-xl border p-4 text-left transition ${
                     selectedCase?.id === supportCase.id
-                      ? "border-cyan-400/30 bg-cyan-400/10"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
+                      ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)]"
+                      : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">{supportCase.summary}</div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">{supportCase.summary}</div>
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {supportCase.sourceType} · {supportCase.assigneeEmail || "Unassigned"}
                       </div>
                     </div>
-                    <div className="text-right text-xs text-slate-400">
+                    <div className="text-right text-xs text-[var(--adm-text-muted)]">
                       <div>{supportCase.status}</div>
                       <div>{supportCase.priority}</div>
                     </div>
@@ -412,7 +422,7 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
             )}
           </div>
         </AdminPanel>
-      </div>
+      </AdminSplitView>
 
       <AdminPanel
         eyebrow="Case"
@@ -506,7 +516,7 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
                 </AdminField>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 text-sm text-[var(--adm-text-muted)]">
                 <div>Created {formatDate(selectedCase.createdAt)}</div>
                 <div className="mt-2">Updated {formatDate(selectedCase.updatedAt)}</div>
                 <div className="mt-2">Resolved {formatDate(selectedCase.resolvedAt)}</div>
@@ -545,12 +555,12 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
 
             <div className="space-y-4">
               {selectedCase.contactSubmission ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <div className="text-sm font-semibold text-white">Contact submission</div>
-                  <div className="mt-2 text-sm text-slate-300">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <div className="text-sm font-semibold text-[var(--adm-text)]">Contact submission</div>
+                  <div className="mt-2 text-sm text-[var(--adm-text-muted)]">
                     {selectedCase.contactSubmission.name} · {selectedCase.contactSubmission.email}
                   </div>
-                  <div className="mt-3 text-sm text-slate-400">
+                  <div className="mt-3 text-sm text-[var(--adm-text-muted)]">
                     {selectedCase.contactSubmission.message}
                   </div>
                 </div>
@@ -566,24 +576,24 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
                   selectedCase.events.map((event) => (
                     <div
                       key={event.id}
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                      className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-sm font-semibold text-white">
+                        <div className="text-sm font-semibold text-[var(--adm-text)]">
                           {event.summary ?? event.eventType}
                         </div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-[var(--adm-text-faint)]">
                           {formatDate(event.createdAt)}
                         </div>
                       </div>
-                      <div className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
+                      <div className="mt-2 text-xs uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
                         {event.eventType}
                       </div>
-                      <div className="mt-2 text-xs text-slate-400">
+                      <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                         {event.actorEmail ?? "System"}
                       </div>
                       {event.note ? (
-                        <div className="mt-3 text-sm text-slate-300">{event.note}</div>
+                        <div className="mt-3 text-sm text-[var(--adm-text-muted)]">{event.note}</div>
                       ) : null}
                     </div>
                   ))
@@ -593,6 +603,6 @@ export default function AdminSupportClient({ supportCases: initialCases, owners 
           </div>
         )}
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

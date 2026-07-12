@@ -18,7 +18,7 @@ export default async function AdminCatalogHygienePage({
   const data = await listCatalogHygieneIssues(filters);
 
   return (
-    <div className="w-full text-slate-100">
+    <div className="w-full text-[var(--adm-text)]">
       <AdminCatalogHygieneClient initialData={data} />
     </div>
   );

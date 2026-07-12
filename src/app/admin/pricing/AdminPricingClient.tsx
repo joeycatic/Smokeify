@@ -14,6 +14,7 @@ import {
   AdminPanel,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminSplitView } from "@/components/admin/ui";
 import type {
   PricingChangeItem,
   PricingOverviewSnapshot,
@@ -152,11 +153,11 @@ function CompareAtSnapshotDetails({
   compareAtSnapshot: PricingRecommendationItem["compareAtSnapshot"];
 }) {
   if (!compareAtSnapshot) {
-    return <div className="text-sm text-slate-400">No compare-at data captured.</div>;
+    return <div className="text-sm text-[var(--adm-text-muted)]">No compare-at data captured.</div>;
   }
 
   return (
-    <div className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+    <div className="grid gap-2 text-sm text-[var(--adm-text-muted)] sm:grid-cols-2">
       <div>Current compare-at {formatCurrency(compareAtSnapshot.currentCompareAtCents)}</div>
       <div>Public list price {formatCurrency(compareAtSnapshot.publicCompareAtCents)}</div>
       <div>Market high {formatCurrency(compareAtSnapshot.marketHighPriceCents)}</div>
@@ -179,11 +180,11 @@ function CostSnapshotDetails({
   costSnapshot: PricingRecommendationItem["costSnapshot"];
 }) {
   if (!costSnapshot) {
-    return <div className="text-sm text-slate-400">No cost breakdown captured.</div>;
+    return <div className="text-sm text-[var(--adm-text-muted)]">No cost breakdown captured.</div>;
   }
 
   return (
-    <div className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+    <div className="grid gap-2 text-sm text-[var(--adm-text-muted)] sm:grid-cols-2">
       <div>Base cost {formatCurrency(costSnapshot.baseCostCents)}</div>
       <div>Landed cost {formatCurrency(costSnapshot.baseLandedCostCents)}</div>
       <div>Supplier shipping {formatCurrency(costSnapshot.supplierShippingCostCents)}</div>
@@ -200,24 +201,24 @@ function CostSnapshotDetails({
 
 const getStatusBadgeClassName = (status: string) => {
   if (status === "APPLIED") {
-    return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
+    return "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]";
   }
   if (status === "BLOCKED") {
-    return "border-red-400/20 bg-red-400/10 text-red-200";
+    return "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]";
   }
   if (status === "PENDING_REVIEW") {
-    return "border-amber-400/20 bg-amber-400/10 text-amber-200";
+    return "border-[#e2a136] bg-[#fff4dd] text-[#81560e]";
   }
   if (status === "REJECTED") {
-    return "border-slate-400/20 bg-slate-400/10 text-slate-200";
+    return "border-slate-400/20 bg-slate-400/10 text-[var(--adm-text)]";
   }
-  return "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+  return "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]";
 };
 
 const getModeBadgeClassName = (mode: PricingRunMode) =>
   mode === "APPLY"
-    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-    : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+    ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+    : "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]";
 
 function RecommendationBadge({
   label,
@@ -247,7 +248,7 @@ function PriceStack({
   publishablePriceCents: number | null;
 }) {
   return (
-    <div className="grid gap-2 text-xs text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-2 text-xs text-[var(--adm-text-muted)] sm:grid-cols-2 xl:grid-cols-4">
       {[
         ["Current", formatCurrency(currentPriceCents)],
         ["Floor", formatCurrency(hardMinimumPriceCents)],
@@ -256,12 +257,12 @@ function PriceStack({
       ].map(([label, value]) => (
         <div
           key={label}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3"
+          className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3"
         >
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
             {label}
           </div>
-          <div className="mt-2 text-sm font-semibold text-white">{value}</div>
+          <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">{value}</div>
         </div>
       ))}
     </div>
@@ -270,7 +271,7 @@ function PriceStack({
 
 function ReasonCodeList({ reasonCodes }: { reasonCodes: string[] }) {
   if (reasonCodes.length === 0) {
-    return <span className="text-xs text-slate-500">No reason codes returned.</span>;
+    return <span className="text-xs text-[var(--adm-text-faint)]">No reason codes returned.</span>;
   }
 
   return (
@@ -278,7 +279,7 @@ function ReasonCodeList({ reasonCodes }: { reasonCodes: string[] }) {
       {reasonCodes.map((reasonCode) => (
         <span
           key={reasonCode}
-          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"
+          className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-muted)]"
         >
           {formatReasonCode(reasonCode)}
         </span>
@@ -289,10 +290,10 @@ function ReasonCodeList({ reasonCodes }: { reasonCodes: string[] }) {
 
 function AppliedPriceChangeRow({ item }: { item: PricingChangeItem }) {
   return (
-    <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 px-4 py-4 text-sm text-slate-300">
+    <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 px-4 py-4 text-sm text-[var(--adm-text-muted)]">
       <div>
-        <div className="font-semibold text-white">{item.product.title}</div>
-        <div className="mt-1 text-xs text-slate-400">
+        <div className="font-semibold text-[var(--adm-text)]">{item.product.title}</div>
+        <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
           {item.variant.title}
           {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
         </div>
@@ -302,31 +303,31 @@ function AppliedPriceChangeRow({ item }: { item: PricingChangeItem }) {
       </div>
       <div>{formatCurrency(item.oldPriceCents)}</div>
       <div>
-        <div className="font-semibold text-emerald-200">
+        <div className="font-semibold text-[var(--adm-success)]">
           {formatCurrency(item.newPriceCents)}
         </div>
-        <div className="mt-1 text-xs text-slate-400">
+        <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
           Compare-at {formatCurrency(item.oldCompareAtCents)} {" -> "}{" "}
           {formatCurrency(item.newCompareAtCents)}
         </div>
-        <div className="mt-1 text-xs text-slate-500">
+        <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
           Floor {formatCurrency(item.hardMinimumPriceCents)}
         </div>
       </div>
-      <div className="text-xs text-slate-400">
+      <div className="text-xs text-[var(--adm-text-muted)]">
         <div>{item.source ?? "Unknown source"}</div>
         <div className="mt-1">{item.actor?.email ?? "System actor"}</div>
       </div>
-      <div className="text-xs text-slate-400">{formatDateTime(item.createdAt)}</div>
+      <div className="text-xs text-[var(--adm-text-muted)]">{formatDateTime(item.createdAt)}</div>
     </div>
   );
 }
 
 function AppliedPriceChangeCard({ item }: { item: PricingChangeItem }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">
-      <div className="font-semibold text-white">{item.product.title}</div>
-      <div className="mt-1 text-xs text-slate-400">
+    <div className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-sm text-[var(--adm-text-muted)]">
+      <div className="font-semibold text-[var(--adm-text)]">{item.product.title}</div>
+      <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
         {item.variant.title}
         {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
       </div>
@@ -344,7 +345,7 @@ function AppliedPriceChangeCard({ item }: { item: PricingChangeItem }) {
         <PricingMobileValue label="Source" value={item.source ?? "Unknown source"} />
         <PricingMobileValue label="Changed" value={formatDateTime(item.createdAt)} />
       </div>
-      <div className="mt-3 text-xs text-slate-500">{item.actor?.email ?? "System actor"}</div>
+      <div className="mt-3 text-xs text-[var(--adm-text-faint)]">{item.actor?.email ?? "System actor"}</div>
     </div>
   );
 }
@@ -359,11 +360,11 @@ function PricingMobileValue({
   tone?: "default" | "positive";
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
         {label}
       </div>
-      <div className={`mt-2 text-sm font-semibold ${tone === "positive" ? "text-emerald-200" : "text-white"}`}>
+      <div className={`mt-2 text-sm font-semibold ${tone === "positive" ? "text-[var(--adm-success)]" : "text-[var(--adm-text)]"}`}>
         {value}
       </div>
     </div>
@@ -568,7 +569,7 @@ export default function AdminPricingClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="master-detail">
       <AdminPageIntro
         eyebrow="Operations / Pricing"
         title="Pricing automation control"
@@ -580,7 +581,7 @@ export default function AdminPricingClient({
             </AdminButton>
             <Link
               href="/admin/catalog"
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.05]"
+              className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
             >
               Open catalog
             </Link>
@@ -624,7 +625,7 @@ export default function AdminPricingClient({
         </AdminNotice>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <AdminSplitView>
         <AdminPanel
           eyebrow="Run Controls"
           title="Preview or apply the local engine"
@@ -640,8 +641,8 @@ export default function AdminPricingClient({
                   placeholder="e.g. 25"
                 />
               </AdminField>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Latest run
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -657,10 +658,10 @@ export default function AdminPricingClient({
                       />
                     </>
                   ) : (
-                    <span className="text-slate-500">No pricing runs yet.</span>
+                    <span className="text-[var(--adm-text-faint)]">No pricing runs yet.</span>
                   )}
                 </div>
-                <div className="mt-3 text-xs text-slate-400">
+                <div className="mt-3 text-xs text-[var(--adm-text-muted)]">
                   Started {formatDateTime(latestRun?.startedAt)}
                   {latestRun?.finishedAt
                     ? ` · Finished ${formatDateTime(latestRun.finishedAt)}`
@@ -670,18 +671,18 @@ export default function AdminPricingClient({
             </div>
 
             <div className="grid gap-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">
+              <label className="flex items-start gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-sm text-[var(--adm-text-muted)]">
                 <input
                   type="checkbox"
                   checked={refreshPublicCompetitorData}
                   onChange={(event) => setRefreshPublicCompetitorData(event.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-white/15 bg-transparent text-cyan-400 focus:ring-cyan-400/30"
+                  className="mt-1 h-4 w-4 rounded border-[var(--adm-border-strong)] bg-transparent text-[var(--adm-primary)] focus:ring-cyan-400/30"
                 />
                 <span>
-                  <span className="block font-semibold text-white">
+                  <span className="block font-semibold text-[var(--adm-text)]">
                     Refresh Bloomtech public prices
                   </span>
-                  <span className="mt-1 block text-xs text-slate-400">
+                  <span className="mt-1 block text-xs text-[var(--adm-text-muted)]">
                     Uses the public guest-visible seller price only. No login or seller account
                     state is used during the refresh.
                   </span>
@@ -711,13 +712,13 @@ export default function AdminPricingClient({
                 placeholder="Explain why you are triggering this run."
               />
             </AdminField>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--adm-text-faint)]">
               Apply mode is blocked until you capture the execution reason here.
             </p>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-4">
-                <div className="text-sm font-semibold text-cyan-100">Preview run</div>
+              <div className="rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 py-4">
+                <div className="text-sm font-semibold text-[var(--adm-primary)]">Preview run</div>
                 <div className="mt-2 text-sm text-cyan-50/80">
                   Recompute recommendations, blocked items, and review queue without publishing prices.
                 </div>
@@ -731,15 +732,15 @@ export default function AdminPricingClient({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-4">
-                <div className="text-sm font-semibold text-emerald-100">Apply run</div>
+              <div className="rounded-xl border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-4 py-4">
+                <div className="text-sm font-semibold text-[var(--adm-success)]">Apply run</div>
                 <div className="mt-2 text-sm text-emerald-50/80">
                   Publish eligible prices and write audit entries for every applied change.
                 </div>
                 <div className="mt-4">
                   <AdminButton
                     tone="secondary"
-                    className="border-emerald-400/20 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15"
+                    className="border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)] hover:bg-emerald-400/15"
                     onClick={() => runPricing("APPLY")}
                     disabled={runningMode !== null}
                   >
@@ -753,16 +754,16 @@ export default function AdminPricingClient({
               <div className="space-y-3">
                 <div className="grid gap-3 md:grid-cols-4">
                 {[
-                  ["Processed", latestRun.summary.processed, "text-white"],
-                  ["Applied", latestRun.summary.applied, "text-emerald-200"],
-                  ["Review", latestRun.summary.review, "text-amber-200"],
-                  ["Blocked", latestRun.summary.blocked, "text-red-200"],
+                  ["Processed", latestRun.summary.processed, "text-[var(--adm-text)]"],
+                  ["Applied", latestRun.summary.applied, "text-[var(--adm-success)]"],
+                  ["Review", latestRun.summary.review, "text-[#81560e]"],
+                  ["Blocked", latestRun.summary.blocked, "text-[var(--adm-error)]"],
                 ].map(([label, value, valueClassName]) => (
                   <div
                     key={label}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3"
+                    className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3"
                   >
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                       {label}
                     </div>
                     <div className={`mt-2 text-lg font-semibold ${valueClassName}`}>
@@ -771,8 +772,8 @@ export default function AdminPricingClient({
                   </div>
                 ))}
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-sm text-[var(--adm-text-muted)]">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Run input refresh
                   </div>
                   <div className="mt-3 space-y-2">
@@ -785,7 +786,7 @@ export default function AdminPricingClient({
                       {latestRun.summary.marketReportPath?.trim() || "not imported"}
                     </div>
                     {latestRun.summary.publicRefreshStats ? (
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-[var(--adm-text-muted)]">
                         Public refresh touched{" "}
                         {latestRun.summary.publicRefreshStats.productsRefreshed} products /{" "}
                         {latestRun.summary.publicRefreshStats.variantsUpdated} variants, skipped{" "}
@@ -793,7 +794,7 @@ export default function AdminPricingClient({
                       </div>
                     ) : null}
                     {latestRun.summary.marketImportStats ? (
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-[var(--adm-text-muted)]">
                         Market import updated{" "}
                         {latestRun.summary.marketImportStats.variantsUpdated} variants, skipped{" "}
                         {latestRun.summary.marketImportStats.skipped}.
@@ -825,10 +826,10 @@ export default function AdminPricingClient({
                   onClick={() => setSelectedRecommendation(item)}
                   className={`w-full rounded-[22px] border px-4 py-4 text-left transition ${
                     item.status === "BLOCKED"
-                      ? "border-red-400/20 bg-red-400/10 hover:bg-red-400/15"
+                      ? "border-[var(--adm-error)] bg-[#fae7e3] hover:bg-[#fae7e3]"
                       : item.status === "PENDING_REVIEW"
-                        ? "border-amber-400/20 bg-amber-400/10 hover:bg-amber-400/15"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
+                        ? "border-[#e2a136] bg-[#fff4dd] hover:bg-amber-400/15"
+                        : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -845,44 +846,44 @@ export default function AdminPricingClient({
                         {item.reviewRequired ? (
                           <RecommendationBadge
                             label="Review required"
-                            className="border-amber-400/20 bg-amber-400/10 text-amber-200"
+                            className="border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
                           />
                         ) : null}
                       </div>
-                      <div className="mt-3 text-sm font-semibold text-white">
+                      <div className="mt-3 text-sm font-semibold text-[var(--adm-text)]">
                         {item.product.title}
                       </div>
-                      <div className="mt-1 text-xs text-slate-400">
+                      <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                         {item.variant.title}
                         {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
                       </div>
                     </div>
-                    <div className="text-right text-xs text-slate-400">
+                    <div className="text-right text-xs text-[var(--adm-text-muted)]">
                       <div>Confidence {formatConfidence(item.confidenceScore)}</div>
                       <div className="mt-1">{formatDateTime(item.createdAt)}</div>
                     </div>
                   </div>
-                  <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
+                  <div className="mt-4 grid gap-3 text-xs text-[var(--adm-text-muted)] sm:grid-cols-2">
                     <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                         Current to publishable
                       </div>
-                      <div className="mt-2 font-semibold text-white">
+                      <div className="mt-2 font-semibold text-[var(--adm-text)]">
                         {formatCurrency(item.currentPriceCents)}
                         {" -> "}
                         {formatCurrency(item.publishablePriceCents)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                         Delta
                       </div>
-                      <div className="mt-2 font-semibold text-white">
+                      <div className="mt-2 font-semibold text-[var(--adm-text)]">
                         {formatBasisPoints(item.priceDeltaBasisPoints)}
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 line-clamp-2 text-sm text-slate-300">
+                  <div className="mt-4 line-clamp-2 text-sm text-[var(--adm-text-muted)]">
                     {item.explanation ?? "No explanation returned."}
                   </div>
                 </button>
@@ -890,7 +891,7 @@ export default function AdminPricingClient({
             </div>
           )}
         </AdminPanel>
-      </div>
+      </AdminSplitView>
 
       <AdminPanel
         eyebrow="Latest Run"
@@ -901,14 +902,14 @@ export default function AdminPricingClient({
           <div>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-white">Applied in latest run</div>
-                <div className="mt-1 text-xs text-slate-500">
+                <div className="text-sm font-semibold text-[var(--adm-text)]">Applied in latest run</div>
+                <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                   Compare-at and live price writes from the most recent run.
                 </div>
               </div>
               <RecommendationBadge
                 label={`${latestRunChanges.length} changes`}
-                className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                className="border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
               />
             </div>
             {latestRunChanges.length === 0 ? (
@@ -923,8 +924,8 @@ export default function AdminPricingClient({
                     <AppliedPriceChangeCard key={item.id} item={item} />
                   ))}
                 </div>
-                <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#06090d] md:block">
-                  <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <div className="admin-data-grid-scroll hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] md:block">
+                  <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                     <div>Variant</div>
                     <div>Old price</div>
                     <div>New price</div>
@@ -943,22 +944,22 @@ export default function AdminPricingClient({
 
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100/80">
+              <div className="rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#81560e]/80">
                   Queued for review
                 </div>
-                <div className="mt-2 text-2xl font-semibold text-amber-100">
+                <div className="mt-2 text-2xl font-semibold text-[#81560e]">
                   {latestRunQueued.length}
                 </div>
                 <div className="mt-1 text-xs text-amber-50/75">
                   Higher-price moves above the 8% review threshold stay here.
                 </div>
               </div>
-              <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-100/80">
+              <div className="rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-error)]/80">
                   Blocked
                 </div>
-                <div className="mt-2 text-2xl font-semibold text-red-100">
+                <div className="mt-2 text-2xl font-semibold text-[var(--adm-error)]">
                   {latestRunBlocked.length}
                 </div>
                 <div className="mt-1 text-xs text-red-50/75">
@@ -973,7 +974,7 @@ export default function AdminPricingClient({
                   key={item.id}
                   type="button"
                   onClick={() => setSelectedRecommendation(item)}
-                  className="w-full rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition hover:border-white/15 hover:bg-white/[0.05]"
+                  className="w-full rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-left transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <RecommendationBadge
@@ -986,23 +987,23 @@ export default function AdminPricingClient({
                         label={`Compare-at ${formatCurrency(
                           item.compareAtSnapshot?.publishableCompareAtCents ?? null
                         )}`}
-                        className="border-white/10 bg-white/[0.04] text-slate-200"
+                        className="border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)]"
                       />
                     ) : null}
                   </div>
-                  <div className="mt-3 text-sm font-semibold text-white">
+                  <div className="mt-3 text-sm font-semibold text-[var(--adm-text)]">
                     {item.product.title}
                   </div>
-                  <div className="mt-1 text-xs text-slate-400">
+                  <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                     {item.variant.title}
                     {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
                   </div>
-                  <div className="mt-3 text-xs text-slate-300">
+                  <div className="mt-3 text-xs text-[var(--adm-text-muted)]">
                     {formatCurrency(item.currentPriceCents)} {" -> "}{" "}
                     {formatCurrency(item.publishablePriceCents)} ·{" "}
                     {formatBasisPoints(item.priceDeltaBasisPoints)}
                   </div>
-                  <div className="mt-2 line-clamp-2 text-xs text-slate-500">
+                  <div className="mt-2 line-clamp-2 text-xs text-[var(--adm-text-faint)]">
                     {item.explanation ?? "No explanation returned."}
                   </div>
                 </button>
@@ -1034,13 +1035,13 @@ export default function AdminPricingClient({
               {reviewQueue.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-[22px] border border-white/10 bg-[#06090d] px-4 py-4 text-sm text-slate-300"
+                  className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-sm text-[var(--adm-text-muted)]"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setSelectedRecommendation(item)}
-                      className="text-left font-semibold text-white transition hover:text-cyan-200"
+                      className="text-left font-semibold text-[var(--adm-text)] transition hover:text-[var(--adm-primary)]"
                     >
                       {item.product.title}
                     </button>
@@ -1049,11 +1050,11 @@ export default function AdminPricingClient({
                       className={getStatusBadgeClassName(item.status)}
                     />
                   </div>
-                  <div className="mt-1 text-xs text-slate-400">
+                  <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                     {item.variant.title}
                     {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
                   </div>
-                  <div className="mt-2 line-clamp-3 text-xs text-slate-400">
+                  <div className="mt-2 line-clamp-3 text-xs text-[var(--adm-text-muted)]">
                     {item.explanation ?? "No explanation returned."}
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3">
@@ -1082,8 +1083,8 @@ export default function AdminPricingClient({
                 </div>
               ))}
             </div>
-            <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#06090d] md:block">
-              <div className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="admin-data-grid-scroll hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] md:block">
+              <div className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                 <div>Variant</div>
                 <div>Current</div>
                 <div>Target</div>
@@ -1094,14 +1095,14 @@ export default function AdminPricingClient({
                 {reviewQueue.map((item) => (
                   <div
                     key={item.id}
-                    className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 px-4 py-4 text-sm text-slate-300"
+                    className="grid min-w-[840px] grid-cols-[1.5fr_0.8fr_0.7fr_0.7fr_0.85fr] gap-3 px-4 py-4 text-sm text-[var(--adm-text-muted)]"
                   >
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => setSelectedRecommendation(item)}
-                          className="text-left font-semibold text-white transition hover:text-cyan-200"
+                          className="text-left font-semibold text-[var(--adm-text)] transition hover:text-[var(--adm-primary)]"
                         >
                           {item.product.title}
                         </button>
@@ -1110,11 +1111,11 @@ export default function AdminPricingClient({
                           className={getStatusBadgeClassName(item.status)}
                         />
                       </div>
-                      <div className="mt-1 text-xs text-slate-400">
+                      <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                         {item.variant.title}
                         {item.variant.sku ? ` · SKU ${item.variant.sku}` : ""}
                       </div>
-                      <div className="mt-2 line-clamp-2 text-xs text-slate-400">
+                      <div className="mt-2 line-clamp-2 text-xs text-[var(--adm-text-muted)]">
                         {item.explanation ?? "No explanation returned."}
                       </div>
                     </div>
@@ -1167,8 +1168,8 @@ export default function AdminPricingClient({
                 <AppliedPriceChangeCard key={item.id} item={item} />
               ))}
             </div>
-            <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#06090d] md:block">
-              <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="admin-data-grid-scroll hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] md:block">
+              <div className="grid min-w-[760px] grid-cols-[1.4fr_0.85fr_0.85fr_1fr_0.9fr] gap-3 border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                 <div>Variant</div>
                 <div>Old price</div>
                 <div>New price</div>
@@ -1214,17 +1215,17 @@ export default function AdminPricingClient({
               {selectedRecommendation.reviewRequired ? (
                 <RecommendationBadge
                   label="Review required"
-                  className="border-amber-400/20 bg-amber-400/10 text-amber-200"
+                  className="border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
                 />
               ) : null}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Run metadata
                 </div>
-                <div className="mt-3 space-y-2 text-sm text-slate-300">
+                <div className="mt-3 space-y-2 text-sm text-[var(--adm-text-muted)]">
                   <div>Run started {formatDateTime(selectedRecommendation.run.startedAt)}</div>
                   <div>Created {formatDateTime(selectedRecommendation.createdAt)}</div>
                   {"reviewedAt" in selectedRecommendation ? (
@@ -1235,11 +1236,11 @@ export default function AdminPricingClient({
                   ) : null}
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Recommendation signal
                 </div>
-                <div className="mt-3 space-y-2 text-sm text-slate-300">
+                <div className="mt-3 space-y-2 text-sm text-[var(--adm-text-muted)]">
                   <div>Confidence {formatConfidence(selectedRecommendation.confidenceScore)}</div>
                   <div>Delta {formatBasisPoints(selectedRecommendation.priceDeltaBasisPoints)}</div>
                   <CompetitorSnapshotDetails
@@ -1249,7 +1250,7 @@ export default function AdminPricingClient({
                     Product link{" "}
                     <Link
                       href={`/admin/catalog/${selectedRecommendation.product.id}`}
-                      className="font-semibold text-cyan-200 underline decoration-transparent transition hover:decoration-current"
+                      className="font-semibold text-[var(--adm-primary)] underline decoration-transparent transition hover:decoration-current"
                     >
                       open product
                     </Link>
@@ -1267,17 +1268,17 @@ export default function AdminPricingClient({
               publishablePriceCents={selectedRecommendation.publishablePriceCents}
             />
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Explanation
               </div>
-              <div className="mt-3 whitespace-pre-wrap text-sm text-slate-200">
+              <div className="mt-3 whitespace-pre-wrap text-sm text-[var(--adm-text)]">
                 {selectedRecommendation.explanation ?? "No explanation returned."}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Cost breakdown
               </div>
               <div className="mt-3">
@@ -1285,8 +1286,8 @@ export default function AdminPricingClient({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Compare-at strategy
               </div>
               <div className="mt-3">
@@ -1296,8 +1297,8 @@ export default function AdminPricingClient({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Reason codes
               </div>
               <div className="mt-3">
@@ -1305,8 +1306,8 @@ export default function AdminPricingClient({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Approval override
               </div>
               <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,220px)_1fr] md:items-end">
@@ -1326,15 +1327,15 @@ export default function AdminPricingClient({
                     placeholder="e.g. 89,95"
                   />
                 </AdminField>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                   Recommendation {formatCurrency(selectedRecommendation.publishablePriceCents)}
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                     Floor {formatCurrency(selectedRecommendation.hardMinimumPriceCents)}
                   </div>
                 </div>
               </div>
               {customApprovalError ? (
-                <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+                <div className="mt-3 rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-4 py-3 text-sm text-[var(--adm-error)]">
                   {customApprovalError}
                 </div>
               ) : null}
@@ -1362,6 +1363,6 @@ export default function AdminPricingClient({
           </div>
         ) : null}
       </AdminDrawer>
-    </div>
+    </AdminPage>
   );
 }

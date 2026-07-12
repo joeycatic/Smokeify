@@ -20,9 +20,8 @@ export function AdminStickyToolbar({
   children: React.ReactNode;
 }) {
   return (
-    <section className="sticky top-3 z-20 rounded-2xl border border-white/10 bg-[#07101b]/88 p-3 shadow-[0_16px_42px_rgba(0,0,0,0.26)] backdrop-blur-xl">
-      <div className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,255,255,0.05),transparent_35%),radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_26%)]" />
-      <div className="relative">{children}</div>
+    <section className="sticky top-[5.75rem] z-10 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-2 shadow-[var(--adm-shadow)]">
+      <div>{children}</div>
     </section>
   );
 }
@@ -41,8 +40,8 @@ export function AdminScopeChip({
       href={href}
       className={`inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition ${
         active
-          ? "border-cyan-300/30 bg-cyan-300/14 text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.08)]"
-          : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
+          ? "border-transparent bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
+          : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
       }`}
     >
       {children}
@@ -64,25 +63,24 @@ export function AdminDetailPanel({
   links?: Array<{ label: string; href: string; tone?: "default" | "accent" }>;
 }) {
   return (
-    <aside className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0b1320]/92 p-3.5 shadow-[0_14px_36px_rgba(0,0,0,0.2)]">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.05),transparent_42%),radial-gradient(circle_at_top_right,rgba(129,140,248,0.1),transparent_24%)]" />
-      <div className="relative">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+    <aside className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3 shadow-[var(--adm-shadow)]">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
           {eyebrow}
         </p>
-        <h3 className="mt-1.5 text-base font-semibold text-white">{title}</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
+        <h3 className="mt-1.5 text-base font-semibold text-[var(--adm-text)]">{title}</h3>
+        <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">{description}</p>
         {metrics?.length ? (
           <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
             {metrics.map((metric) => (
               <div
                 key={metric.label}
-                className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-2.5"
               >
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--adm-text-faint)]">
                   {metric.label}
                 </div>
-                <div className="mt-2 text-sm font-semibold text-white">{metric.value}</div>
+                <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">{metric.value}</div>
               </div>
             ))}
           </div>
@@ -95,8 +93,8 @@ export function AdminDetailPanel({
                 href={link.href}
                 className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition ${
                   link.tone === "accent"
-                    ? "border-cyan-300/25 bg-cyan-300/12 text-cyan-100 hover:border-cyan-300/35 hover:bg-cyan-300/18"
-                    : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.07]"
+                    ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)]"
+                    : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                 }`}
               >
                 {link.label}
@@ -149,25 +147,25 @@ export function AdminRankingTable<Row extends { id: string }>({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-6 text-sm text-[var(--adm-text-faint)]">
         {emptyCopy}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#09111d]/90">
+    <div className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
       <div className="admin-scroll-x">
         <table className="min-w-full border-collapse">
           <thead>
-            <tr className="border-b border-white/10 bg-white/[0.03]">
+            <tr className="border-b border-[var(--adm-border)] bg-[var(--adm-surface)]">
               {columns.map((column) => {
                 const sortable = Boolean(column.sortValue);
                 const active = sortKey === column.key;
                 return (
                   <th
                     key={column.key}
-                    className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 ${column.align === "right" ? "text-right" : "text-left"} ${column.widthClassName ?? ""}`}
+                    className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)] ${column.align === "right" ? "text-right" : "text-left"} ${column.widthClassName ?? ""}`}
                   >
                     {sortable ? (
                       <button
@@ -181,7 +179,7 @@ export function AdminRankingTable<Row extends { id: string }>({
                           setSortDirection("desc");
                         }}
                         className={`inline-flex items-center gap-2 transition ${
-                          active ? "text-slate-200" : "hover:text-slate-300"
+                          active ? "text-[var(--adm-text)]" : "hover:text-[var(--adm-text-muted)]"
                         }`}
                       >
                         <span>{column.label}</span>
@@ -203,8 +201,8 @@ export function AdminRankingTable<Row extends { id: string }>({
               return (
                 <tr
                   key={row.id}
-                  className={`border-b border-white/6 transition last:border-b-0 ${
-                    active ? "bg-cyan-400/8" : "hover:bg-white/[0.03]"
+                  className={`border-b border-[var(--adm-border)] transition last:border-b-0 ${
+                    active ? "bg-[var(--adm-primary)]/8" : "hover:bg-[var(--adm-surface)]"
                   }`}
                 >
                   {columns.map((column, index) => (
@@ -216,12 +214,12 @@ export function AdminRankingTable<Row extends { id: string }>({
                         <button
                           type="button"
                           onClick={() => onSelectRow(row)}
-                          className="block w-full text-left text-slate-100"
+                          className="block w-full text-left text-[var(--adm-text)]"
                         >
                           {column.render(row)}
                         </button>
                       ) : (
-                        <div className={column.align === "right" ? "text-slate-200" : "text-slate-100"}>
+                        <div className={column.align === "right" ? "text-[var(--adm-text)]" : "text-[var(--adm-text)]"}>
                           {column.render(row)}
                         </div>
                       )}

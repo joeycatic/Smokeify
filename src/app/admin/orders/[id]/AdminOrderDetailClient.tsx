@@ -19,6 +19,7 @@ import { getRefundPreviewAmount } from "@/lib/adminRefundCalculator";
 import { formatOrderSourceLabel } from "@/lib/orderSource";
 import type { AdminOrderDetail, AdminOrderItemRecord, AdminOrderRecord } from "@/lib/adminOrders";
 import { getOrderItemSummary } from "@/lib/adminOrderQueue";
+import { AdminKpiStrip, AdminPage, AdminPageHeader } from "@/components/admin/ui";
 
 type OrderActionPermissions = {
   canUpdateFulfillment: boolean;
@@ -50,16 +51,16 @@ type PersistedOrderDraft = {
 const ORDER_BADGE_BASE =
   "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold leading-none whitespace-nowrap";
 const LIGHT_PANEL =
-  "rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(8,13,21,0.96),rgba(11,17,27,0.92))] p-5 shadow-[0_20px_56px_rgba(2,6,23,0.36)]";
+  "rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4";
 const DARK_PANEL =
-  "rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(4,8,20,0.98),rgba(6,10,24,0.96))] p-5 shadow-[0_24px_64px_rgba(2,6,23,0.42)]";
+  "rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4";
 const INPUT_CLASS =
-  "h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10";
+  "h-9 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10";
 const SELECT_CLASS = `admin-select ${INPUT_CLASS}`;
 const PRIMARY_BUTTON =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300";
+  "inline-flex h-8 items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-white transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-[var(--adm-text-muted)]";
 const SECONDARY_BUTTON =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:border-white/5 disabled:text-slate-500";
+  "inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] disabled:cursor-not-allowed disabled:border-[var(--adm-border)] disabled:text-[var(--adm-text-faint)]";
 const EDITABLE_ORDER_STATUSES = [
   "processing",
   "shipped",
@@ -97,23 +98,23 @@ const getOrderTabPanelId = (tab: OrderTabId) => `order-panel-${tab}`;
 const getOrderStatusBadgeClass = (status: string) => {
   const normalizedStatus = normalizeStatus(status);
   if (normalizedStatus === "fulfilled") {
-    return `${ORDER_BADGE_BASE} border-emerald-400/25 bg-emerald-400/12 text-emerald-100`;
+    return `${ORDER_BADGE_BASE} border-[var(--adm-success)] bg-emerald-400/12 text-[var(--adm-success)]`;
   }
   if (["canceled", "cancelled", "failed", "refunded"].includes(normalizedStatus)) {
-    return `${ORDER_BADGE_BASE} border-slate-500/30 bg-slate-500/10 text-slate-200`;
+    return `${ORDER_BADGE_BASE} border-slate-500/30 bg-slate-500/10 text-[var(--adm-text)]`;
   }
-  return `${ORDER_BADGE_BASE} border-cyan-400/25 bg-cyan-400/12 text-cyan-100`;
+  return `${ORDER_BADGE_BASE} border-[var(--adm-primary)] bg-[var(--adm-primary)]/12 text-[var(--adm-primary)]`;
 };
 
 const getPaymentBadgeClass = (paymentStatus: string) => {
   const normalizedStatus = normalizeStatus(paymentStatus);
   if (PAID_PAYMENT_STATUSES.has(normalizedStatus)) {
-    return `${ORDER_BADGE_BASE} border-amber-300/30 bg-amber-300/12 text-amber-100`;
+    return `${ORDER_BADGE_BASE} border-[#e2a136] bg-amber-300/12 text-[#81560e]`;
   }
   if (["failed", "canceled", "cancelled"].includes(normalizedStatus)) {
-    return `${ORDER_BADGE_BASE} border-rose-400/25 bg-rose-400/12 text-rose-100`;
+    return `${ORDER_BADGE_BASE} border-[var(--adm-error)] bg-rose-400/12 text-[var(--adm-error)]`;
   }
-  return `${ORDER_BADGE_BASE} border-slate-500/30 bg-slate-500/10 text-slate-200`;
+  return `${ORDER_BADGE_BASE} border-slate-500/30 bg-slate-500/10 text-[var(--adm-text)]`;
 };
 
 const formatOrderItemName = (name: string, manufacturer?: string | null) => {
@@ -735,7 +736,7 @@ export default function AdminOrderDetailClient({
   };
 
   return (
-    <div className="space-y-6 text-slate-100">
+    <AdminPage layout="editor">
       <style>{`
         @keyframes order-save-confirm {
           0% { opacity: 0; transform: translateY(8px) scale(0.96); box-shadow: 0 0 0 rgba(52, 211, 153, 0); }
@@ -747,27 +748,46 @@ export default function AdminOrderDetailClient({
           100% { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-      <section className="relative overflow-hidden rounded-[24px] border border-white/8 bg-[linear-gradient(135deg,#07111b_0%,#0b1722_52%,#070d18_100%)] p-3 shadow-[0_24px_70px_rgba(2,6,23,0.34)] sm:p-4">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(245,158,11,0.11),transparent_25%),radial-gradient(circle_at_72%_8%,rgba(34,211,238,0.1),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.025),transparent_58%)]" />
+      <AdminPageHeader
+        eyebrow="Order detail"
+        title={`#${order.orderNumber}`}
+        description={`${customerName} · ${customerEmail || "No email"} · ${sourceLabel}`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/orders" className="inline-flex h-8 items-center rounded-[10px] border border-[var(--adm-border-strong)] px-3 text-[13px] font-semibold text-[var(--adm-text)]">Back</Link>
+            <span className={getOrderStatusBadgeClass(order.status)}>{order.status}</span>
+            <span className={getPaymentBadgeClass(order.paymentStatus)}>{order.paymentStatus}</span>
+          </div>
+        }
+      >
+        <AdminKpiStrip>
+          <CompactMetric label="Collected" value={formatPrice(financeBreakdown.netCollectedGrossCents, order.currency)} detail={`Updated ${formatCompactDate(order.updatedAt)}`} tone="cyan" />
+          <CompactMetric label="Gross" value={formatPrice(financeBreakdown.grossOrderCents, order.currency)} detail={`${formatPrice(order.amountRefunded, order.currency)} refunded`} />
+          <CompactMetric label="Net revenue" value={formatPrice(financeBreakdown.netRevenueCents, order.currency)} detail="after VAT and refunds" />
+          <CompactMetric label="Contribution" value={formatPrice(financeBreakdown.contributionMarginCents, order.currency)} detail="after fees and COGS" tone={financeBreakdown.contributionMarginCents >= 0 ? "emerald" : "rose"} />
+        </AdminKpiStrip>
+      </AdminPageHeader>
+      <section className="hidden">
+        <div className="absolute inset-0 bg-[var(--adm-surface)]" />
         <div className="relative grid gap-3 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] 2xl:grid-cols-[minmax(0,1.05fr)_minmax(520px,0.95fr)_340px]">
-          <div className="rounded-[20px] border border-white/8 bg-white/[0.035] p-4 sm:p-5">
+          <div className="rounded-[20px] border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/admin/orders" className="inline-flex h-9 items-center rounded-full border border-white/10 bg-white/[0.06] px-3.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1]">Back</Link>
-              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">Order detail</span>
-              {hasUnsavedChanges ? <span className="rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-1.5 text-[11px] font-semibold text-amber-100">Unsaved changes</span> : null}
+              <Link href="/admin/orders" className="inline-flex h-9 items-center rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]">Back</Link>
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">Order detail</span>
+              {hasUnsavedChanges ? <span className="rounded-full border border-[#e2a136] bg-amber-300/12 px-3 py-1.5 text-[11px] font-semibold text-[#81560e]">Unsaved changes</span> : null}
             </div>
             <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Order</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[var(--adm-text-muted)]">Order</p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <h1 className="text-[clamp(2rem,5vw,3.25rem)] font-semibold leading-none tracking-tight text-white">#{order.orderNumber}</h1>
-                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[11px] font-semibold text-slate-200">{sourceLabel}</span>
+                  <h1 className="text-[clamp(2rem,5vw,3.25rem)] font-semibold leading-none tracking-tight text-[var(--adm-text)]">#{order.orderNumber}</h1>
+                  <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1.5 text-[11px] font-semibold text-[var(--adm-text)]">{sourceLabel}</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <span className={getOrderStatusBadgeClass(order.status)}>{order.status}</span>
                 <span className={getPaymentBadgeClass(order.paymentStatus)}>{order.paymentStatus}</span>
-                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-200">{trackingState}</span>
+                <span className="inline-flex items-center rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1.5 text-[11px] font-semibold text-[var(--adm-text)]">{trackingState}</span>
               </div>
             </div>
             <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
@@ -803,7 +823,7 @@ export default function AdminOrderDetailClient({
             />
           </div>
 
-          <aside className="grid gap-2 rounded-[20px] border border-white/8 bg-[#050a15]/80 p-3 sm:grid-cols-2 2xl:grid-cols-1">
+          <aside className="grid gap-2 rounded-[20px] border border-[var(--adm-border)] bg-[var(--adm-surface)] p-3 sm:grid-cols-2 2xl:grid-cols-1">
             <CompactFact label="Payment" value={`${order.paymentMethod ?? "Unknown method"} · ${order.paymentProvider ?? "No provider"}`} detail={paymentReference} monoDetail={paymentReference !== "Not linked"} dark />
             <CompactFact label="Tracking" value={order.trackingNumber ?? trackingState} detail={order.trackingCarrier ?? order.trackingUrl ?? "No tracking link stored"} monoDetail={Boolean(order.trackingNumber ?? order.trackingUrl)} dark />
             <CompactFact label="Discount" value={order.discountCode ?? "No discount used"} detail={formatPrice(order.amountDiscount, order.currency)} dark />
@@ -815,17 +835,17 @@ export default function AdminOrderDetailClient({
       {error ? <Banner tone="error">{error}</Banner> : null}
       {notice ? <Banner tone="success">{notice}</Banner> : null}
       {hasUnsavedChanges ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-medium text-amber-100">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm font-medium text-[#81560e]">
           <span>Unsaved changes are local to this page.</span>
           {dirtyTabLabels.map((label) => (
-            <span key={label} className="rounded-full border border-amber-300/20 bg-black/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+            <span key={label} className="rounded-full border border-[#e2a136] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#81560e]">
               {label}
             </span>
           ))}
           <button
             type="button"
             onClick={discardLocalDraft}
-            className="inline-flex h-9 w-full items-center justify-center rounded-full border border-amber-200/20 bg-black/20 px-4 text-xs font-semibold text-amber-100 transition hover:bg-black/30 sm:ml-auto sm:w-auto"
+            className="inline-flex h-9 w-full items-center justify-center rounded-full border border-amber-200/20 bg-[var(--adm-surface-2)] px-4 text-xs font-semibold text-[#81560e] transition hover:bg-black/30 sm:ml-auto sm:w-auto"
           >
             Discard local draft
           </button>
@@ -925,32 +945,32 @@ export default function AdminOrderDetailClient({
       {refundMode ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-3 sm:items-center sm:px-4">
           <button type="button" className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => { setRefundMode(null); setRefundReason(""); setRefundPasswordError(""); }} aria-label="Close refund dialog" />
-          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,13,21,0.98),rgba(10,16,26,0.96))] p-4 shadow-[0_30px_80px_rgba(2,6,23,0.5)] sm:rounded-[30px] sm:p-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Refund confirmation</p>
-            <h3 className="mt-2 text-2xl font-semibold text-white">Confirm refund</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-300">Refunds are irreversible and processed through Viva for migrated payments. Review the preview, then confirm with your admin password.</p>
-            <div className="mt-5 rounded-[24px] border border-rose-400/20 bg-rose-400/10 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-200">Preview</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{formatPrice(refundMode === "full" ? fullRefundPreview : selectedItemsRefundPreview, order.currency)}</p>
-              <p className="mt-2 text-sm text-slate-300">{refundMode === "items" ? `${selectedRefundQuantity} units selected` : "Full-order refund preview"}</p>
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-[0_30px_80px_rgba(2,6,23,0.5)] sm:rounded-xl sm:p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[var(--adm-text-muted)]">Refund confirmation</p>
+            <h3 className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">Confirm refund</h3>
+            <p className="mt-3 text-sm leading-6 text-[var(--adm-text-muted)]">Refunds are irreversible and processed through Viva for migrated payments. Review the preview, then confirm with your admin password.</p>
+            <div className="mt-5 rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-error)]">Preview</p>
+              <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{formatPrice(refundMode === "full" ? fullRefundPreview : selectedItemsRefundPreview, order.currency)}</p>
+              <p className="mt-2 text-sm text-[var(--adm-text-muted)]">{refundMode === "items" ? `${selectedRefundQuantity} units selected` : "Full-order refund preview"}</p>
             </div>
             <label className="block mt-4">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Refund reason</span>
-              <textarea value={refundReason} onChange={(event) => { setRefundReason(event.target.value); if (refundPasswordError) setRefundPasswordError(""); }} placeholder="Explain why this refund is being issued." className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">Refund reason</span>
+              <textarea value={refundReason} onChange={(event) => { setRefundReason(event.target.value); if (refundPasswordError) setRefundPasswordError(""); }} placeholder="Explain why this refund is being issued." className="mt-2 min-h-24 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 py-3 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10" />
             </label>
             <label className="block mt-4">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Admin password</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">Admin password</span>
               <input type="password" value={refundPassword} onChange={(event) => { setRefundPassword(event.target.value); if (refundPasswordError) setRefundPasswordError(""); }} placeholder="Admin password" className={`${INPUT_CLASS} mt-2`} />
             </label>
-            {refundPasswordError ? <p className="mt-3 text-sm font-medium text-rose-300">{refundPasswordError}</p> : null}
+            {refundPasswordError ? <p className="mt-3 text-sm font-medium text-[var(--adm-error)]">{refundPasswordError}</p> : null}
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => { setRefundMode(null); setRefundReason(""); setRefundPasswordError(""); }} className={SECONDARY_BUTTON}>Cancel</button>
-              <button type="button" onClick={confirmRefund} disabled={refunding} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-rose-300">{refunding ? "Refunding..." : "Process refund"}</button>
+              <button type="button" onClick={confirmRefund} disabled={refunding} className="inline-flex h-8 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-rose-300">{refunding ? "Refunding..." : "Process refund"}</button>
             </div>
           </div>
         </div>
       ) : null}
-    </div>
+    </AdminPage>
   );
 }
 
@@ -969,8 +989,8 @@ function Panel({
 }) {
   return (
     <section className={className}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">{eyebrow}</p>
-      <h2 className={`mt-2 text-xl font-semibold ${dark ? "text-white" : "text-slate-100"}`}>{title}</h2>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-muted)]">{eyebrow}</p>
+      <h2 className={`mt-2 text-xl font-semibold ${dark ? "text-[var(--adm-text)]" : "text-[var(--adm-text)]"}`}>{title}</h2>
       <div className="mt-5">{children}</div>
     </section>
   );
@@ -1000,9 +1020,9 @@ function OrderTabBar({
   };
 
   return (
-    <div className="z-20 md:sticky md:top-[5.5rem] xl:top-[7.25rem]">
-      <div className="rounded-[20px] border border-white/10 bg-[#08121b]/88 p-1 shadow-[0_18px_50px_rgba(2,6,23,0.28)] backdrop-blur sm:rounded-[28px]">
-        <div className="admin-scroll-x flex gap-1 pb-1 sm:grid sm:grid-cols-5 sm:pb-0" role="tablist" aria-label="Order workspace sections">
+    <div className="z-20 md:sticky md:top-[5.75rem]">
+      <div className="admin-section-nav">
+        <div className="admin-scroll-x flex gap-1" role="tablist" aria-label="Order workspace sections">
           {ORDER_TABS.map((tab, index) => {
             const active = tab.id === activeTab;
             const isDirty = Boolean(dirtyTabs[tab.id]);
@@ -1015,31 +1035,18 @@ function OrderTabBar({
                 ref={(node) => {
                   tabButtonRefs.current[index] = node;
                 }}
-                className="group relative min-w-[7rem] overflow-hidden rounded-[18px] px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/35 sm:min-w-0 sm:rounded-[22px]"
+                className={`relative inline-flex h-8 min-w-max items-center gap-2 rounded-[10px] px-3 text-[13px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-[var(--adm-primary-soft)] ${active ? "bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]" : "text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)]"}`}
                 id={getOrderTabButtonId(tab.id)}
                 role="tab"
                 aria-selected={active}
                 aria-controls={getOrderTabPanelId(tab.id)}
                 tabIndex={active ? 0 : -1}
               >
-                <span
-                  className={`absolute inset-0 rounded-[22px] border transition duration-300 ${
-                    active
-                      ? "scale-100 border-cyan-300/25 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(34,211,238,0.08))] shadow-[0_12px_30px_rgba(34,211,238,0.14)]"
-                      : "scale-[0.96] border-transparent bg-white/[0.02] opacity-80 group-hover:opacity-100"
-                  }`}
-                />
-                <span className="relative flex items-center gap-2 text-sm font-semibold text-white">
+                <span className="relative flex items-center gap-2">
                   <span>{tab.label}</span>
                   {isDirty ? <span className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.14)]" aria-hidden="true" /> : null}
                 </span>
-                <span
-                  className={`relative mt-1 block text-[11px] leading-5 transition ${
-                    active ? "text-cyan-100/85" : "text-slate-400"
-                  }`}
-                >
-                  {tab.detail}
-                </span>
+                <span className="sr-only">{tab.detail}</span>
                 {isDirty ? <span className="sr-only">Unsaved changes in this tab.</span> : null}
               </button>
             );
@@ -1069,7 +1076,7 @@ function OverviewTab({
     <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.45fr)_390px]">
       <div className="space-y-6">
         <Panel className={LIGHT_PANEL} eyebrow="Status" title="Order overview">
-          <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+          <div className="overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
             <OverviewSummaryRow label="Order" value={order.status} badgeClass={getOrderStatusBadgeClass(order.status)} />
             <OverviewSummaryRow label="Payment" value={order.paymentStatus} badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
             <OverviewSummaryRow label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "No tracking number"} />
@@ -1095,16 +1102,16 @@ function OverviewTab({
         <Panel className={LIGHT_PANEL} eyebrow="Returns" title="Linked return requests">
           <div className="space-y-3">
             {detail.returnRequests.length ? detail.returnRequests.map((request) => (
-              <div key={request.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
+              <div key={request.id} className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-white">{request.status}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">{request.requestedResolution} · {formatCompactDate(request.createdAt)}</p>
+                    <p className="text-sm font-semibold text-[var(--adm-text)]">{request.status}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--adm-text-muted)]">{request.requestedResolution} · {formatCompactDate(request.createdAt)}</p>
                   </div>
-                  <Link href="/admin/returns" className="text-xs font-semibold text-cyan-200 underline-offset-2 hover:text-cyan-100 hover:underline">Open returns</Link>
+                  <Link href="/admin/returns" className="text-xs font-semibold text-[var(--adm-primary)] underline-offset-2 hover:text-[var(--adm-primary)] hover:underline">Open returns</Link>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-slate-200">{request.reason}</p>
-                {request.items.length ? <p className="mt-3 text-xs leading-5 text-slate-400">{request.items.map((item) => `${item.orderItemName} x${item.quantity}`).join(" · ")}</p> : null}
+                <p className="mt-3 text-sm leading-6 text-[var(--adm-text)]">{request.reason}</p>
+                {request.items.length ? <p className="mt-3 text-xs leading-5 text-[var(--adm-text-muted)]">{request.items.map((item) => `${item.orderItemName} x${item.quantity}`).join(" · ")}</p> : null}
               </div>
             )) : <Empty text="No return requests linked to this order." />}
           </div>
@@ -1128,13 +1135,13 @@ function OverviewTab({
         <Panel className={DARK_PANEL} eyebrow="Webhooks" title="Recent failed webhook context" dark>
           <div className="space-y-3">
             {webhookFailures.length ? webhookFailures.map((event) => (
-              <div key={event.id} className="rounded-[22px] border border-rose-400/20 bg-rose-400/10 px-4 py-4">
-                <p className="text-sm font-semibold text-rose-100">{event.type}</p>
-                <p className="mt-1 break-all text-xs leading-5 text-rose-100/80">{event.eventId}</p>
+              <div key={event.id} className="rounded-[22px] border border-[var(--adm-error)] bg-[#fae7e3] px-4 py-4">
+                <p className="text-sm font-semibold text-[var(--adm-error)]">{event.type}</p>
+                <p className="mt-1 break-all text-xs leading-5 text-[var(--adm-error)]/80">{event.eventId}</p>
                 {event.errorMessage ? (
-                  <p className="mt-2 text-xs leading-5 text-rose-100/80">{event.errorMessage}</p>
+                  <p className="mt-2 text-xs leading-5 text-[var(--adm-error)]/80">{event.errorMessage}</p>
                 ) : null}
-                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-rose-100/70">{formatDateTime(event.createdAt)}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[var(--adm-error)]/70">{formatDateTime(event.createdAt)}</p>
               </div>
             )) : <Empty text="No failed webhook events in the recent queue." dark />}
           </div>
@@ -1189,8 +1196,8 @@ function FulfillmentTab({
         <Panel className={LIGHT_PANEL} eyebrow="Fulfillment posture" title="Status and tracking workspace">
           <div className="grid gap-5 2xl:grid-cols-[300px_minmax(0,1fr)]">
             <div>
-              <p className="text-sm leading-6 text-slate-300">Edits here only affect fulfillment and shipment details.</p>
-              <div className="mt-4 overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]">
+              <p className="text-sm leading-6 text-[var(--adm-text-muted)]">Edits here only affect fulfillment and shipment details.</p>
+              <div className="mt-4 overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
                 <OverviewSummaryRow label="Order" value={order.status} badgeClass={getOrderStatusBadgeClass(order.status)} />
                 <OverviewSummaryRow label="Payment" value={order.paymentStatus} badgeClass={getPaymentBadgeClass(order.paymentStatus)} />
                 <OverviewSummaryRow label="Tracking" value={getTrackingState(order)} detail={order.trackingNumber ?? "No tracking number"} />
@@ -1201,7 +1208,7 @@ function FulfillmentTab({
             <div className="space-y-3">
               <div className="grid gap-4">
                 <label className="block">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Order status</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">Order status</span>
                   <select value={statusDraft} onChange={(event) => setStatusDraft(event.target.value)} disabled={!canUpdateFulfillment} className={`${SELECT_CLASS} mt-2 h-12`}>
                     {!EDITABLE_ORDER_STATUSES.includes(statusDraft as (typeof EDITABLE_ORDER_STATUSES)[number]) ? (
                       <option value={statusDraft}>{statusDraft} (stored status)</option>
@@ -1217,14 +1224,14 @@ function FulfillmentTab({
                   ["Tracking URL", trackingDraft.url, (value: string) => setTrackingDraft((current) => ({ ...current, url: value }))],
                 ].map(([label, value, onChange]) => (
                   <label key={label as string} className="block">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label as string}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">{label as string}</span>
                     <input value={value as string} onChange={(event) => (onChange as (value: string) => void)(event.target.value)} disabled={!canUpdateFulfillment} className={`${INPUT_CLASS} mt-2 h-12`} />
                   </label>
                 ))}
               </div>
 
               <OutcomeCard tone={fulfillmentOutcome.tone} eyebrow="Save outcome" title={fulfillmentOutcome.title} detail={fulfillmentOutcome.detail} />
-              <div className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
                 <label className="flex items-start gap-3">
                   <input
                     type="checkbox"
@@ -1234,30 +1241,30 @@ function FulfillmentTab({
                     className="mt-1"
                   />
                   <div>
-                    <p className="text-sm font-semibold text-white">Notify customer on save</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-300">
+                    <p className="text-sm font-semibold text-[var(--adm-text)]">Notify customer on save</p>
+                    <p className="mt-1 text-sm leading-6 text-[var(--adm-text-muted)]">
                       Shipping emails only send from this save path when you explicitly enable notification.
                     </p>
                   </div>
                 </label>
                 {!hasTrackingDraft ? (
-                  <p className="mt-3 text-sm text-amber-200">
+                  <p className="mt-3 text-sm text-[#81560e]">
                     Add a tracking number or tracking URL before customer notification becomes available.
                   </p>
                 ) : null}
                 {order.shippingEmailSentAt ? (
-                  <p className="mt-3 text-sm text-slate-300">
+                  <p className="mt-3 text-sm text-[var(--adm-text-muted)]">
                     The shipping email was already recorded on {formatDateTime(order.shippingEmailSentAt)}.
                   </p>
                 ) : null}
                 <label className="mt-4 block">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">
                     Optional shipping email note
                   </span>
                   <textarea
                     value={fulfillmentEmailReason}
                     onChange={(event) => setFulfillmentEmailReason(event.target.value)}
-                    className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10"
+                    className="mt-2 min-h-24 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 py-3 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10"
                     placeholder="Optional internal note for this customer notification."
                     disabled={!canUpdateFulfillment || !notifyCustomer || Boolean(order.shippingEmailSentAt)}
                   />
@@ -1272,29 +1279,29 @@ function FulfillmentTab({
                 />
               ) : null}
 
-              <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Rules</p>
-                <p className="mt-2 text-sm leading-6 text-slate-300">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">Rules</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">
                   Tracking can still auto-mark open orders as shipped. Customer notification only happens when Notify customer is enabled and the resulting status is shipped or fulfilled.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-xl text-sm text-slate-300">
+          <div className="mt-5 flex flex-col gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-xl text-sm text-[var(--adm-text-muted)]">
               Save drafts here without touching payment state. The server still enforces optimistic concurrency on the order record.
             </p>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              {fulfillmentDirty ? <span className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Unsaved fulfillment draft</span> : null}
+              {fulfillmentDirty ? <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#81560e]">Unsaved fulfillment draft</span> : null}
               {saveConfirmation ? (
                 <span
                   key={saveConfirmation.id}
                   role="status"
                   aria-live="polite"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-300/12 px-3 py-2 text-xs font-semibold text-emerald-100 shadow-[0_0_28px_rgba(52,211,153,0.16)] motion-safe:animate-[order-save-confirm_900ms_ease-out]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--adm-success)] bg-emerald-300/12 px-3 py-2 text-xs font-semibold text-[var(--adm-success)] shadow-[0_0_28px_rgba(52,211,153,0.16)] motion-safe:animate-[order-save-confirm_900ms_ease-out]"
                 >
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-300 text-[11px] text-slate-950">✓</span>
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-300 text-[11px] text-white">✓</span>
                   {saveConfirmation.message}
                 </span>
               ) : null}
@@ -1357,7 +1364,7 @@ function RefundsTab({
   return (
     <Panel className={LIGHT_PANEL} eyebrow="Items and refunds" title="Merchandise ledger">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <p className="max-w-2xl text-sm leading-6 text-slate-300">Review each line with tax, contribution, and refund quantity before opening the Viva refund confirmation step.</p>
+        <p className="max-w-2xl text-sm leading-6 text-[var(--adm-text-muted)]">Review each line with tax, contribution, and refund quantity before opening the Viva refund confirmation step.</p>
         <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2 lg:max-w-md">
           <DataCard label="Selected refund" value={formatPrice(selectedItemsRefundPreview, order.currency)} detail={selectedRefundItemCount > 0 ? `${selectedRefundQuantity} units selected` : "Select items to preview"} />
           <DataCard label="Full refund" value={formatPrice(fullRefundPreview, order.currency)} detail={refundIncludeShipping ? "shipping included" : "excluding shipping"} />
@@ -1370,18 +1377,18 @@ function RefundsTab({
           const itemName = formatOrderItemName(item.name, item.manufacturer);
           const contributionAmount = item.totalAmount - item.adjustedCostAmount;
           return (
-            <div key={item.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4 shadow-[0_8px_28px_rgba(2,6,23,0.18)]">
+            <div key={item.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 shadow-[0_8px_28px_rgba(2,6,23,0.18)]">
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_100px_120px_120px_120px_92px] xl:items-center">
                 <div className="flex min-w-0 items-start gap-4">
                   <label className="mt-3 flex shrink-0 items-center"><input type="checkbox" checked={selectedQty > 0} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 }))} disabled={!canProcessRefund} aria-label={`Select ${itemName} for refund`} /></label>
-                  {item.imageUrl ? <Image src={item.imageUrl} alt={itemName} width={56} height={56} className="h-14 w-14 rounded-2xl border border-white/10 object-cover" /> : <div className="h-14 w-14 rounded-2xl border border-white/10 bg-white/[0.05]" />}
+                  {item.imageUrl ? <Image src={item.imageUrl} alt={itemName} width={56} height={56} className="h-14 w-14 rounded-xl border border-[var(--adm-border)] object-cover" /> : <div className="h-14 w-14 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)]" />}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      {itemHref ? <Link href={itemHref} className="text-base font-semibold text-white underline-offset-2 transition hover:text-cyan-200 hover:underline">{itemName}</Link> : <p className="text-base font-semibold text-white">{itemName}</p>}
-                      {item.manufacturer ? <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-slate-300">{item.manufacturer}</span> : null}
+                      {itemHref ? <Link href={itemHref} className="text-base font-semibold text-[var(--adm-text)] underline-offset-2 transition hover:text-[var(--adm-primary)] hover:underline">{itemName}</Link> : <p className="text-base font-semibold text-[var(--adm-text)]">{itemName}</p>}
+                      {item.manufacturer ? <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)]">{item.manufacturer}</span> : null}
                     </div>
-                    {item.options?.length ? <p className="mt-1 text-sm text-slate-300">{formatItemOptions(item.options)}</p> : null}
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                    {item.options?.length ? <p className="mt-1 text-sm text-[var(--adm-text-muted)]">{formatItemOptions(item.options)}</p> : null}
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--adm-text-muted)]">
                       <span>Unit {formatPrice(item.unitAmount, item.currency)}</span>
                       <span>Cost {formatPrice(item.baseCostAmount, item.currency)}</span>
                       <span>{formatTaxRate(item.taxRateBasisPoints)}</span>
@@ -1389,13 +1396,13 @@ function RefundsTab({
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:contents">
-                  <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Qty</p><p className="text-sm font-semibold text-white xl:text-left">{item.quantity}</p></div>
-                  <div className="sm:text-right xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Tax</p><p className="text-sm font-semibold text-white">{formatPrice(item.taxAmount, item.currency)}</p></div>
-                  <div className="xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Contribution</p><p className={`text-sm font-semibold ${contributionAmount >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatPrice(contributionAmount, item.currency)}</p></div>
-                  <div className="sm:text-right xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:hidden">Total</p><p className="text-sm font-semibold text-white">{formatPrice(item.totalAmount, item.currency)}</p></div>
+                  <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)] xl:hidden">Qty</p><p className="text-sm font-semibold text-[var(--adm-text)] xl:text-left">{item.quantity}</p></div>
+                  <div className="sm:text-right xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)] xl:hidden">Tax</p><p className="text-sm font-semibold text-[var(--adm-text)]">{formatPrice(item.taxAmount, item.currency)}</p></div>
+                  <div className="xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)] xl:hidden">Contribution</p><p className={`text-sm font-semibold ${contributionAmount >= 0 ? "text-[var(--adm-success)]" : "text-[var(--adm-error)]"}`}>{formatPrice(contributionAmount, item.currency)}</p></div>
+                  <div className="sm:text-right xl:text-right"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)] xl:hidden">Total</p><p className="text-sm font-semibold text-[var(--adm-text)]">{formatPrice(item.totalAmount, item.currency)}</p></div>
                   <div className="flex items-center justify-between gap-2 sm:justify-end xl:block">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 xl:mb-2 xl:text-right">Refund</p>
-                    <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} disabled={!canProcessRefund} className="h-10 w-20 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-center text-sm font-semibold text-white outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 xl:ml-auto" />
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)] xl:mb-2 xl:text-right">Refund</p>
+                    <input type="number" min={0} max={item.quantity} value={selectedQty} onChange={(event) => setRefundSelection((current) => ({ ...current, [item.id]: clamp(Number(event.target.value), 0, item.quantity) }))} disabled={!canProcessRefund} className="h-8 w-20 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 text-center text-sm font-semibold text-[var(--adm-text)] outline-none transition focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10 xl:ml-auto" />
                   </div>
                 </div>
               </div>
@@ -1403,11 +1410,11 @@ function RefundsTab({
           );
         })}
       </div>
-      <div className="mt-5 flex flex-col gap-3 rounded-[24px] border border-rose-400/20 bg-rose-400/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <label className="inline-flex items-center gap-2 text-sm font-medium text-rose-100"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} disabled={!canProcessRefund} />Include shipping in refund preview</label>
+      <div className="mt-5 flex flex-col gap-3 rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <label className="inline-flex items-center gap-2 text-sm font-medium text-[var(--adm-error)]"><input type="checkbox" checked={refundIncludeShipping} onChange={(event) => setRefundIncludeShipping(event.target.checked)} disabled={!canProcessRefund} />Include shipping in refund preview</label>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("items"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/25 bg-white/[0.05] px-4 text-sm font-semibold text-rose-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">Refund selected items ({selectedRefundItemCount})</button>
-          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("full"); }} disabled={!canProcessRefund} className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50">Full refund</button>
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("items"); }} disabled={!canProcessRefund} className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-error)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-error)] transition hover:bg-[var(--adm-surface-2)] disabled:cursor-not-allowed disabled:opacity-50">Refund selected items ({selectedRefundItemCount})</button>
+          <button type="button" onClick={() => { setRefundPassword(""); setRefundPasswordError(""); setRefundReason(""); setRefundMode("full"); }} disabled={!canProcessRefund} className="inline-flex h-8 items-center justify-center rounded-xl bg-rose-700 px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50">Full refund</button>
         </div>
       </div>
       {!canProcessRefund ? (
@@ -1448,7 +1455,7 @@ function CustomerTab({
       <Panel className={LIGHT_PANEL} eyebrow="Customer dossier" title="Customer and shipping">
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void copyCustomerValue("email", "Email", customerEmail)} className={SECONDARY_BUTTON}>{copiedCustomerField === "email" ? "Copied email" : "Copy email"}</button>
-          <button type="button" onClick={() => void copyCustomerValue("customer", "Customer details", customerCopyText)} className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/30 hover:bg-cyan-400/15">{copiedCustomerField === "customer" ? "Copied customer" : "Copy customer"}</button>
+          <button type="button" onClick={() => void copyCustomerValue("customer", "Customer details", customerCopyText)} className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-primary)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/15">{copiedCustomerField === "customer" ? "Copied customer" : "Copy customer"}</button>
         </div>
         <div className="mt-5 grid gap-3">
           <Row label="Customer" value={customerName} />
@@ -1458,9 +1465,9 @@ function CustomerTab({
           <Row label="Source origin" value={order.sourceOrigin ?? "—"} />
           <Row label="Payment method" value={order.paymentMethod ?? "—"} />
         </div>
-        <div className="mt-5 rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Delivery address</p>
-          <div className="mt-3 space-y-1 text-sm leading-6 text-slate-200">{shippingLines.length ? shippingLines.map((line) => <div key={line}>{line}</div>) : <div className="text-slate-500">No shipping address stored.</div>}</div>
+        <div className="mt-5 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-muted)]">Delivery address</p>
+          <div className="mt-3 space-y-1 text-sm leading-6 text-[var(--adm-text)]">{shippingLines.length ? shippingLines.map((line) => <div key={line}>{line}</div>) : <div className="text-[var(--adm-text-faint)]">No shipping address stored.</div>}</div>
         </div>
       </Panel>
 
@@ -1504,11 +1511,11 @@ function TimelineTab({
           <ol className="space-y-4">
             {timeline.map((entry, index) => (
               <li key={`${entry.label}-${entry.at}`} className="relative pl-8">
-                {index < timeline.length - 1 ? <span className="absolute left-[11px] top-7 h-[calc(100%-0.25rem)] w-px bg-white/10" /> : null}
-                <span className="absolute left-0 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[11px] font-semibold text-slate-200">{index + 1}</span>
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-3">
-                  <p className="text-sm font-semibold text-white">{entry.label}</p>
-                  <p className="mt-1 text-sm text-slate-300">{formatDateTime(entry.at)}</p>
+                {index < timeline.length - 1 ? <span className="absolute left-[11px] top-7 h-[calc(100%-0.25rem)] w-px bg-[var(--adm-surface-2)]" /> : null}
+                <span className="absolute left-0 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[11px] font-semibold text-[var(--adm-text)]">{index + 1}</span>
+                <div className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+                  <p className="text-sm font-semibold text-[var(--adm-text)]">{entry.label}</p>
+                  <p className="mt-1 text-sm text-[var(--adm-text-muted)]">{formatDateTime(entry.at)}</p>
                 </div>
               </li>
             ))}
@@ -1518,13 +1525,13 @@ function TimelineTab({
         <Panel className={LIGHT_PANEL} eyebrow="Audit" title="Admin timeline and change trail">
           <div className="space-y-3">
             {detail.auditLogs.length ? detail.auditLogs.map((entry) => (
-              <div key={entry.id} className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
+              <div key={entry.id} className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-white">{entry.summary ?? entry.action}</p>
-                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">{entry.actorEmail ?? "System"} · {entry.action}</p>
+                    <p className="text-sm font-semibold text-[var(--adm-text)]">{entry.summary ?? entry.action}</p>
+                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-[var(--adm-text-muted)]">{entry.actorEmail ?? "System"} · {entry.action}</p>
                   </div>
-                  <div className="text-sm text-slate-300">{formatDateTime(entry.createdAt)}</div>
+                  <div className="text-sm text-[var(--adm-text-muted)]">{formatDateTime(entry.createdAt)}</div>
                 </div>
               </div>
             )) : <Empty text="No order audit entries yet." />}
@@ -1536,9 +1543,9 @@ function TimelineTab({
         <Panel className={DARK_PANEL} eyebrow="Customer comms" title="Email actions" dark>
           <div className="space-y-2">
             {emailStatuses.map((entry) => (
-              <div key={entry.label} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                <span className="text-sm font-medium text-slate-200">{entry.label}</span>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${entry.sentAt ? "bg-emerald-400/15 text-emerald-200" : "bg-white/10 text-slate-300"}`}>{entry.sentAt ? formatCompactDate(entry.sentAt) : "Not sent"}</span>
+              <div key={entry.label} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3">
+                <span className="text-sm font-medium text-[var(--adm-text)]">{entry.label}</span>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${entry.sentAt ? "bg-emerald-400/15 text-[var(--adm-success)]" : "bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"}`}>{entry.sentAt ? formatCompactDate(entry.sentAt) : "Not sent"}</span>
               </div>
             ))}
           </div>
@@ -1553,22 +1560,22 @@ function TimelineTab({
               />
             ) : null}
             <label className="block">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Reason for manual email</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">Reason for manual email</span>
               <textarea
                 value={emailReason}
                 onChange={(event) => setEmailReason(event.target.value)}
-                className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10"
+                className="mt-2 min-h-24 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3.5 py-3 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-cyan-400/40 focus:ring-4 focus:ring-cyan-400/10"
                 placeholder="Explain why the customer needs this manual email."
                 disabled={!canSendOrderEmail || sendingEmail !== null}
               />
             </label>
             <div className="grid gap-2">
-              <button type="button" onClick={() => void sendEmail("confirmation")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
-              <button type="button" onClick={() => void sendEmail("shipping")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
-              <button type="button" onClick={() => void sendEmail("refund_request")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 text-sm font-semibold text-amber-100 transition hover:border-amber-200/30 hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund_request" ? "Sending..." : "Send refund form"}</button>
-              <button type="button" onClick={() => void sendEmail("refund")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 text-sm font-semibold text-rose-100 transition hover:border-rose-300/30 hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
-              <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Lieferschein</a>
-              <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">Open invoice</a>
+              <button type="button" onClick={() => void sendEmail("confirmation")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "confirmation" ? "Sending..." : "Send confirmation"}</button>
+              <button type="button" onClick={() => void sendEmail("shipping")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-8 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "shipping" ? "Sending..." : "Send shipping"}</button>
+              <button type="button" onClick={() => void sendEmail("refund_request")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-8 items-center justify-center rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 text-sm font-semibold text-[#81560e] transition hover:border-amber-200/30 hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund_request" ? "Sending..." : "Send refund form"}</button>
+              <button type="button" onClick={() => void sendEmail("refund")} disabled={!canSendOrderEmail || sendingEmail !== null} className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-4 text-sm font-semibold text-[var(--adm-error)] transition hover:border-[var(--adm-error)] hover:bg-[#fae7e3] disabled:cursor-not-allowed disabled:opacity-50">{sendingEmail === "refund" ? "Sending..." : "Send refund"}</button>
+              <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-success)] bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25">Download Lieferschein</a>
+              <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center justify-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-white transition hover:bg-amber-200">Open invoice</a>
             </div>
           </div>
         </Panel>
@@ -1578,21 +1585,21 @@ function TimelineTab({
 }
 
 function DraftRow({ label, value, mono, emphasis }: { label: string; value: string; mono?: boolean; emphasis?: boolean }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p><p className={`mt-2 text-sm ${emphasis ? "font-semibold text-cyan-100" : "font-medium text-white"} ${mono ? "break-all font-mono text-[13px]" : ""}`}>{value}</p></div>;
+  return <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">{label}</p><p className={`mt-2 text-sm ${emphasis ? "font-semibold text-[var(--adm-primary)]" : "font-medium text-[var(--adm-text)]"} ${mono ? "break-all font-mono text-[13px]" : ""}`}>{value}</p></div>;
 }
 
 function OutcomeCard({ tone, eyebrow, title, detail }: { tone: "success" | "info" | "warning"; eyebrow: string; title: string; detail: string }) {
   const toneClass = tone === "success"
-    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+    ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
     : tone === "warning"
-      ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
-      : "border-cyan-400/20 bg-cyan-400/10 text-cyan-100";
+      ? "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
+      : "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]";
 
-  return <div className={`rounded-[24px] border px-4 py-4 ${toneClass}`}><p className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-80">{eyebrow}</p><p className="mt-2 text-sm font-semibold">{title}</p><p className="mt-2 text-sm leading-6 opacity-90">{detail}</p></div>;
+  return <div className={`rounded-xl border px-4 py-4 ${toneClass}`}><p className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-80">{eyebrow}</p><p className="mt-2 text-sm font-semibold">{title}</p><p className="mt-2 text-sm leading-6 opacity-90">{detail}</p></div>;
 }
 
 function Banner({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
-  return <div role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"} className={`rounded-2xl border px-4 py-3 text-sm font-medium motion-safe:animate-[order-banner-in_450ms_ease-out] ${tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100" : "border-rose-400/20 bg-rose-400/10 text-rose-100"}`}>{children}</div>;
+  return <div role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"} className={`rounded-xl border px-4 py-3 text-sm font-medium motion-safe:animate-[order-banner-in_450ms_ease-out] ${tone === "success" ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]" : "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"}`}>{children}</div>;
 }
 
 function CompactMetric({
@@ -1607,17 +1614,17 @@ function CompactMetric({
   tone?: "slate" | "cyan" | "emerald" | "rose";
 }) {
   const toneClass = {
-    slate: "border-white/8 bg-white/[0.04]",
-    cyan: "border-cyan-300/20 bg-cyan-300/10",
-    emerald: "border-emerald-300/20 bg-emerald-300/10",
-    rose: "border-rose-300/20 bg-rose-300/10",
+    slate: "border-[var(--adm-border)] bg-[var(--adm-surface-2)]",
+    cyan: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)]",
+    emerald: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)]",
+    rose: "border-[var(--adm-error)] bg-[#fae7e3]",
   }[tone];
 
   return (
     <div className={`rounded-[20px] border px-4 py-3 ${toneClass}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-2 text-xl font-semibold tracking-tight text-white">{value}</p>
-      <p className="mt-1 text-xs leading-5 text-slate-300">{detail}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">{label}</p>
+      <p className="mt-2 text-xl font-semibold tracking-tight text-[var(--adm-text)]">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-[var(--adm-text-muted)]">{detail}</p>
     </div>
   );
 }
@@ -1638,23 +1645,23 @@ function CompactFact({
   dark?: boolean;
 }) {
   return (
-    <div className={`min-w-0 rounded-2xl border px-3.5 py-3 ${dark ? "border-white/10 bg-white/[0.035]" : "border-white/8 bg-black/10"}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-      <p className={`mt-1 truncate text-sm font-semibold text-white ${monoValue ? "font-mono text-[13px]" : ""}`}>{value}</p>
-      <p className={`mt-1 truncate text-xs text-slate-400 ${monoDetail ? "font-mono" : ""}`}>{detail}</p>
+    <div className={`min-w-0 rounded-xl border px-3.5 py-3 ${dark ? "border-[var(--adm-border)] bg-[var(--adm-surface-2)]" : "border-[var(--adm-border)] bg-[var(--adm-surface-2)]"}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">{label}</p>
+      <p className={`mt-1 truncate text-sm font-semibold text-[var(--adm-text)] ${monoValue ? "font-mono text-[13px]" : ""}`}>{value}</p>
+      <p className={`mt-1 truncate text-xs text-[var(--adm-text-muted)] ${monoDetail ? "font-mono" : ""}`}>{detail}</p>
     </div>
   );
 }
 
 function OverviewSummaryRow({ label, value, detail, badgeClass }: { label: string; value: string; detail?: string; badgeClass?: string }) {
   return (
-    <div className="flex flex-col gap-2 border-b border-white/8 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-b border-[var(--adm-border)] px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-        {detail ? <p className="mt-1 text-xs text-slate-500">{detail}</p> : null}
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">{label}</p>
+        {detail ? <p className="mt-1 text-xs text-[var(--adm-text-faint)]">{detail}</p> : null}
       </div>
       <div className="sm:text-right">
-        {badgeClass ? <span className={badgeClass}>{value}</span> : <p className="text-sm font-semibold text-white">{value}</p>}
+        {badgeClass ? <span className={badgeClass}>{value}</span> : <p className="text-sm font-semibold text-[var(--adm-text)]">{value}</p>}
       </div>
     </div>
   );
@@ -1662,22 +1669,22 @@ function OverviewSummaryRow({ label, value, detail, badgeClass }: { label: strin
 
 function DataCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-3 text-xl font-semibold text-white">{value}</p>
-      <p className="mt-2 text-sm text-slate-300">{detail}</p>
+    <div className="rounded-[22px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">{label}</p>
+      <p className="mt-3 text-xl font-semibold text-[var(--adm-text)]">{value}</p>
+      <p className="mt-2 text-sm text-[var(--adm-text-muted)]">{detail}</p>
     </div>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3"><span className="text-sm text-slate-300">{label}</span><span className="text-right text-sm font-semibold text-white">{value}</span></div>;
+  return <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"><span className="text-sm text-[var(--adm-text-muted)]">{label}</span><span className="text-right text-sm font-semibold text-[var(--adm-text)]">{value}</span></div>;
 }
 
 function DarkRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p><p className={`mt-2 text-sm text-white ${mono ? "break-all font-mono text-[13px]" : "font-medium"}`}>{value}</p></div>;
+  return <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-muted)]">{label}</p><p className={`mt-2 text-sm text-[var(--adm-text)] ${mono ? "break-all font-mono text-[13px]" : "font-medium"}`}>{value}</p></div>;
 }
 
 function Empty({ text, dark }: { text: string; dark?: boolean }) {
-  return <div className={`rounded-[22px] border px-4 py-8 text-sm ${dark ? "border-dashed border-white/10 bg-white/[0.03] text-slate-400" : "border-dashed border-white/8 bg-white/[0.03] text-slate-400"}`}>{text}</div>;
+  return <div className={`rounded-[22px] border px-4 py-8 text-sm ${dark ? "border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-muted)]" : "border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-muted)]"}`}>{text}</div>;
 }

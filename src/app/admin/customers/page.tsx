@@ -41,7 +41,7 @@ export default async function AdminCustomersPage({
   });
 
   return (
-    <div className="admin-route-frame text-slate-100">
+    <div className="admin-route-frame text-[var(--adm-text)]">
       <AdminCustomersClient
         initialData={initialData}
         initialSegmentFilter={initialSegment}

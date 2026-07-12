@@ -13,6 +13,7 @@ import {
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminPageHeader } from "@/components/admin/ui";
 import {
   buildAdminSearchHref,
   getAdminTimeRangeOption,
@@ -26,8 +27,8 @@ type StorefrontSummary = ProfitabilityPageData["storefronts"][number];
 
 const getStorefrontBadgeClassName = (storefront: Storefront) =>
   storefront === "GROW"
-    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-    : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+    ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+    : "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]";
 
 function StorefrontBadge({ storefront }: { storefront: Storefront }) {
   return (
@@ -55,57 +56,57 @@ function StorefrontSummaryCard({
   const primaryRatio =
     lens === "allocated" ? item.allocatedProfitRatio : item.contributionMarginRatio;
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
             Storefront
           </div>
-          <div className="mt-2 text-lg font-semibold text-white">{item.label}</div>
+          <div className="mt-2 text-lg font-semibold text-[var(--adm-text)]">{item.label}</div>
         </div>
         <StorefrontBadge storefront={item.storefront} />
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
             {lens === "allocated" ? "Allocated Profit" : "Contribution"}
           </div>
-          <div className="mt-2 text-xl font-semibold text-white">
+          <div className="mt-2 text-xl font-semibold text-[var(--adm-text)]">
             {formatMoney(primaryValue, currency)}
           </div>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
             {formatPercent(primaryRatio)}{" "}
             {lens === "allocated" ? "after allocated overhead" : "after COGS and fees"}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
             Net Revenue
           </div>
-          <div className="mt-2 text-xl font-semibold text-white">
+          <div className="mt-2 text-xl font-semibold text-[var(--adm-text)]">
             {formatMoney(item.netRevenueCents, currency)}
           </div>
-          <div className="mt-1 text-xs text-slate-400">{item.paidOrderCount} paid orders</div>
+          <div className="mt-1 text-xs text-[var(--adm-text-muted)]">{item.paidOrderCount} paid orders</div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
             Order Quality
           </div>
-          <div className="mt-2 text-base font-semibold text-white">
+          <div className="mt-2 text-base font-semibold text-[var(--adm-text)]">
             {formatMoney(item.averageOrderValueCents, currency)} AOV
           </div>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
             {formatMoney(item.contributionPerOrderCents, currency)} contribution per order
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#0a1017] px-3 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
             Catalog Fit
           </div>
-          <div className="mt-2 text-base font-semibold text-white">
+          <div className="mt-2 text-base font-semibold text-[var(--adm-text)]">
             {item.activeProductCount} active SKUs
           </div>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
             {item.exclusiveProductCount} exclusive · {formatPercent(item.refundRate)} refunded
           </div>
         </div>
@@ -139,7 +140,7 @@ function OpportunityList({
         <Link
           key={row.productId}
           href={`/admin/catalog/${row.productId}`}
-          className="block rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 transition hover:border-cyan-400/20 hover:bg-cyan-400/5"
+          className="block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/5"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -148,20 +149,20 @@ function OpportunityList({
                   <StorefrontBadge key={`${row.productId}-${storefront}`} storefront={storefront} />
                 ))}
               </div>
-              <div className="mt-2 truncate text-sm font-semibold text-white">
+              <div className="mt-2 truncate text-sm font-semibold text-[var(--adm-text)]">
                 {row.productTitle}
               </div>
-              <div className="mt-1 text-xs text-slate-500">
+              <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                 {row.categoryName} · {row.supplierName}
               </div>
-              <div className="mt-2 text-xs text-slate-400">
+              <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                 {row.views} views · {row.purchases} purchases · {formatPercent(row.conversionRate)} CVR
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm font-semibold text-white">{metricValue(row)}</div>
-              <div className="mt-1 text-xs text-slate-500">{metricLabel}</div>
-              <div className="mt-2 text-xs text-slate-400">
+              <div className="text-sm font-semibold text-[var(--adm-text)]">{metricValue(row)}</div>
+              <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{metricLabel}</div>
+              <div className="mt-2 text-xs text-[var(--adm-text-muted)]">
                 {submetricValue(row)} {submetricLabel}
               </div>
             </div>
@@ -228,35 +229,41 @@ export default async function AdminProfitabilityPage({
   const currency = coverage.currency;
 
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#0c0a14] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.32)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.14),_transparent_28%),linear-gradient(135deg,_rgba(12,10,20,0.98),_rgba(16,12,28,0.94))]" />
+    <AdminPage layout="dashboard">
+      <AdminPageHeader
+        eyebrow="Control Layer / Profitability"
+        title="Margin and profit opportunities"
+        description={selectedLens === "allocated" ? "Allocated overhead and contribution performance across Smokeify and GrowVault." : "Contribution margin, price, assortment, and traffic opportunities across both storefronts."}
+        actions={<AdminTimeRangeTabs pathname="/admin/profitability" activeDays={days} />}
+      />
+      <section className="hidden">
+        <div className="absolute inset-0 bg-[var(--adm-surface)]" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-violet-200/70">
               Control Layer / Profitability
             </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">
+            <h1 className="mt-3 text-3xl font-semibold text-[var(--adm-text)]">
               Margin and profit opportunities across Smokeify and GrowVault
             </h1>
-            <p className="mt-3 max-w-3xl text-sm text-slate-300">
+            <p className="mt-3 max-w-3xl text-sm text-[var(--adm-text-muted)]">
               {selectedLens === "allocated"
                 ? "This report adds explicit storefront overhead allocation on top of contribution data so the team can inspect a fuller profit view without losing the direct-margin baseline."
                 : "This report is contribution-focused. It uses tracked net revenue, product cost and payment fees to show where price, assortment, storefront allocation and traffic can improve commercial performance."}
             </p>
-            <div className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-100">
+            <div className="mt-4 inline-flex rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text)]">
               {selectedRange.adjectiveLabel} control window
             </div>
           </div>
           <div className="flex max-w-sm flex-col items-start gap-3">
             <AdminTimeRangeTabs pathname="/admin/profitability" activeDays={days} />
-            <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1 text-xs font-semibold">
+            <div className="inline-flex rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-1 text-xs font-semibold">
               <Link
                 href={buildAdminSearchHref("/admin/profitability", {
                   days: String(days),
                   lens: "contribution",
                 })}
-                className={`rounded-full px-3 py-1.5 ${selectedLens === "contribution" ? "bg-cyan-300 text-slate-950" : "text-slate-200"}`}
+                className={`rounded-full px-3 py-1.5 ${selectedLens === "contribution" ? "bg-cyan-300 text-white" : "text-[var(--adm-text)]"}`}
               >
                 Contribution
               </Link>
@@ -265,7 +272,7 @@ export default async function AdminProfitabilityPage({
                   days: String(days),
                   lens: "allocated",
                 })}
-                className={`rounded-full px-3 py-1.5 ${selectedLens === "allocated" ? "bg-cyan-300 text-slate-950" : "text-slate-200"}`}
+                className={`rounded-full px-3 py-1.5 ${selectedLens === "allocated" ? "bg-cyan-300 text-white" : "text-[var(--adm-text)]"}`}
               >
                 Allocated Profit
               </Link>
@@ -273,13 +280,13 @@ export default async function AdminProfitabilityPage({
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
               <Link
                 href="/admin/catalog"
-                className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               >
                 Catalog workspace
               </Link>
               <Link
                 href="/admin/finance"
-                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/15"
+                className="rounded-full border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-3 py-2 text-[var(--adm-success)] transition hover:border-[var(--adm-success)] hover:bg-emerald-400/15"
               >
                 Finance control
               </Link>
@@ -294,14 +301,14 @@ export default async function AdminProfitabilityPage({
         </div>
       </section>
 
-      <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+      <div className="rounded-xl border border-cyan-500/20 bg-[var(--adm-primary-soft)] px-4 py-3 text-sm text-[var(--adm-primary)]">
         {selectedLens === "allocated"
           ? `Allocated profit is currently distributing ${formatMoney(coverage.allocatedOverheadCents, currency)} of explicit overhead from allocated expense records and recurring plans.`
           : "Use contribution first to isolate direct commercial performance, then switch to Allocated Profit for a fuller overhead-aware lens."}
       </div>
 
       {coverage.unattributedPaidOrders > 0 ? (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-amber-500/20 bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           {coverage.unattributedPaidOrders} paid order(s) in the selected window are missing
           storefront attribution. Storefront comparison currently excludes{" "}
           {formatMoney(coverage.unattributedContributionCents, currency)} of contribution until
@@ -314,7 +321,7 @@ export default async function AdminProfitabilityPage({
       ) : null}
 
       {coverage.unallocatedExpenseCount > 0 ? (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-amber-500/20 bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           {coverage.unallocatedExpenseCount} expense record(s) in the selected window still lack
           complete storefront allocation, so the allocated-profit lens remains incomplete until they
           are fixed in{" "}
@@ -433,20 +440,20 @@ export default async function AdminProfitabilityPage({
           title="How to use this view"
           description="The fastest margin wins usually come from pricing discipline, pruning weak traffic and expanding proven products to the right storefront."
         >
-          <div className="space-y-3 text-sm text-slate-300">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+          <div className="space-y-3 text-sm text-[var(--adm-text-muted)]">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
               Raise price carefully on products with healthy conversion and modest margin before
               spending more to push traffic.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
               Review low-margin products with high traffic first. They often consume ad spend and
               support effort without enough contribution.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
               Expand proven Smokeify products into GrowVault when margin and conversion are already
               established and catalog fit is clear.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
               Push more visibility to products with strong contribution but limited views before
               broad discounting the rest of the catalog.
             </div>
@@ -564,10 +571,10 @@ export default async function AdminProfitabilityPage({
                 <Link
                   key={row.productId}
                   href={`/admin/catalog/${row.productId}`}
-                  className="block rounded-[24px] border border-white/10 bg-[#090d12] px-4 py-4 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                  className="block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 text-sm text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-surface)]"
                 >
-                  <div className="font-semibold text-white">{row.productTitle}</div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="font-semibold text-[var(--adm-text)]">{row.productTitle}</div>
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                     {row.categoryName} · {row.supplierName}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5">
@@ -597,8 +604,8 @@ export default async function AdminProfitabilityPage({
                 </Link>
               ))}
             </div>
-            <div className="admin-data-grid-scroll hidden rounded-[24px] border border-white/10 bg-[#090d12] md:block">
-              <div className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <div className="admin-data-grid-scroll hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] md:block">
+              <div className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 border-b border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--adm-text-faint)]">
                 <div>Product</div>
                 <div>Category</div>
                 <div>Supplier</div>
@@ -612,11 +619,11 @@ export default async function AdminProfitabilityPage({
                   <Link
                     key={row.productId}
                     href={`/admin/catalog/${row.productId}`}
-                    className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 px-4 py-3 text-sm text-slate-300 transition hover:bg-white/[0.03]"
+                    className="grid min-w-[920px] grid-cols-[1.75fr_1fr_1fr_0.95fr_0.8fr_0.7fr_1fr] gap-3 px-4 py-3 text-sm text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-surface)]"
                   >
                     <div>
-                      <div className="font-semibold text-white">{row.productTitle}</div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="font-semibold text-[var(--adm-text)]">{row.productTitle}</div>
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                         {row.purchases} purchases · {row.addToCart} carts
                       </div>
                     </div>
@@ -633,8 +640,8 @@ export default async function AdminProfitabilityPage({
                         (selectedLens === "allocated"
                           ? row.allocatedProfitCents
                           : row.marginCents) >= 0
-                          ? "text-cyan-300"
-                          : "text-amber-300"
+                          ? "text-[var(--adm-primary)]"
+                          : "text-[#81560e]"
                       }
                     >
                       {formatMoney(
@@ -644,7 +651,7 @@ export default async function AdminProfitabilityPage({
                     </div>
                     <div>
                       <div>{formatPercent(row.conversionRate)}</div>
-                      <div className="mt-1 text-xs text-slate-500">{row.views} views</div>
+                      <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{row.views} views</div>
                     </div>
                   </Link>
                 ))}
@@ -653,7 +660,7 @@ export default async function AdminProfitabilityPage({
           </>
         )}
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }
 
@@ -668,14 +675,14 @@ function ProfitabilityMeta({
 }) {
   const toneClass =
     tone === "positive"
-      ? "text-cyan-300"
+      ? "text-[var(--adm-primary)]"
       : tone === "warning"
-        ? "text-amber-300"
-        : "text-white";
+        ? "text-[#81560e]"
+        : "text-[var(--adm-text)]";
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-faint)]">
         {label}
       </div>
       <div className={`mt-2 text-sm font-semibold ${toneClass}`}>{value}</div>

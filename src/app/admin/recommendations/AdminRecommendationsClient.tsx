@@ -12,6 +12,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminSplitView } from "@/components/admin/ui";
 import {
   RECOMMENDATION_RULE_TARGET_LABELS,
   RECOMMENDATION_RULE_TARGET_OPTIONS,
@@ -424,7 +425,7 @@ export default function AdminRecommendationsClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="master-detail">
       <AdminPageIntro
         eyebrow="Admin / Recommendations"
         title="Recommendation control center"
@@ -442,7 +443,7 @@ export default function AdminRecommendationsClient({
       {message ? <AdminNotice tone="success">{message}</AdminNotice> : null}
       {error ? <AdminNotice tone="error">{error}</AdminNotice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <AdminSplitView>
         <AdminPanel
           eyebrow="Central rules"
           title="Recommendation rules"
@@ -452,29 +453,29 @@ export default function AdminRecommendationsClient({
             {rules.map((rule) => (
               <div
                 key={rule.id}
-                className="rounded-2xl border border-white/10 bg-[#070a0f] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-white">{rule.name}</h3>
+                      <h3 className="text-sm font-semibold text-[var(--adm-text)]">{rule.name}</h3>
                       <span
                         className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                           rule.isActive
-                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                            : "border-white/10 bg-white/[0.04] text-slate-400"
+                            ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                            : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                         }`}
                       >
                         {rule.isActive ? "Active" : "Inactive"}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-slate-400">
+                    <p className="mt-2 text-sm text-[var(--adm-text-muted)]">
                       {RECOMMENDATION_RULE_TRIGGER_LABELS[rule.triggerType]} &quot;{rule.triggerValue}
                       &quot; {"->"} {RECOMMENDATION_RULE_TARGET_LABELS[rule.targetType]} &quot;
                       {rule.targetValue}&quot;
                     </p>
                     {rule.description ? (
-                      <p className="mt-2 text-xs text-slate-500">{rule.description}</p>
+                      <p className="mt-2 text-xs text-[var(--adm-text-faint)]">{rule.description}</p>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -487,7 +488,7 @@ export default function AdminRecommendationsClient({
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400">
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--adm-text-muted)]">
                   <span>Priority: {rule.priority}</span>
                   <span>Max products: {rule.maxProducts ?? "default"}</span>
                   <span>Updated: {new Date(rule.updatedAt).toLocaleString("de-DE")}</span>
@@ -496,7 +497,7 @@ export default function AdminRecommendationsClient({
             ))}
 
             {rules.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-5 py-8 text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-5 py-8 text-sm text-[var(--adm-text-faint)]">
                 No recommendation rules yet. Create the first rule on the right.
               </div>
             ) : null}
@@ -510,7 +511,7 @@ export default function AdminRecommendationsClient({
             description="Use category handles, product tags, or product groups as the matching layer. This keeps recommendation logic centralized instead of maintaining every link product-by-product."
           >
             <div className="space-y-4">
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Name
                 <div className="mt-2">
                   <AdminInput
@@ -521,7 +522,7 @@ export default function AdminRecommendationsClient({
                 </div>
               </label>
 
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                 Description
                 <div className="mt-2">
                   <AdminTextarea
@@ -536,7 +537,7 @@ export default function AdminRecommendationsClient({
               </label>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Trigger type
                   <div className="mt-2">
                     <AdminSelect
@@ -557,7 +558,7 @@ export default function AdminRecommendationsClient({
                   </div>
                 </label>
 
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Trigger value
                   <div className="mt-2">
                     <AdminInput
@@ -578,7 +579,7 @@ export default function AdminRecommendationsClient({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Target type
                   <div className="mt-2">
                     <AdminSelect
@@ -599,7 +600,7 @@ export default function AdminRecommendationsClient({
                   </div>
                 </label>
 
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Target value
                   <div className="mt-2">
                     <AdminInput
@@ -620,7 +621,7 @@ export default function AdminRecommendationsClient({
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Priority
                   <div className="mt-2">
                     <AdminInput
@@ -633,7 +634,7 @@ export default function AdminRecommendationsClient({
                   </div>
                 </label>
 
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                   Max products
                   <div className="mt-2">
                     <AdminInput
@@ -646,7 +647,7 @@ export default function AdminRecommendationsClient({
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 pt-7 text-sm text-slate-300">
+                <label className="flex items-center gap-3 pt-7 text-sm text-[var(--adm-text-muted)]">
                   <input
                     type="checkbox"
                     checked={form.isActive}
@@ -674,8 +675,8 @@ export default function AdminRecommendationsClient({
             title="Per-product overrides"
             description="Product cross-sells are the manual override layer. Use them for exceptions or hero products, not broad recommendation maintenance."
           >
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
-              <div className="text-sm text-slate-400">
+            <div className="space-y-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+              <div className="text-sm text-[var(--adm-text-muted)]">
                 This workspace edits the same manual cross-sell rows that the product editor uses.
                 The centralized rule engine reads these overrides first and then fills the remaining
                 slots from matching rules.
@@ -683,7 +684,7 @@ export default function AdminRecommendationsClient({
 
               {selectedProduct ? (
                 <>
-                  <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
                     Add override product
                     <div className="mt-2">
                       <AdminInput
@@ -694,7 +695,7 @@ export default function AdminRecommendationsClient({
                     </div>
                   </label>
 
-                  {overrideSearching ? <p className="text-sm text-slate-500">Searching override products...</p> : null}
+                  {overrideSearching ? <p className="text-sm text-[var(--adm-text-faint)]">Searching override products...</p> : null}
 
                   {overrideSearchResults.length > 0 ? (
                     <div className="space-y-2">
@@ -710,13 +711,13 @@ export default function AdminRecommendationsClient({
                             key={result.id}
                             type="button"
                             onClick={() => addManualOverride(result)}
-                            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left hover:border-cyan-400/20 hover:bg-cyan-400/5"
+                            className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-left hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/5"
                           >
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold text-white">{result.title}</div>
-                              <div className="truncate text-xs text-slate-500">/{result.handle}</div>
+                              <div className="truncate text-sm font-semibold text-[var(--adm-text)]">{result.title}</div>
+                              <div className="truncate text-xs text-[var(--adm-text-faint)]">/{result.handle}</div>
                             </div>
-                            <span className="text-xs font-semibold text-cyan-200">Add</span>
+                            <span className="text-xs font-semibold text-[var(--adm-primary)]">Add</span>
                           </button>
                         ))}
                     </div>
@@ -726,11 +727,11 @@ export default function AdminRecommendationsClient({
                     {manualOverrides.map((item, index) => (
                       <div
                         key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                       >
                         <div>
-                          <div className="text-sm font-semibold text-white">{item.title}</div>
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="text-sm font-semibold text-[var(--adm-text)]">{item.title}</div>
+                          <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
                             /{item.handle} | Position {index + 1}
                           </div>
                         </div>
@@ -760,7 +761,7 @@ export default function AdminRecommendationsClient({
                       </div>
                     ))}
                     {manualOverrides.length === 0 ? (
-                      <div className="text-sm text-slate-500">
+                      <div className="text-sm text-[var(--adm-text-faint)]">
                         No manual overrides configured for the selected product.
                       </div>
                     ) : null}
@@ -772,21 +773,21 @@ export default function AdminRecommendationsClient({
                     </AdminButton>
                     <Link
                       href={`/admin/catalog/${selectedProduct.id}#cross-sells`}
-                      className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06]"
+                      className="inline-flex h-9 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                     >
                       Open product editor
                     </Link>
                   </div>
                 </>
               ) : (
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-[var(--adm-text-muted)]">
                   Select a product in the recommendation explorer to edit its manual overrides here.
                 </div>
               )}
             </div>
           </AdminPanel>
         </div>
-      </div>
+      </AdminSplitView>
 
       <AdminPanel
         eyebrow="Recommendation explorer"
@@ -795,7 +796,7 @@ export default function AdminRecommendationsClient({
       >
         <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
           <div className="space-y-4">
-            <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
               Product search
               <div className="mt-2">
                 <AdminInput
@@ -806,7 +807,7 @@ export default function AdminRecommendationsClient({
               </div>
             </label>
 
-            {searching ? <p className="text-sm text-slate-500">Searching...</p> : null}
+            {searching ? <p className="text-sm text-[var(--adm-text-faint)]">Searching...</p> : null}
 
             <div className="space-y-2">
               {searchResults.map((result) => (
@@ -814,27 +815,27 @@ export default function AdminRecommendationsClient({
                   key={result.id}
                   type="button"
                   onClick={() => void loadExplanation(result)}
-                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3 text-left hover:border-cyan-400/20 hover:bg-cyan-400/5"
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-left hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/5"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-white">{result.title}</div>
-                    <div className="truncate text-xs text-slate-500">/{result.handle}</div>
+                    <div className="truncate text-sm font-semibold text-[var(--adm-text)]">{result.title}</div>
+                    <div className="truncate text-xs text-[var(--adm-text-faint)]">/{result.handle}</div>
                   </div>
-                  <span className="text-xs font-semibold text-cyan-200">Inspect</span>
+                  <span className="text-xs font-semibold text-[var(--adm-primary)]">Inspect</span>
                 </button>
               ))}
             </div>
 
             {selectedProduct ? (
-              <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                   Selected product
                 </div>
-                <div className="mt-2 text-sm font-semibold text-white">{selectedProduct.title}</div>
-                <div className="mt-1 text-xs text-slate-500">/{selectedProduct.handle}</div>
+                <div className="mt-2 text-sm font-semibold text-[var(--adm-text)]">{selectedProduct.title}</div>
+                <div className="mt-1 text-xs text-[var(--adm-text-faint)]">/{selectedProduct.handle}</div>
                 <Link
                   href={`/admin/catalog/${selectedProduct.id}`}
-                  className="mt-3 inline-flex text-xs font-semibold text-cyan-200 hover:text-cyan-100"
+                  className="mt-3 inline-flex text-xs font-semibold text-[var(--adm-primary)] hover:text-[var(--adm-primary)]"
                 >
                   Open product editor
                 </Link>
@@ -843,47 +844,47 @@ export default function AdminRecommendationsClient({
           </div>
 
           <div className="space-y-4">
-            {explaining ? <p className="text-sm text-slate-500">Loading recommendation explanation...</p> : null}
+            {explaining ? <p className="text-sm text-[var(--adm-text-faint)]">Loading recommendation explanation...</p> : null}
             {explainError ? <AdminNotice tone="error">{explainError}</AdminNotice> : null}
 
             {explainData ? (
               <>
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                       Categories
                     </div>
-                    <div className="mt-2 text-sm text-slate-200">
+                    <div className="mt-2 text-sm text-[var(--adm-text)]">
                       {explainData.product.categories.map((category) => category.handle).join(", ") || "None"}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                       Tags
                     </div>
-                    <div className="mt-2 text-sm text-slate-200">
+                    <div className="mt-2 text-sm text-[var(--adm-text)]">
                       {explainData.product.tags.join(", ") || "None"}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                       Product group
                     </div>
-                    <div className="mt-2 text-sm text-slate-200">
+                    <div className="mt-2 text-sm text-[var(--adm-text)]">
                       {explainData.product.productGroup || "None"}
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Matched rules
                   </div>
                   <div className="mt-3 space-y-2">
                     {explainData.matchedRules.filter((rule) => rule.matched).map((rule) => (
-                      <div key={rule.id} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-                        <div className="text-sm font-semibold text-white">{rule.name}</div>
-                        <div className="mt-1 text-xs text-slate-400">
+                      <div key={rule.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+                        <div className="text-sm font-semibold text-[var(--adm-text)]">{rule.name}</div>
+                        <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                           {RECOMMENDATION_RULE_TRIGGER_LABELS[rule.triggerType]} &quot;{rule.triggerValue}
                           &quot; {"->"} {RECOMMENDATION_RULE_TARGET_LABELS[rule.targetType]} &quot;
                           {rule.targetValue}&quot;
@@ -891,45 +892,45 @@ export default function AdminRecommendationsClient({
                       </div>
                     ))}
                     {explainData.matchedRules.filter((rule) => rule.matched).length === 0 ? (
-                      <div className="text-sm text-slate-500">No active centralized rules matched this product.</div>
+                      <div className="text-sm text-[var(--adm-text-faint)]">No active centralized rules matched this product.</div>
                     ) : null}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Manual overrides
                   </div>
                   <div className="mt-3 space-y-2">
                     {explainData.legacyManualOverrides.map((item) => (
-                      <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-                        <div className="text-sm font-semibold text-white">{item.title}</div>
-                        <div className="mt-1 text-xs text-slate-400">
+                      <div key={item.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
+                        <div className="text-sm font-semibold text-[var(--adm-text)]">{item.title}</div>
+                        <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                           /{item.handle} | Position {item.sortOrder + 1}
                         </div>
                       </div>
                     ))}
                     {explainData.legacyManualOverrides.length === 0 ? (
-                      <div className="text-sm text-slate-500">No manual product overrides are set.</div>
+                      <div className="text-sm text-[var(--adm-text-faint)]">No manual product overrides are set.</div>
                     ) : null}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-[#070a0f] p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Final recommendation order
                   </div>
                   <div className="mt-3 space-y-2">
                     {explainData.recommendations.map((item) => (
-                      <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                      <div key={item.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <div className="text-sm font-semibold text-white">{item.title}</div>
-                            <div className="mt-1 text-xs text-slate-400">
+                            <div className="text-sm font-semibold text-[var(--adm-text)]">{item.title}</div>
+                            <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                               /{item.handle} | Score {item.score}
                             </div>
                           </div>
-                          <div className="text-xs text-slate-400">
+                          <div className="text-xs text-[var(--adm-text-muted)]">
                             {item.price
                               ? `${item.price.amount} ${item.price.currencyCode}`
                               : "No price"}
@@ -939,7 +940,7 @@ export default function AdminRecommendationsClient({
                           {item.reasons.map((reason, index) => (
                             <span
                               key={`${item.id}-${reason.label}-${index}`}
-                              className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-semibold text-cyan-200"
+                              className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--adm-primary)]"
                               title={reason.detail}
                             >
                               {reason.label}
@@ -949,7 +950,7 @@ export default function AdminRecommendationsClient({
                       </div>
                     ))}
                     {explainData.recommendations.length === 0 ? (
-                      <div className="text-sm text-slate-500">No recommendations resolved for this product.</div>
+                      <div className="text-sm text-[var(--adm-text-faint)]">No recommendations resolved for this product.</div>
                     ) : null}
                   </div>
                 </div>
@@ -958,6 +959,6 @@ export default function AdminRecommendationsClient({
           </div>
         </div>
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

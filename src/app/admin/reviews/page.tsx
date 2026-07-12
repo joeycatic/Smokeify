@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Prisma, ReviewStatus } from "@prisma/client";
 import { AdminMetricCard, AdminPanel } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminPageHeader } from "@/components/admin/ui";
 import { requireAdminScope } from "@/lib/adminCatalog";
 import { prisma } from "@/lib/prisma";
 import { parseStorefront } from "@/lib/storefronts";
@@ -134,20 +135,13 @@ export default async function AdminReviewsPage({
   };
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(18,22,29,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
-          Commerce / Reviews
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold text-white">
-          Product review oversight and moderation
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm text-slate-400">
-          Review customer feedback, jump directly into the related product, and
-          change review visibility without leaving the admin workspace.
-        </p>
-
-        <form className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto_auto]">
+    <AdminPage layout="queue">
+      <AdminPageHeader
+        eyebrow="Commerce / Reviews"
+        title="Review moderation queue"
+        description="Review feedback, open related products, and change visibility from one queue."
+      >
+        <form className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_220px_auto_auto]">
           {language ? <input type="hidden" name="lang" value={language} /> : null}
           {storefront ? <input type="hidden" name="storefront" value={storefront} /> : null}
           <input
@@ -155,12 +149,12 @@ export default async function AdminReviewsPage({
             name="q"
             defaultValue={query}
             placeholder="Search product, reviewer, email, or review text"
-            className="h-11 rounded-2xl border border-white/10 bg-[#0b1016] px-4 text-sm text-slate-100 placeholder:text-slate-500"
+            className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] placeholder:text-[var(--adm-text-faint)]"
           />
           <select
             name="status"
             defaultValue={statusFilter}
-            className="h-11 rounded-2xl border border-white/10 bg-[#0b1016] px-4 text-sm text-slate-100"
+            className="h-9 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)]"
           >
             <option value="ALL">All statuses</option>
             <option value="PENDING">Pending</option>
@@ -169,20 +163,20 @@ export default async function AdminReviewsPage({
           </select>
           <button
             type="submit"
-            className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/15"
+            className="rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 py-3 text-sm font-semibold text-[var(--adm-primary)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/15"
           >
             Apply filters
           </button>
           <Link
             href={buildClearHref()}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+            className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3 text-center text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
           >
             Clear
           </Link>
         </form>
-      </section>
+      </AdminPageHeader>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <AdminKpiStrip>
         <AdminMetricCard
           label="All Reviews"
           value={String(totalReviews)}
@@ -213,7 +207,7 @@ export default async function AdminReviewsPage({
           tone="violet"
           detailBadgeClassName="orders-kpi-badge-violet"
         />
-      </section>
+      </AdminKpiStrip>
 
       <AdminPanel
         eyebrow="Review Queue"
@@ -223,7 +217,7 @@ export default async function AdminReviewsPage({
         <AdminReviewsClient initialReviews={pageReviews} />
 
         {filteredCount > 0 ? (
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm text-slate-400">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--adm-border)] pt-4 text-sm text-[var(--adm-text-muted)]">
             <span>
               Page {currentPage} of {totalPages}
             </span>
@@ -233,8 +227,8 @@ export default async function AdminReviewsPage({
                 aria-disabled={currentPage <= 1}
                 className={`rounded-full border px-3 py-2 font-semibold transition ${
                   currentPage <= 1
-                    ? "pointer-events-none border-white/5 bg-white/[0.02] text-slate-600"
-                    : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
+                    ? "pointer-events-none border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-faint)]"
+                    : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                 }`}
               >
                 Previous
@@ -244,8 +238,8 @@ export default async function AdminReviewsPage({
                 aria-disabled={currentPage >= totalPages}
                 className={`rounded-full border px-3 py-2 font-semibold transition ${
                   currentPage >= totalPages
-                    ? "pointer-events-none border-white/5 bg-white/[0.02] text-slate-600"
-                    : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]"
+                    ? "pointer-events-none border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-faint)]"
+                    : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                 }`}
               >
                 Next
@@ -254,6 +248,6 @@ export default async function AdminReviewsPage({
           </div>
         ) : null}
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

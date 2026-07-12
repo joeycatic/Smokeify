@@ -9,6 +9,7 @@ import {
   AdminPanel,
   AdminSelect,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminPageHeader } from "@/components/admin/ui";
 import type { AdminAlertAssignee, AdminAlertQueueItem } from "@/lib/adminAlerts";
 
 type Props = {
@@ -23,16 +24,16 @@ const PRIORITY_LABELS = {
 } as const;
 
 const PRIORITY_STYLES = {
-  critical: "border-rose-400/20 bg-rose-400/10 text-rose-200",
-  high: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-  medium: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+  critical: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
+  high: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  medium: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
 } as const;
 
 const STATUS_STYLES = {
-  open: "border-rose-400/20 bg-rose-400/10 text-rose-200",
-  acknowledged: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+  open: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
+  acknowledged: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
   snoozed: "border-sky-400/20 bg-sky-400/10 text-sky-200",
-  resolved: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+  resolved: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
 } as const;
 
 const formatDateTime = (value: string | null) => {
@@ -114,48 +115,38 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#140909] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.32)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(248,113,113,0.18),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.12),_transparent_28%),linear-gradient(135deg,_rgba(20,9,9,0.98),_rgba(28,12,12,0.94))]" />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-rose-200/70">
-              Control Layer / Alerts
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">
-              Managed operational queue for payments, stock, tax and support
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm text-slate-300">
-              Alert state now survives recalculation. Assign, acknowledge, snooze, resolve, and
-              reopen work directly from this queue.
-            </p>
-          </div>
+    <AdminPage layout="queue">
+      <AdminPageHeader
+        eyebrow="Control Layer / Alerts"
+        title="Operational alert queue"
+        description="Assign, acknowledge, snooze, resolve, and reopen payment, stock, tax, and support signals."
+        actions={
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
             <Link
               href="/admin/orders"
-              className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+              className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
             >
               Orders
             </Link>
             <Link
               href="/admin/returns"
-              className="rounded-full border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-rose-200 transition hover:border-rose-300/30 hover:bg-rose-400/15"
+              className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-3 py-2 text-[var(--adm-error)] transition hover:border-[var(--adm-error)] hover:bg-[#fae7e3]"
             >
               Returns
             </Link>
           </div>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <AdminKpiStrip>
         <AdminMetricCard label="Alerts" value={String(counts.total)} detail="tracked" footnote="persisted operational records" />
         <AdminMetricCard label="Critical" value={String(counts.critical)} detail="priority" footnote="highest urgency" tone="amber" detailBadgeClassName="orders-kpi-badge-amber" />
         <AdminMetricCard label="Active signal" value={String(counts.active)} detail="live" footnote="currently firing conditions" tone="violet" detailBadgeClassName="orders-kpi-badge-violet" />
         <AdminMetricCard label="Unresolved" value={String(counts.unresolved)} detail="queue" footnote="not yet resolved" tone="emerald" detailBadgeClassName="orders-kpi-badge-emerald" />
-      </section>
+      </AdminKpiStrip>
 
       {error ? (
-        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className="rounded-xl border border-rose-500/20 bg-[#fae7e3] px-4 py-3 text-sm text-[var(--adm-error)]">
           {error}
         </div>
       ) : null}
@@ -179,12 +170,12 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
               return (
                 <div
                   key={alert.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-white">{alert.title}</p>
+                        <p className="text-sm font-semibold text-[var(--adm-text)]">{alert.title}</p>
                         <span
                           className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${PRIORITY_STYLES[alert.priority]}`}
                         >
@@ -195,12 +186,12 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                         >
                           {alert.status}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                        <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)]">
                           {alert.category}
                         </span>
                       </div>
-                      <p className="mt-2 max-w-3xl text-sm text-slate-400">{alert.detail}</p>
-                      <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
+                      <p className="mt-2 max-w-3xl text-sm text-[var(--adm-text-muted)]">{alert.detail}</p>
+                      <div className="mt-2 flex flex-wrap gap-4 text-xs text-[var(--adm-text-faint)]">
                         <span>Last seen {formatDateTime(alert.lastSeenAt)}</span>
                         <span>Repeats {alert.repeatCount}</span>
                         <span>Assignee {alert.assigneeEmail ?? "Unassigned"}</span>
@@ -209,7 +200,7 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                     </div>
                     <Link
                       href={alert.href}
-                      className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]"
+                      className="shrink-0 rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-xs font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
                     >
                       {alert.actionLabel ?? "Open"}
                     </Link>
@@ -258,19 +249,19 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "assign", assigneeUserId: draft.assigneeUserId || null })} disabled={isSaving} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-slate-100">
+                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "assign", assigneeUserId: draft.assigneeUserId || null })} disabled={isSaving} className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-[var(--adm-text)]">
                       {isSaving ? "Saving..." : "Assign"}
                     </button>
-                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "acknowledge" })} disabled={isSaving} className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-amber-100">
+                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "acknowledge" })} disabled={isSaving} className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-3 py-2 text-[#81560e]">
                       Acknowledge
                     </button>
                     <button type="button" onClick={() => mutateAlert(alert.id, { action: "snooze", snoozedUntil: draft.snoozedUntil ? new Date(draft.snoozedUntil).toISOString() : null })} disabled={isSaving} className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-sky-100">
                       Snooze
                     </button>
-                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "resolve", resolutionNote: draft.resolutionNote })} disabled={isSaving} className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-100">
+                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "resolve", resolutionNote: draft.resolutionNote })} disabled={isSaving} className="rounded-full border border-[var(--adm-success)] bg-[var(--adm-primary-soft)] px-3 py-2 text-[var(--adm-success)]">
                       Resolve
                     </button>
-                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "reopen" })} disabled={isSaving} className="rounded-full border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-rose-100">
+                    <button type="button" onClick={() => mutateAlert(alert.id, { action: "reopen" })} disabled={isSaving} className="rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-3 py-2 text-[var(--adm-error)]">
                       Reopen
                     </button>
                   </div>
@@ -280,6 +271,6 @@ export default function AdminAlertsClient({ initialAlerts, assignees }: Props) {
           </div>
         )}
       </AdminPanel>
-    </div>
+    </AdminPage>
   );
 }

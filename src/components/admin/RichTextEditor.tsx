@@ -11,9 +11,9 @@ type Props = {
 };
 
 const TOOLBAR_BUTTON =
-  "rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/35";
+  "rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-1 text-xs font-semibold text-[var(--adm-text)] transition hover:border-cyan-400/35";
 
-const TOOLBAR_ACTIVE = "border-cyan-300/35 bg-cyan-300/15 text-cyan-100";
+const TOOLBAR_ACTIVE = "border-cyan-300/35 bg-cyan-300/15 text-[var(--adm-primary)]";
 
 export default function RichTextEditor({ value, onChange, placeholder }: Props) {
   const editor = useEditor({
@@ -22,7 +22,7 @@ export default function RichTextEditor({ value, onChange, placeholder }: Props) 
     editorProps: {
       attributes: {
         class:
-          "min-h-[180px] rounded-md border border-white/10 bg-white/[0.04] text-slate-100 px-3 py-2 text-sm focus:outline-none prose prose-sm max-w-none",
+          "min-h-[180px] rounded-md border border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)] px-3 py-2 text-sm focus:outline-none prose prose-sm max-w-none",
       },
     },
     onUpdate: ({ editor }) => {
@@ -117,7 +117,7 @@ export default function RichTextEditor({ value, onChange, placeholder }: Props) 
         </button>
       </div>
       {placeholder && !editor.getText().trim() ? (
-        <div className="text-xs text-slate-500">{placeholder}</div>
+        <div className="text-xs text-[var(--adm-text-faint)]">{placeholder}</div>
       ) : null}
       <div className="rich-text-editor">
         <EditorContent editor={editor} />

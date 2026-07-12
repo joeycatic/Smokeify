@@ -230,7 +230,7 @@ export default async function AdminCatalogPage({
   }
 
   return (
-    <div className="admin-route-frame text-slate-100">
+    <div className="admin-route-frame text-[var(--adm-text)]">
       <AdminCatalogClient
         initialProducts={visibleProducts.map((product) => {
           const {

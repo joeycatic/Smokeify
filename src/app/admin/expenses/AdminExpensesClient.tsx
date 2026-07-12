@@ -30,6 +30,7 @@ import {
   STOREFRONTS,
   type StorefrontCode,
 } from "@/lib/storefronts";
+import { AdminPage, AdminPageHeader, AdminPrimaryGrid } from "@/components/admin/ui";
 
 type SupplierOption = {
   id: string;
@@ -194,8 +195,8 @@ type Tone = {
 
 const CATEGORY_TONES: Record<ExpenseCategory, Tone> = {
   INVENTORY: {
-    badge: "bg-cyan-400/10 text-cyan-300",
-    soft: "border-cyan-400/15 bg-cyan-400/8 text-cyan-100",
+    badge: "bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
+    soft: "border-cyan-400/15 bg-[var(--adm-primary)]/8 text-[var(--adm-primary)]",
     bar: "bg-cyan-300",
     glow: "from-cyan-400/16 via-cyan-400/6 to-transparent",
   },
@@ -218,20 +219,20 @@ const CATEGORY_TONES: Record<ExpenseCategory, Tone> = {
     glow: "from-violet-400/16 via-violet-400/6 to-transparent",
   },
   OPERATIONS: {
-    badge: "bg-amber-400/10 text-amber-300",
-    soft: "border-amber-400/15 bg-amber-400/8 text-amber-100",
+    badge: "bg-[#fff4dd] text-[#81560e]",
+    soft: "border-amber-400/15 bg-amber-400/8 text-[#81560e]",
     bar: "bg-amber-300",
     glow: "from-amber-400/16 via-amber-400/6 to-transparent",
   },
   TAXES: {
-    badge: "bg-rose-400/10 text-rose-300",
-    soft: "border-rose-400/15 bg-rose-400/8 text-rose-100",
+    badge: "bg-[#fae7e3] text-[var(--adm-error)]",
+    soft: "border-rose-400/15 bg-rose-400/8 text-[var(--adm-error)]",
     bar: "bg-rose-300",
     glow: "from-rose-400/16 via-rose-400/6 to-transparent",
   },
   OTHER: {
-    badge: "bg-slate-400/10 text-slate-300",
-    soft: "border-slate-400/15 bg-slate-400/8 text-slate-100",
+    badge: "bg-slate-400/10 text-[var(--adm-text-muted)]",
+    soft: "border-slate-400/15 bg-slate-400/8 text-[var(--adm-text)]",
     bar: "bg-slate-300",
     glow: "from-slate-400/16 via-slate-400/6 to-transparent",
   },
@@ -239,20 +240,20 @@ const CATEGORY_TONES: Record<ExpenseCategory, Tone> = {
 
 const DOCUMENT_STATUS_TONES: Record<ExpenseDocumentStatus, Tone> = {
   MISSING: {
-    badge: "bg-rose-400/10 text-rose-300",
-    soft: "border-rose-400/15 bg-rose-400/8 text-rose-100",
+    badge: "bg-[#fae7e3] text-[var(--adm-error)]",
+    soft: "border-rose-400/15 bg-rose-400/8 text-[var(--adm-error)]",
     bar: "bg-rose-300",
     glow: "from-rose-400/16 via-rose-400/6 to-transparent",
   },
   RECEIVED: {
-    badge: "bg-amber-400/10 text-amber-300",
-    soft: "border-amber-400/15 bg-amber-400/8 text-amber-100",
+    badge: "bg-[#fff4dd] text-[#81560e]",
+    soft: "border-amber-400/15 bg-amber-400/8 text-[#81560e]",
     bar: "bg-amber-300",
     glow: "from-amber-400/16 via-amber-400/6 to-transparent",
   },
   VERIFIED: {
-    badge: "bg-emerald-400/10 text-emerald-300",
-    soft: "border-emerald-400/15 bg-emerald-400/8 text-emerald-100",
+    badge: "bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
+    soft: "border-emerald-400/15 bg-emerald-400/8 text-[var(--adm-success)]",
     bar: "bg-emerald-300",
     glow: "from-emerald-400/16 via-emerald-400/6 to-transparent",
   },
@@ -260,20 +261,20 @@ const DOCUMENT_STATUS_TONES: Record<ExpenseDocumentStatus, Tone> = {
 
 const DEADLINE_TONES: Record<VatDeadline["statusLabel"], Tone> = {
   "Due soon": {
-    badge: "bg-amber-400/10 text-amber-300",
-    soft: "border-amber-400/15 bg-amber-400/8 text-amber-100",
+    badge: "bg-[#fff4dd] text-[#81560e]",
+    soft: "border-amber-400/15 bg-amber-400/8 text-[#81560e]",
     bar: "bg-amber-300",
     glow: "from-amber-400/16 via-amber-400/6 to-transparent",
   },
   Upcoming: {
-    badge: "bg-cyan-400/10 text-cyan-300",
-    soft: "border-cyan-400/15 bg-cyan-400/8 text-cyan-100",
+    badge: "bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
+    soft: "border-cyan-400/15 bg-[var(--adm-primary)]/8 text-[var(--adm-primary)]",
     bar: "bg-cyan-300",
     glow: "from-cyan-400/16 via-cyan-400/6 to-transparent",
   },
   Overdue: {
-    badge: "bg-rose-400/10 text-rose-300",
-    soft: "border-rose-400/15 bg-rose-400/8 text-rose-100",
+    badge: "bg-[#fae7e3] text-[var(--adm-error)]",
+    soft: "border-rose-400/15 bg-rose-400/8 text-[var(--adm-error)]",
     bar: "bg-rose-300",
     glow: "from-rose-400/16 via-rose-400/6 to-transparent",
   },
@@ -595,12 +596,12 @@ const getDocumentStatusTone = (status: ExpenseDocumentStatus) => DOCUMENT_STATUS
 
 const getAllocationTone = (summary: AllocationSummary) => {
   if (summary.isFullyAllocated) {
-    return "bg-emerald-400/10 text-emerald-200";
+    return "bg-[var(--adm-primary-soft)] text-[var(--adm-success)]";
   }
   if (summary.totalPercent > 0) {
-    return "bg-amber-400/10 text-amber-200";
+    return "bg-[#fff4dd] text-[#81560e]";
   }
-  return "bg-rose-400/10 text-rose-200";
+  return "bg-[#fae7e3] text-[var(--adm-error)]";
 };
 
 const formatAllocationCoverageLabel = (summary: AllocationSummary) => {
@@ -665,8 +666,8 @@ type AdminExpensesClientProps = {
 };
 
 const inputClass =
-  "mt-1 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05]";
-const derivedInputClass = `${inputClass} text-slate-400`;
+  "mt-1 w-full rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-2.5 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-primary)] focus:bg-[var(--adm-surface-2)]";
+const derivedInputClass = `${inputClass} text-[var(--adm-text-muted)]`;
 
 export default function AdminExpensesClient({
   initialSuppliers,
@@ -975,44 +976,50 @@ export default function AdminExpensesClient({
   const currentMonthKey = new Date().toISOString().slice(0, 7);
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(15,18,11,0.98),rgba(8,12,18,0.98))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+    <AdminPage layout="dashboard">
+      <AdminPageHeader
+        eyebrow="Control Layer / Expenses"
+        title="Expense capture and input VAT readiness"
+        description="Record supplier expenses, maintain VAT metadata, and prepare deductible input tax for review."
+        actions={<button type="button" onClick={() => void loadData()} className="inline-flex h-8 items-center rounded-[10px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-[13px] font-semibold text-[var(--adm-text)]" disabled={loading}>{loading ? "Refreshing..." : "Refresh"}</button>}
+      />
+      <section className="space-y-3">
+        <div className="hidden">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-[var(--adm-text-faint)]">
               Control Layer / Expenses
             </p>
-            <h1 className="mt-3 text-3xl font-semibold text-white">
+            <h1 className="mt-3 text-3xl font-semibold text-[var(--adm-text)]">
               Expense capture and input VAT readiness
             </h1>
-            <p className="mt-3 max-w-3xl text-sm text-slate-400">
+            <p className="mt-3 max-w-3xl text-sm text-[var(--adm-text-muted)]">
               Record supplier-linked expenses, maintain VAT metadata, and feed the VAT monitor with
               deductible input tax instead of output-only estimates.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {migrationRequired ? (
-              <span className="inline-flex h-10 items-center rounded-full border border-red-400/20 bg-red-500/10 px-4 text-sm font-semibold text-red-200">
+              <span className="inline-flex h-8 items-center rounded-full border border-[var(--adm-error)] bg-[#fae7e3] px-4 text-sm font-semibold text-[var(--adm-error)]">
                 Export unavailable until migration
               </span>
             ) : (
               <a
                 href={`/api/admin/expenses/export?month=${currentMonthKey}`}
-                className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+                className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
               >
                 Export current month CSV
               </a>
             )}
             <Link
               href="/admin/vat"
-              className="inline-flex h-10 items-center rounded-full border border-amber-400/20 bg-amber-400/10 px-4 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/15"
+              className="inline-flex h-8 items-center rounded-full border border-[#e2a136] bg-[#fff4dd] px-4 text-sm font-semibold text-[#81560e] transition hover:bg-amber-400/15"
             >
               Open VAT monitor
             </Link>
             <button
               type="button"
               onClick={() => void loadData()}
-              className="inline-flex h-10 items-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+              className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:bg-[var(--adm-surface-2)]"
               disabled={loading}
             >
               {loading ? "Refreshing..." : "Refresh"}
@@ -1050,13 +1057,13 @@ export default function AdminExpensesClient({
         </div>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
                   Visual Readiness
                 </p>
-                <h2 className="mt-2 text-lg font-semibold text-white">Bookkeeping health</h2>
+                <h2 className="mt-2 text-lg font-semibold text-[var(--adm-text)]">Bookkeeping health</h2>
               </div>
               <span
                 className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${DEADLINE_TONES[deadline.statusLabel].soft}`}
@@ -1092,11 +1099,11 @@ export default function AdminExpensesClient({
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
               Cost Mix
             </p>
-            <h2 className="mt-2 text-lg font-semibold text-white">Top current-month categories</h2>
+            <h2 className="mt-2 text-lg font-semibold text-[var(--adm-text)]">Top current-month categories</h2>
             <div className="mt-5 space-y-3">
               {topCategoryRows.length === 0 ? (
                 <EmptyState copy="No category distribution available yet." />
@@ -1117,7 +1124,7 @@ export default function AdminExpensesClient({
       </section>
 
       {migrationRequired ? (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-xl border border-red-500/20 bg-[#fae7e3] px-4 py-3 text-sm text-[var(--adm-error)]">
           Expense storage is not available in this database yet. Apply the pending Prisma
           migration before creating, editing, or exporting expense records.
         </div>
@@ -1125,17 +1132,17 @@ export default function AdminExpensesClient({
 
       {(error || notice) ? (
         <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
+          className={`rounded-xl border px-4 py-3 text-sm ${
             error
-              ? "border-red-500/20 bg-red-500/10 text-red-200"
-              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+              ? "border-red-500/20 bg-[#fae7e3] text-[var(--adm-error)]"
+              : "border-emerald-500/20 bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
           }`}
         >
           {error || notice}
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <AdminPrimaryGrid rail="wide">
         <Panel
           eyebrow="Readiness"
           title="Current month completeness"
@@ -1145,49 +1152,49 @@ export default function AdminExpensesClient({
             <MiniMetric
               label="Missing documents"
               value={String(currentMonthSummary.missingDocumentCount)}
-              tone="text-rose-200"
+              tone="text-[var(--adm-error)]"
               bar="bg-rose-300"
             />
             <MiniMetric
               label="Missing VAT amounts"
               value={String(currentMonthSummary.missingVatCount)}
-              tone="text-amber-200"
+              tone="text-[#81560e]"
               bar="bg-amber-300"
             />
             <MiniMetric
               label="Missing suppliers"
               value={String(currentMonthSummary.missingSupplierCount)}
-              tone="text-cyan-200"
+              tone="text-[var(--adm-primary)]"
               bar="bg-cyan-300"
             />
             <MiniMetric
               label="Verified expenses"
               value={String(currentMonthSummary.verifiedCount)}
-              tone="text-emerald-200"
+              tone="text-[var(--adm-success)]"
               bar="bg-emerald-300"
             />
             <MiniMetric
               label="Missing allocations"
               value={String(currentMonthSummary.missingAllocationCount)}
-              tone="text-rose-200"
+              tone="text-[var(--adm-error)]"
               bar="bg-rose-300"
             />
             <MiniMetric
               label="Invoice complete"
               value={String(currentMonthSummary.invoiceCompleteCount)}
-              tone="text-cyan-200"
+              tone="text-[var(--adm-primary)]"
               bar="bg-cyan-300"
             />
             <MiniMetric
               label="Review required"
               value={String(currentMonthSummary.reviewRequiredCount)}
-              tone="text-amber-200"
+              tone="text-[#81560e]"
               bar="bg-amber-300"
             />
             <MiniMetric
               label="Blocked"
               value={String(currentMonthSummary.blockedCount)}
-              tone="text-rose-200"
+              tone="text-[var(--adm-error)]"
               bar="bg-rose-300"
             />
           </div>
@@ -1195,29 +1202,29 @@ export default function AdminExpensesClient({
             <SignalPill
               label="Docs blocker"
               value={String(currentMonthSummary.missingDocumentCount)}
-              tone="border-rose-400/15 bg-rose-400/8 text-rose-100"
+              tone="border-rose-400/15 bg-rose-400/8 text-[var(--adm-error)]"
             />
             <SignalPill
               label="VAT blocker"
               value={String(currentMonthSummary.missingVatCount)}
-              tone="border-amber-400/15 bg-amber-400/8 text-amber-100"
+              tone="border-amber-400/15 bg-amber-400/8 text-[#81560e]"
             />
             <SignalPill
               label="Supplier blocker"
               value={String(currentMonthSummary.missingSupplierCount)}
-              tone="border-cyan-400/15 bg-cyan-400/8 text-cyan-100"
+              tone="border-cyan-400/15 bg-[var(--adm-primary)]/8 text-[var(--adm-primary)]"
             />
             <SignalPill
               label="Allocation blocker"
               value={String(currentMonthSummary.missingAllocationCount)}
-              tone="border-rose-400/15 bg-rose-400/8 text-rose-100"
+              tone="border-rose-400/15 bg-rose-400/8 text-[var(--adm-error)]"
             />
           </div>
           <div className="mt-4 space-y-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               Deductible input VAT only counts from expense records marked deductible.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               Storefront-scoped finance stays incomplete until relevant expenses are fully allocated.
             </div>
           </div>
@@ -1451,7 +1458,7 @@ export default function AdminExpensesClient({
               />
             </div>
           </div>
-          <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
+          <label className="mt-4 flex items-center gap-3 text-sm text-[var(--adm-text-muted)]">
             <input
               type="checkbox"
               checked={newExpense.isDeductible}
@@ -1461,11 +1468,11 @@ export default function AdminExpensesClient({
                   isDeductible: event.target.checked,
                 }))
               }
-              className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+              className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-[var(--adm-surface)]"
             />
             Deductible for input VAT
           </label>
-          <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+          <label className="mt-3 flex items-center gap-3 text-sm text-[var(--adm-text-muted)]">
             <input
               type="checkbox"
               checked={newExpense.isSmallBusinessSupplier}
@@ -1475,7 +1482,7 @@ export default function AdminExpensesClient({
                   isSmallBusinessSupplier: event.target.checked,
                 }))
               }
-              className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+              className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-[var(--adm-surface)]"
             />
             Lieferant ist Kleinunternehmer
           </label>
@@ -1484,20 +1491,20 @@ export default function AdminExpensesClient({
               type="button"
               onClick={() => void createExpense()}
               disabled={migrationRequired}
-              className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950"
+              className="inline-flex h-8 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-white"
             >
               Create expense
             </button>
             <button
               type="button"
               onClick={() => setNewExpense(emptyForm())}
-              className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+              className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
             >
               Reset
             </button>
           </div>
         </Panel>
-      </div>
+      </AdminPrimaryGrid>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Panel
@@ -1528,11 +1535,11 @@ export default function AdminExpensesClient({
             />
           </div>
           <div className="mt-4 space-y-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               Recurring costs are planning records. They do not replace booked expense entries or
               VAT evidence.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               Use next due dates to keep rent, software, and fixed overhead visible before the
               invoice is booked.
             </div>
@@ -1704,7 +1711,7 @@ export default function AdminExpensesClient({
               />
             </div>
           </div>
-          <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
+          <label className="mt-4 flex items-center gap-3 text-sm text-[var(--adm-text-muted)]">
             <input
               type="checkbox"
               checked={newRecurringExpense.isDeductible}
@@ -1714,7 +1721,7 @@ export default function AdminExpensesClient({
                   isDeductible: event.target.checked,
                 }))
               }
-              className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+              className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-[var(--adm-surface)]"
             />
             Deductible for input VAT
           </label>
@@ -1723,14 +1730,14 @@ export default function AdminExpensesClient({
               type="button"
               onClick={() => void createRecurringExpense()}
               disabled={migrationRequired}
-              className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950"
+              className="inline-flex h-8 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-white"
             >
               Create recurring cost
             </button>
             <button
               type="button"
               onClick={() => setNewRecurringExpense(emptyRecurringForm())}
-              className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+              className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
             >
               Reset
             </button>
@@ -1751,25 +1758,25 @@ export default function AdminExpensesClient({
               expenseByCategory.map((row) => (
                 <div
                   key={row.category}
-                  className={`rounded-2xl border bg-gradient-to-r px-4 py-3 ${getCategoryTone(row.category as ExpenseCategory).soft} ${getCategoryTone(row.category as ExpenseCategory).glow}`}
+                  className={`rounded-xl border bg-gradient-to-r px-4 py-3 ${getCategoryTone(row.category as ExpenseCategory).soft} ${getCategoryTone(row.category as ExpenseCategory).glow}`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">
                         {formatExpenseCategoryLabel(row.category as ExpenseCategory)}
                       </div>
-                      <div className="text-xs text-slate-500">{row.count} record(s)</div>
+                      <div className="text-xs text-[var(--adm-text-faint)]">{row.count} record(s)</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-semibold text-cyan-300">
+                      <div className="text-sm font-semibold text-[var(--adm-primary)]">
                         {formatMoney(row.grossAmount)}
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-[var(--adm-text-faint)]">
                         {formatMoney(row.vatAmount)} VAT
                       </div>
                     </div>
                   </div>
-                  <div className="mt-3 h-2 rounded-full bg-white/8">
+                  <div className="mt-3 h-2 rounded-full bg-[var(--adm-surface-2)]">
                     <div
                       className={`h-2 rounded-full ${getCategoryTone(row.category as ExpenseCategory).bar}`}
                       style={{ width: `${calculateShare(row.grossAmount, currentMonthGrossTotal)}%` }}
@@ -1792,9 +1799,9 @@ export default function AdminExpensesClient({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search title, supplier, category, notes..."
-              className="h-10 min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/30 focus:bg-white/[0.05] sm:min-w-[260px]"
+              className="h-8 min-w-0 flex-1 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm text-[var(--adm-text)] outline-none transition placeholder:text-[var(--adm-text-faint)] focus:border-[var(--adm-primary)] focus:bg-[var(--adm-surface-2)] sm:min-w-[260px]"
             />
-            <span className="text-xs text-slate-500">{filteredExpenses.length} expenses</span>
+            <span className="text-xs text-[var(--adm-text-faint)]">{filteredExpenses.length} expenses</span>
           </div>
 
           <div className="space-y-4">
@@ -1804,11 +1811,11 @@ export default function AdminExpensesClient({
               filteredExpenses.map((expense) => (
                 <div
                   key={expense.id}
-                  className={`rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.96),rgba(7,10,15,0.98))] p-4`}
+                  className={`rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4`}
                 >
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-white">{expense.title}</h3>
+                      <h3 className="text-lg font-semibold text-[var(--adm-text)]">{expense.title}</h3>
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
                         <span
                           className={`rounded-full px-2.5 py-1 ${getCategoryTone(expense.category).badge}`}
@@ -1820,10 +1827,10 @@ export default function AdminExpensesClient({
                         >
                           {formatExpenseDocumentStatusLabel(expense.documentStatus)}
                         </span>
-                        <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-300">
+                        <span className="rounded-full bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-success)]">
                           {formatMoney(expense.grossAmount)}
                         </span>
-                        <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-amber-200">
+                        <span className="rounded-full bg-[#fff4dd] px-2.5 py-1 text-[#81560e]">
                           {formatTaxReviewStatusLabel(expense.taxReviewStatus)}
                         </span>
                         <span
@@ -1835,7 +1842,7 @@ export default function AdminExpensesClient({
                         </span>
                       </div>
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-[var(--adm-text-faint)]">
                       Updated {new Date(expense.updatedAt).toLocaleDateString("de-DE")}
                     </div>
                   </div>
@@ -1889,13 +1896,13 @@ export default function AdminExpensesClient({
                   </div>
 
                   {expense.manualReviewReason ? (
-                    <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                    <div className="mt-4 rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
                       {expense.manualReviewReason}
                     </div>
                   ) : null}
 
                   {expense.notes ? (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+                    <div className="mt-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                       {expense.notes}
                     </div>
                   ) : null}
@@ -1908,14 +1915,14 @@ export default function AdminExpensesClient({
                           ? void cancelExpenseEditing()
                           : setEditingExpenseId(expense.id)
                       }
-                      className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                      className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
                     >
                       {editingExpenseId === expense.id ? "Cancel editing" : "Edit expense"}
                     </button>
                   </div>
 
                   {editingExpenseId === expense.id ? (
-                    <div className="mt-4 border-t border-white/10 pt-4">
+                    <div className="mt-4 border-t border-[var(--adm-border)] pt-4">
                       <div className="grid gap-3 md:grid-cols-2">
                         <Field label="Title">
                           <input
@@ -2166,18 +2173,18 @@ export default function AdminExpensesClient({
                         </div>
                       </div>
 
-                      <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
+                      <label className="mt-4 flex items-center gap-3 text-sm text-[var(--adm-text-muted)]">
                         <input
                           type="checkbox"
                           checked={expense.isDeductible}
                           onChange={(event) =>
                             updateExpenseField(expense.id, "isDeductible", event.target.checked)
                           }
-                          className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+                          className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-[var(--adm-surface)]"
                         />
                         Deductible for input VAT
                       </label>
-                      <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+                      <label className="mt-3 flex items-center gap-3 text-sm text-[var(--adm-text-muted)]">
                         <input
                           type="checkbox"
                           checked={expense.isSmallBusinessSupplier}
@@ -2188,7 +2195,7 @@ export default function AdminExpensesClient({
                               event.target.checked,
                             )
                           }
-                          className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+                          className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-[var(--adm-surface)]"
                         />
                         Lieferant ist Kleinunternehmer
                       </label>
@@ -2197,7 +2204,7 @@ export default function AdminExpensesClient({
                         <button
                           type="button"
                           onClick={() => void cancelExpenseEditing()}
-                          className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                          className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
                         >
                           Cancel
                         </button>
@@ -2205,7 +2212,7 @@ export default function AdminExpensesClient({
                           type="button"
                           onClick={() => void updateExpense(expense)}
                           disabled={savingId === expense.id || migrationRequired}
-                          className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                          className="inline-flex h-8 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-white disabled:opacity-60"
                         >
                           {savingId === expense.id ? "Saving..." : "Save expense"}
                         </button>
@@ -2224,7 +2231,7 @@ export default function AdminExpensesClient({
         title="Recurring cost records"
         description="Keep the recurring planner easy to scan, then open the editor only when a schedule or amount actually needs adjustment."
       >
-        <div className="mb-4 text-xs text-slate-500">
+        <div className="mb-4 text-xs text-[var(--adm-text-faint)]">
           {filteredRecurringExpenses.length} recurring costs
         </div>
         <div className="space-y-4">
@@ -2234,11 +2241,11 @@ export default function AdminExpensesClient({
             filteredRecurringExpenses.map((expense) => (
               <div
                 key={expense.id}
-                className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,13,18,0.96),rgba(7,10,15,0.98))] p-4"
+                className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
               >
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">{expense.title}</h3>
+                    <h3 className="text-lg font-semibold text-[var(--adm-text)]">{expense.title}</h3>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
                       <span
                         className={`rounded-full px-2.5 py-1 ${getCategoryTone(expense.category).badge}`}
@@ -2248,14 +2255,14 @@ export default function AdminExpensesClient({
                       <span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-300">
                         {formatRecurringExpenseIntervalLabel(expense.interval)}
                       </span>
-                      <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-300">
+                      <span className="rounded-full bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[var(--adm-success)]">
                         {formatMoney(expense.grossAmount)}
                       </span>
                       <span
                         className={`rounded-full px-2.5 py-1 ${
                           expense.isActive
-                            ? "bg-emerald-400/10 text-emerald-300"
-                            : "bg-slate-400/10 text-slate-300"
+                            ? "bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                            : "bg-slate-400/10 text-[var(--adm-text-muted)]"
                         }`}
                       >
                         {expense.isActive ? "Active" : "Inactive"}
@@ -2269,7 +2276,7 @@ export default function AdminExpensesClient({
                       </span>
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-[var(--adm-text-faint)]">
                     Next due {new Date(expense.nextDueDate).toLocaleDateString("de-DE")}
                   </div>
                 </div>
@@ -2305,7 +2312,7 @@ export default function AdminExpensesClient({
                 </div>
 
                 {expense.notes ? (
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
+                  <div className="mt-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                     {expense.notes}
                   </div>
                 ) : null}
@@ -2318,7 +2325,7 @@ export default function AdminExpensesClient({
                         ? void cancelRecurringExpenseEditing()
                         : setEditingRecurringExpenseId(expense.id)
                     }
-                    className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                    className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
                   >
                     {editingRecurringExpenseId === expense.id
                       ? "Cancel editing"
@@ -2327,7 +2334,7 @@ export default function AdminExpensesClient({
                 </div>
 
                 {editingRecurringExpenseId === expense.id ? (
-                  <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="mt-4 border-t border-[var(--adm-border)] pt-4">
                     <div className="grid gap-3 md:grid-cols-2">
                       <Field label="Title">
                         <input
@@ -2511,7 +2518,7 @@ export default function AdminExpensesClient({
                       </div>
                     </div>
 
-                    <label className="mt-4 flex items-center gap-3 text-sm text-slate-300">
+                    <label className="mt-4 flex items-center gap-3 text-sm text-[var(--adm-text-muted)]">
                       <input
                         type="checkbox"
                         checked={expense.isDeductible}
@@ -2522,7 +2529,7 @@ export default function AdminExpensesClient({
                             event.target.checked,
                           )
                         }
-                        className="h-4 w-4 rounded border-white/20 bg-white/[0.03]"
+                        className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-[var(--adm-surface)]"
                       />
                       Deductible for input VAT
                     </label>
@@ -2531,7 +2538,7 @@ export default function AdminExpensesClient({
                       <button
                         type="button"
                         onClick={() => void cancelRecurringExpenseEditing()}
-                        className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                        className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
                       >
                         Cancel
                       </button>
@@ -2539,7 +2546,7 @@ export default function AdminExpensesClient({
                         type="button"
                         onClick={() => void updateRecurringExpense(expense)}
                         disabled={savingId === expense.id || migrationRequired}
-                        className="inline-flex h-10 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                        className="inline-flex h-8 items-center rounded-full bg-cyan-300 px-4 text-sm font-semibold text-white disabled:opacity-60"
                       >
                         {savingId === expense.id ? "Saving..." : "Save recurring cost"}
                       </button>
@@ -2551,7 +2558,7 @@ export default function AdminExpensesClient({
           )}
         </div>
       </Panel>
-    </div>
+    </AdminPage>
   );
 }
 
@@ -2589,13 +2596,13 @@ function StorefrontAllocationEditor({
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--adm-text-faint)]">
             Storefront allocation
           </div>
-          <div className="mt-1 text-sm text-slate-300">
+          <div className="mt-1 text-sm text-[var(--adm-text-muted)]">
             Leave empty for an unallocated expense, or split 100% across storefronts.
           </div>
         </div>
@@ -2605,7 +2612,7 @@ function StorefrontAllocationEditor({
       </div>
       <div className="mt-4 space-y-3">
         {allocations.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/10 px-4 py-3 text-sm text-slate-400">
+          <div className="rounded-xl border border-dashed border-[var(--adm-border)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
             No allocation rows yet. This expense will block storefront-scoped finance until you add one.
           </div>
         ) : (
@@ -2642,7 +2649,7 @@ function StorefrontAllocationEditor({
               <button
                 type="button"
                 onClick={() => removeAllocation(index)}
-                className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 px-4 text-sm font-semibold text-slate-300"
+                className="inline-flex h-9 items-center justify-center rounded-xl border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text-muted)]"
               >
                 Remove
               </button>
@@ -2651,14 +2658,14 @@ function StorefrontAllocationEditor({
         )}
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-[var(--adm-text-muted)]">
           Total {summary.totalPercent}%{summary.isFullyAllocated ? "" : ` · Missing ${summary.missingPercent}%`}
         </div>
         <button
           type="button"
           onClick={addAllocation}
           disabled={allocations.length >= STOREFRONTS.length}
-          className="inline-flex h-10 items-center rounded-full border border-white/10 px-4 text-sm font-semibold text-slate-200 disabled:opacity-50"
+          className="inline-flex h-8 items-center rounded-full border border-[var(--adm-border)] px-4 text-sm font-semibold text-[var(--adm-text)] disabled:opacity-50"
         >
           Add storefront split
         </button>
@@ -2679,13 +2686,13 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+    <section className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
       <div className="mb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--adm-text-faint)]">
           {eyebrow}
         </p>
-        <h2 className="mt-2 text-lg font-semibold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-slate-400">{description}</p>
+        <h2 className="mt-2 text-lg font-semibold text-[var(--adm-text)]">{title}</h2>
+        <p className="mt-1 text-sm text-[var(--adm-text-muted)]">{description}</p>
       </div>
       {children}
     </section>
@@ -2704,12 +2711,12 @@ function MetricCard({
   tone?: string;
 }) {
   return (
-    <div className={`rounded-2xl border border-white/10 bg-gradient-to-br ${tone} p-4`}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+    <div className={`rounded-xl border border-[var(--adm-border)] bg-gradient-to-br ${tone} p-4`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      {footnote ? <p className="mt-2 text-xs text-slate-500">{footnote}</p> : null}
+      <p className="mt-2 text-2xl font-semibold text-[var(--adm-text)]">{value}</p>
+      {footnote ? <p className="mt-2 text-xs text-[var(--adm-text-faint)]">{footnote}</p> : null}
     </div>
   );
 }
@@ -2717,8 +2724,8 @@ function MetricCard({
 function MiniMetric({
   label,
   value,
-  tone = "text-white",
-  bar = "bg-white/60",
+  tone = "text-[var(--adm-text)]",
+  bar = "bg-[var(--adm-surface-2)]0",
 }: {
   label: string;
   value: string;
@@ -2726,12 +2733,12 @@ function MiniMetric({
   bar?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--adm-text-faint)]">
         {label}
       </div>
       <div className={`mt-2 text-lg font-semibold ${tone}`}>{value}</div>
-      <div className="mt-3 h-1.5 rounded-full bg-white/8">
+      <div className="mt-3 h-1.5 rounded-full bg-[var(--adm-surface-2)]">
         <div className={`h-1.5 w-full rounded-full ${bar}`} />
       </div>
     </div>
@@ -2740,11 +2747,11 @@ function MiniMetric({
 
 function RecordMeta({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
         {label}
       </div>
-      <div className="mt-2 text-sm font-medium text-slate-100">{value}</div>
+      <div className="mt-2 text-sm font-medium text-[var(--adm-text)]">{value}</div>
     </div>
   );
 }
@@ -2761,15 +2768,15 @@ function ProgressStat({
   tone: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
           {label}
         </span>
-        <span className="text-xs text-slate-400">{Math.round(percentage)}%</span>
+        <span className="text-xs text-[var(--adm-text-muted)]">{Math.round(percentage)}%</span>
       </div>
-      <div className="mt-3 text-base font-semibold text-white">{value}</div>
-      <div className="mt-3 h-2 rounded-full bg-white/8">
+      <div className="mt-3 text-base font-semibold text-[var(--adm-text)]">{value}</div>
+      <div className="mt-3 h-2 rounded-full bg-[var(--adm-surface-2)]">
         <div className={`h-2 rounded-full ${tone}`} style={{ width: `${percentage}%` }} />
       </div>
     </div>
@@ -2790,12 +2797,12 @@ function ShareRow({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-medium text-slate-100">{label}</div>
-        <div className="text-xs text-slate-400">
+        <div className="text-sm font-medium text-[var(--adm-text)]">{label}</div>
+        <div className="text-xs text-[var(--adm-text-muted)]">
           {value} · {Math.round(percentage)}%
         </div>
       </div>
-      <div className="h-2 rounded-full bg-white/8">
+      <div className="h-2 rounded-full bg-[var(--adm-surface-2)]">
         <div className={`h-2 rounded-full ${tone}`} style={{ width: `${percentage}%` }} />
       </div>
     </div>
@@ -2812,7 +2819,7 @@ function SignalPill({
   tone: string;
 }) {
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${tone}`}>
+    <div className={`rounded-xl border px-4 py-3 ${tone}`}>
       <div className="text-[11px] font-semibold uppercase tracking-[0.18em]">{label}</div>
       <div className="mt-2 text-lg font-semibold">{value}</div>
     </div>
@@ -2829,7 +2836,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className={`block text-xs font-semibold text-slate-400 ${className}`}>
+    <label className={`block text-xs font-semibold text-[var(--adm-text-muted)] ${className}`}>
       {label}
       {children}
     </label>
@@ -2838,7 +2845,7 @@ function Field({
 
 function EmptyState({ copy }: { copy: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 text-sm text-slate-500">
+    <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-6 text-sm text-[var(--adm-text-faint)]">
       {copy}
     </div>
   );

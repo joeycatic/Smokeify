@@ -12,6 +12,12 @@ import {
   AdminPanel,
   AdminTimeRangeTabs,
 } from "@/components/admin/AdminWorkspace";
+import {
+  AdminActionBar,
+  AdminKpiStrip,
+  AdminPage,
+  AdminPrimaryGrid,
+} from "@/components/admin/ui";
 import { formatAdminMoney, formatAdminPercent } from "@/lib/adminFormatting";
 import { getAdminTimeRangeOption } from "@/lib/adminTimeRange";
 import type { AdminStorefrontDashboardData } from "@/lib/adminStorefrontDashboard";
@@ -44,21 +50,21 @@ function ProductList({
         <Link
           key={row.productId}
           href={`/admin/catalog/${row.productId}?storefront=${storefrontHref}`}
-          className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-white/20 hover:bg-white/[0.05]"
+          className="block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-white">
+              <div className="truncate text-sm font-semibold text-[var(--adm-text)]">
                 {row.productTitle}
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--adm-text-muted)]">
                 <span>{row.addToCart} carts</span>
                 <span>{row.beginCheckout} checkouts</span>
                 <span>{row.paymentStarted} payments</span>
                 <span>{row.purchases} purchases</span>
               </div>
             </div>
-            <div className="shrink-0 text-right text-xs text-slate-400">
+            <div className="shrink-0 text-right text-xs text-[var(--adm-text-muted)]">
               <div>{formatAdminPercent(row.cartToPurchaseRate)} cart to purchase</div>
               <div className="mt-1">
                 {formatAdminMoney(row.revenueCents)} {storefrontLabel}
@@ -85,31 +91,31 @@ export function AdminStorefrontDashboard({
       label: "Cart",
       value: data.insights.funnel.addToCart,
       helper: "Base",
-      color: "#38bdf8",
+      color: "#1f5f3f",
     },
     {
       label: "Checkout",
       value: data.insights.funnel.beginCheckout,
       helper: formatAdminPercent(data.insights.funnel.cartToCheckoutRate),
-      color: "#818cf8",
+      color: "#bd5b2b",
     },
     {
       label: "Shipping",
       value: data.insights.funnel.shippingSubmitted,
       helper: formatAdminPercent(data.insights.funnel.checkoutToShippingRate),
-      color: "#f59e0b",
+      color: "#e2a136",
     },
     {
       label: "Payment",
       value: data.insights.funnel.paymentStarted,
       helper: formatAdminPercent(data.insights.funnel.shippingToPaymentRate),
-      color: "#22d3ee",
+      color: "#2f6690",
     },
     {
       label: "Paid",
       value: data.insights.funnel.paidOrders,
       helper: formatAdminPercent(data.insights.funnel.paymentToPaidRate),
-      color: "#34d399",
+      color: "#5f8b72",
     },
   ];
 
@@ -117,40 +123,40 @@ export function AdminStorefrontDashboard({
   const trendSeries = [
     {
       label: "Cart",
-      color: "#38bdf8",
+      color: "#1f5f3f",
       values: data.insights.trend.map((point) => point.addToCart),
     },
     {
       label: "Checkout",
-      color: "#818cf8",
+      color: "#bd5b2b",
       values: data.insights.trend.map((point) => point.beginCheckout),
     },
     {
       label: "Shipping",
-      color: "#f59e0b",
+      color: "#e2a136",
       values: data.insights.trend.map((point) => point.shippingSubmitted),
     },
     {
       label: "Payment",
-      color: "#22d3ee",
+      color: "#2f6690",
       values: data.insights.trend.map((point) => point.paymentStarted),
     },
     {
       label: "Paid",
-      color: "#34d399",
+      color: "#5f8b72",
       values: data.insights.trend.map((point) => point.paidOrders),
     },
   ];
 
   return (
-    <div className="space-y-5">
+    <AdminPage layout="dashboard">
       <AdminPageIntro
         eyebrow={`${data.storefrontLabel} / Storefront`}
         title={`${data.storefrontLabel} control dashboard`}
         description={`${data.storefrontLabel}-scoped command surface for revenue, catalog health, landing-page state, funnel activity, and explicit storefront-attributed orders in the ${selectedRange.longLabel} window.`}
         actions={<AdminTimeRangeTabs pathname={pathname} activeDays={data.days} />}
         metrics={
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <AdminKpiStrip>
             <AdminMetricCard
               label="Paid orders"
               value={String(data.orders.paidOrderCount)}
@@ -193,60 +199,60 @@ export function AdminStorefrontDashboard({
               footnote={`${data.landingPage.draftManualSectionCount} manual drafts`}
               tone="slate"
             />
-          </div>
+          </AdminKpiStrip>
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <AdminActionBar className="grid grid-cols-2 md:grid-cols-4">
         <Link
           href={data.links.orders}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+          className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
         >
           Scoped orders
         </Link>
         <Link
           href={data.links.catalog}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+          className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
         >
           Scoped catalog
         </Link>
         <Link
           href={data.links.landingPage}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+          className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
         >
           Landing page
         </Link>
         <Link
           href={data.links.finance}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10 hover:text-cyan-100"
+          className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-primary)] hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
         >
           Finance rollup
         </Link>
-      </div>
+      </AdminActionBar>
 
       {!data.insights.storefrontAnalyticsAvailable ? (
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           Analytics storefront columns are unavailable. Funnel and live-session stages remain
           empty, but paid orders still use explicit `sourceStorefront = {data.storefront}`.
         </div>
       ) : null}
 
       {data.insights.storefrontAnalyticsAvailable && !data.insights.firstTaggedEventAt ? (
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           No storefront-tagged analytics events exist for {data.storefrontLabel} yet. Order
           counts already use `sourceStorefront = {data.storefront}`.
         </div>
       ) : null}
 
       {data.insights.warningStartsAt ? (
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-xl border border-[#e2a136] bg-[#fff4dd] px-4 py-3 text-sm text-[#81560e]">
           The {data.storefrontLabel} funnel is only fully storefront-tagged from{" "}
           {formatDate(data.insights.warningStartsAt)} onward. Historical order counts remain
           visible, but earlier funnel stages are incomplete.
         </div>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[1.12fr_0.88fr]">
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow="Funnel"
           title="Session funnel and stage loss"
@@ -302,12 +308,12 @@ export function AdminStorefrontDashboard({
                 data.insights.live.topPages.map((page) => (
                   <div
                     key={`${page.pageType}:${page.path}`}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                    className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                   >
-                    <div className="truncate text-sm font-semibold text-white">
+                    <div className="truncate text-sm font-semibold text-[var(--adm-text)]">
                       {page.path}
                     </div>
-                    <div className="mt-1 text-xs text-slate-400">
+                    <div className="mt-1 text-xs text-[var(--adm-text-muted)]">
                       {page.pageType} · {page.count} active
                     </div>
                   </div>
@@ -322,7 +328,7 @@ export function AdminStorefrontDashboard({
             />
           </div>
         </AdminPanel>
-      </div>
+      </AdminPrimaryGrid>
 
       <AdminPanel
         eyebrow="Trend"
@@ -332,7 +338,7 @@ export function AdminStorefrontDashboard({
         <MultiSeriesTrendChart labels={trendLabels} series={trendSeries} />
       </AdminPanel>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow="Products"
           title="Strong closers"
@@ -358,9 +364,9 @@ export function AdminStorefrontDashboard({
             emptyCopy={`No ${data.storefrontLabel} dropoff candidates in the selected window.`}
           />
         </AdminPanel>
-      </div>
+      </AdminPrimaryGrid>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow="Catalog"
           title={`${data.storefrontLabel} catalog state`}
@@ -387,13 +393,13 @@ export function AdminStorefrontDashboard({
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href={data.links.catalog}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.08]"
+              className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2 text-xs font-semibold text-[var(--adm-text)] hover:bg-[var(--adm-surface-2)]"
             >
               Open catalog
             </Link>
             <Link
               href={data.links.catalogHygiene}
-              className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-400/15"
+              className="rounded-full border border-[#e2a136] bg-[#fff4dd] px-3 py-2 text-xs font-semibold text-[#81560e] hover:bg-amber-400/15"
             >
               Open hygiene
             </Link>
@@ -423,7 +429,7 @@ export function AdminStorefrontDashboard({
               value={String(data.landingPage.scheduledSectionCount)}
             />
           </div>
-          <p className="mt-4 text-sm text-slate-400">
+          <p className="mt-4 text-sm text-[var(--adm-text-muted)]">
             Last published:{" "}
             {data.landingPage.lastPublishedAt
               ? formatDate(data.landingPage.lastPublishedAt)
@@ -432,13 +438,13 @@ export function AdminStorefrontDashboard({
           <div className="mt-4">
             <Link
               href={data.links.landingPage}
-              className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/15"
+              className="rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--adm-primary)] hover:bg-[var(--adm-primary)]/15"
             >
               Open landing page editor
             </Link>
           </div>
         </AdminPanel>
-      </div>
-    </div>
+      </AdminPrimaryGrid>
+    </AdminPage>
   );
 }

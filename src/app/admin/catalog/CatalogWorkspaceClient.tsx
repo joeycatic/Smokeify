@@ -13,6 +13,7 @@ import {
   AdminPageIntro,
   AdminSelect,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage } from "@/components/admin/ui";
 import {
   CatalogBulkTray,
   CatalogErrorNotice,
@@ -951,7 +952,7 @@ export default function CatalogWorkspaceClient({
   const isBulkProductDelete = productDeleteIds.length > 1;
 
   return (
-    <div className="space-y-6 pb-36">
+    <AdminPage layout="queue" className="pb-36">
       <AdminPageIntro
         eyebrow="Admin / Catalog"
         title="Commerce catalog"
@@ -960,14 +961,14 @@ export default function CatalogWorkspaceClient({
           <>
             <Link
               href={buildPageHref(currentPage)}
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-slate-200 transition hover:border-white/15 hover:bg-white/[0.05]"
+              className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 text-sm font-semibold text-[var(--adm-text)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)]"
               scroll={false}
             >
               Refresh
             </Link>
             <Link
               href={buildHygieneHref()}
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+              className="inline-flex h-8 items-center justify-center rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 text-sm font-semibold text-[var(--adm-primary)] transition hover:bg-[var(--adm-primary)]/15"
             >
               Hygiene
             </Link>
@@ -998,7 +999,7 @@ export default function CatalogWorkspaceClient({
         }
         metrics={
           <div className="space-y-3">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <AdminKpiStrip>
               <AdminMetricCard
                 label="Products"
                 value={String(totalCount)}
@@ -1022,15 +1023,15 @@ export default function CatalogWorkspaceClient({
                 value={String(performanceSummary.weakConversionCount)}
                 footnote="20+ views and under 2% conversion"
               />
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+            </AdminKpiStrip>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--adm-text-muted)]">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-1.5">
                 {supplierCoverage} suppliers in view
               </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-1.5">
                 {performanceSummary.lowCoverCount} low-cover products
               </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-1.5">
                 {inventoryCounts.outOfStock} out of stock
               </span>
             </div>
@@ -1395,7 +1396,7 @@ export default function CatalogWorkspaceClient({
       >
         <div className="space-y-4">
           {deleteTarget?.label ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
               {deleteTarget.label}
             </div>
           ) : null}
@@ -1432,6 +1433,6 @@ export default function CatalogWorkspaceClient({
           ) : null}
         </div>
       </AdminDialog>
-    </div>
+    </AdminPage>
   );
 }

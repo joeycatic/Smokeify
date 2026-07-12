@@ -6,16 +6,12 @@ import {
   BoltIcon,
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
-  ArchiveBoxArrowDownIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   FlagIcon,
-  InboxStackIcon,
   LinkIcon,
   PhotoIcon,
-  QueueListIcon,
-  Squares2X2Icon,
   TrashIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -35,6 +31,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminPageHeader, AdminStat } from "@/components/admin/ui";
 import styles from "./SupplierImportClient.module.css";
 
 type Category = {
@@ -158,10 +155,10 @@ const parseEuroCents = (value: string) => {
 };
 
 const statusTone = (status: ImportItem["status"]) => {
-  if (status === "APPROVED") return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
-  if (status === "DECLINED") return "border-rose-400/20 bg-rose-400/10 text-rose-200";
-  if (status === "IMPORT_ERROR") return "border-amber-400/20 bg-amber-400/10 text-amber-200";
-  return "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+  if (status === "APPROVED") return "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]";
+  if (status === "DECLINED") return "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]";
+  if (status === "IMPORT_ERROR") return "border-[#e2a136] bg-[#fff4dd] text-[#81560e]";
+  return "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]";
 };
 
 const compactNumber = (value: number) =>
@@ -232,7 +229,6 @@ export default function SupplierImportClient({
     () => data.categories.filter((category) => additionalCategoryIds.includes(category.id)),
     [data.categories, additionalCategoryIds],
   );
-  const latestBatch = data.batches[0] ?? null;
   const reviewedCount = counts.approved + counts.declined + counts.errors;
   const reviewCompletion = data.items.length
     ? Math.round((reviewedCount / data.items.length) * 100)
@@ -598,76 +594,27 @@ export default function SupplierImportClient({
   const currentSourceChanges = currentItem?.sourceChanges ?? [];
 
   return (
-    <div className={`${styles.workspace} space-y-6`}>
-      <section className={styles.hero} aria-labelledby="supplier-import-title">
-        <div className={styles.heroGlow} aria-hidden="true" />
-        <div className={styles.heroGrid}>
-          <div className={styles.heroCopy}>
-            <div className={styles.kicker}>
-              <ArchiveBoxArrowDownIcon className="h-4 w-4" />
-              <span>Catalog / Supplier Import</span>
-            </div>
-            <h1 id="supplier-import-title">Bloomtech review deck</h1>
-            <p>
-              Controlled supplier intake with draft creation, traceable decisions, and
-              queue telemetry in one workspace.
-            </p>
-            <div className={styles.heroChips} aria-label="Supplier import status">
-              <span className={fetching ? styles.liveChip : ""}>
-                <BoltIcon className="h-3.5 w-3.5" />
-                {deckStatus}
-              </span>
-              <span>
-                <QueueListIcon className="h-3.5 w-3.5" />
-                {compactNumber(counts.pending)} pending
-              </span>
-              <span>
-                <Squares2X2Icon className="h-3.5 w-3.5" />
-                {reviewCompletion}% reviewed
-              </span>
-              <span>
-                <FlagIcon className="h-3.5 w-3.5" />
-                {compactNumber(counts.changed)} changed
-              </span>
-            </div>
-          </div>
-          <div className={styles.heroPanel} aria-label="Review queue summary">
-            <div className={styles.heroPanelTop}>
-              <div>
-                <p>Active queue</p>
-                <strong>{compactNumber(counts.pending)}</strong>
-              </div>
-              <div className={styles.orbitBadge}>
-                <InboxStackIcon className="h-5 w-5" />
-              </div>
-            </div>
-            <div className={styles.progressTrack} aria-hidden="true">
-              <span style={{ width: `${reviewCompletion}%` }} />
-            </div>
-            <div className={styles.metricGrid}>
-              {[
-                ["Approved", counts.approved, "emerald"],
-                ["Declined", counts.declined, "rose"],
-                ["Errors", counts.errors, "amber"],
-                ["Changed", counts.changed, "cyan"],
-              ].map(([label, value, tone]) => (
-                <div key={label} className={styles.metricTile} data-tone={tone}>
-                  <span>{label}</span>
-                  <strong>{compactNumber(value as number)}</strong>
-                </div>
-              ))}
-            </div>
-            <div className={styles.latestBatch}>
-              <span>Latest batch</span>
-              <strong>
-                {latestBatch
-                  ? `${latestBatch.status} · ${compactNumber(latestBatch.fetchedCount)} added · ${compactNumber(latestBatch.changedCount)} changed`
-                  : "No supplier scans yet"}
-              </strong>
-            </div>
-          </div>
-        </div>
-      </section>
+    <AdminPage layout="queue" className={styles.workspace}>
+      <AdminPageHeader
+        eyebrow="Catalog / Supplier Import"
+        title="Bloomtech review queue"
+        description="Controlled supplier intake with draft creation, traceable decisions, and queue telemetry."
+        actions={
+          <span className="inline-flex h-8 items-center gap-2 rounded-[10px] border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 text-[13px] font-semibold text-[var(--adm-text-muted)]">
+            <BoltIcon className={`h-4 w-4 ${fetching ? "animate-pulse" : ""}`} />
+            {deckStatus}
+          </span>
+        }
+      >
+        <AdminKpiStrip>
+          <AdminStat label="Pending" value={compactNumber(counts.pending)} />
+          <AdminStat label="Reviewed" value={`${reviewCompletion}%`} delta="queue completion" />
+          <AdminStat label="Approved" value={compactNumber(counts.approved)} deltaTone="success" />
+          <AdminStat label="Declined" value={compactNumber(counts.declined)} deltaTone="error" />
+          <AdminStat label="Changed" value={compactNumber(counts.changed)} deltaTone="warning" />
+          <AdminStat label="Errors" value={compactNumber(counts.errors)} deltaTone="error" />
+        </AdminKpiStrip>
+      </AdminPageHeader>
 
       {notice ? <AdminNotice tone={notice.tone}>{notice.text}</AdminNotice> : null}
 
@@ -873,7 +820,7 @@ export default function SupplierImportClient({
                         priority
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-slate-600">
+                      <div className="flex h-full items-center justify-center text-[var(--adm-text-faint)]">
                         <PhotoIcon className="h-20 w-20" />
                       </div>
                     )}
@@ -887,7 +834,7 @@ export default function SupplierImportClient({
                       style={{ "--wash-opacity": drag.x < 0 ? dragStrength : 0 } as CSSProperties}
                     />
                     <div
-                      className={`${styles.stamp} right-7 text-emerald-300`}
+                      className={`${styles.stamp} right-7 text-[var(--adm-success)]`}
                       style={{
                         "--stamp-opacity": drag.x > 0 ? dragStrength : 0,
                         "--stamp-rotate": "8deg",
@@ -896,7 +843,7 @@ export default function SupplierImportClient({
                       APPROVE
                     </div>
                     <div
-                      className={`${styles.stamp} left-7 text-rose-300`}
+                      className={`${styles.stamp} left-7 text-[var(--adm-error)]`}
                       style={{
                         "--stamp-opacity": drag.x < 0 ? dragStrength : 0,
                         "--stamp-rotate": "-8deg",
@@ -907,10 +854,10 @@ export default function SupplierImportClient({
                     <div className={styles.scanline} />
                     <div className="absolute inset-x-5 bottom-4 z-[2] flex items-end justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-cyan-300">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.26em] text-[var(--adm-primary)]">
                           {currentItem.manufacturer || "Bloomtech"}
                         </p>
-                        <h3 className="mt-1 max-w-md text-xl font-black leading-tight text-white sm:text-2xl">
+                        <h3 className="mt-1 max-w-md text-xl font-black leading-tight text-[var(--adm-text)] sm:text-2xl">
                           {currentItem.title}
                         </h3>
                       </div>
@@ -922,7 +869,7 @@ export default function SupplierImportClient({
                         }}
                         onPointerDown={(event) => event.stopPropagation()}
                         onPointerUp={(event) => event.stopPropagation()}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur hover:bg-black/60"
+                        className="inline-flex h-8 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--adm-border-strong)] bg-black/40 text-[var(--adm-text)] backdrop-blur hover:bg-black/60"
                         aria-label="Open supplier product"
                         title="Open original Bloomtech product"
                       >
@@ -994,7 +941,7 @@ export default function SupplierImportClient({
                         )}
                       </div>
                     ) : (
-                      <p className="line-clamp-3 text-sm leading-5 text-slate-400">
+                      <p className="line-clamp-3 text-sm leading-5 text-[var(--adm-text-muted)]">
                         {currentItem.shortDescription || currentItem.technicalDetails || "No supplier description available."}
                       </p>
                     )}
@@ -1010,10 +957,10 @@ export default function SupplierImportClient({
               </div>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="max-w-md rounded-[28px] border border-dashed border-emerald-400/25 bg-emerald-400/[0.04] p-10 text-center">
-                  <CheckIcon className="mx-auto h-14 w-14 text-emerald-300" />
-                  <h3 className="mt-4 text-xl font-bold text-white">The deck is clear</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                <div className="max-w-md rounded-xl border border-dashed border-[var(--adm-success)] bg-emerald-400/[0.04] p-10 text-center">
+                  <CheckIcon className="mx-auto h-14 w-14 text-[var(--adm-success)]" />
+                  <h3 className="mt-4 text-xl font-bold text-[var(--adm-text)]">The deck is clear</h3>
+                  <p className="mt-2 text-sm leading-6 text-[var(--adm-text-muted)]">
                     Fetch another category or revise decisions in the review history below.
                   </p>
                 </div>
@@ -1026,7 +973,7 @@ export default function SupplierImportClient({
               type="button"
               onClick={() => void decideCurrent("DECLINED")}
               disabled={!currentItem || Boolean(exitDirection) || deleting}
-              className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 font-bold text-rose-200 disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--adm-error)] bg-[#fae7e3] px-4 font-bold text-[var(--adm-error)] disabled:cursor-not-allowed disabled:opacity-40`}
             >
               <XMarkIcon className="mr-2 h-5 w-5" /> Decline
             </button>
@@ -1034,7 +981,7 @@ export default function SupplierImportClient({
               type="button"
               onClick={() => void decideCurrent("APPROVED")}
               disabled={!currentItem || Boolean(exitDirection) || deleting}
-              className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-emerald-300/30 bg-emerald-300 px-4 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`${styles.actionButton} inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--adm-success)] bg-emerald-300 px-4 font-bold text-white disabled:cursor-not-allowed disabled:opacity-40`}
             >
               <CheckIcon className="mr-2 h-5 w-5" /> Approve draft
             </button>
@@ -1048,49 +995,49 @@ export default function SupplierImportClient({
         >
           <div className="space-y-3">
             {fetching ? (
-              <div className={`${styles.pulse} rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.06] p-4`}>
-                <p className="text-sm font-semibold text-cyan-100">Scanning Bloomtech</p>
-                <p className="mt-1 text-xs leading-5 text-cyan-200/65">
+              <div className={`${styles.pulse} rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary)]/[0.06] p-4`}>
+                <p className="text-sm font-semibold text-[var(--adm-primary)]">Scanning Bloomtech</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--adm-primary)]/65">
                   Supplier authentication, listing discovery, and product extraction are running.
                 </p>
               </div>
             ) : null}
             {data.batches.length ? data.batches.map((batch) => (
-              <div key={batch.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+              <div key={batch.id} className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">
+                    <p className="truncate text-sm font-semibold text-[var(--adm-text)]">
                       {new URL(batch.sourceUrl).pathname.replace(/^\/+/, "") || "Bloomtech"}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-[var(--adm-text-faint)]">
                       {new Date(batch.createdAt).toLocaleString("de-DE")}
                     </p>
                   </div>
                   <span className={`rounded-full border px-2 py-1 text-[9px] font-bold tracking-[0.14em] ${
                     batch.status === "FAILED"
-                      ? "border-rose-400/20 bg-rose-400/10 text-rose-200"
+                      ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
                       : batch.status === "PARTIAL"
-                        ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
-                        : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                        ? "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
+                        : "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
                   }`}>
                     {batch.status}
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <div className="rounded-lg bg-black/20 px-3 py-2 text-slate-400">
-                    Added <strong className="float-right text-white">{batch.fetchedCount}</strong>
+                  <div className="rounded-lg bg-[var(--adm-surface-2)] px-3 py-2 text-[var(--adm-text-muted)]">
+                    Added <strong className="float-right text-[var(--adm-text)]">{batch.fetchedCount}</strong>
                   </div>
-                  <div className="rounded-lg bg-amber-400/[0.06] px-3 py-2 text-amber-200/75">
-                    Changed <strong className="float-right text-amber-100">{batch.changedCount}</strong>
+                  <div className="rounded-lg bg-amber-400/[0.06] px-3 py-2 text-[#81560e]/75">
+                    Changed <strong className="float-right text-[#81560e]">{batch.changedCount}</strong>
                   </div>
-                  <div className="rounded-lg bg-black/20 px-3 py-2 text-slate-400">
-                    Skipped <strong className="float-right text-white">{batch.skippedCount}</strong>
+                  <div className="rounded-lg bg-[var(--adm-surface-2)] px-3 py-2 text-[var(--adm-text-muted)]">
+                    Skipped <strong className="float-right text-[var(--adm-text)]">{batch.skippedCount}</strong>
                   </div>
                 </div>
-                {batch.errorMessage ? <p className="mt-2 text-xs text-rose-300">{batch.errorMessage}</p> : null}
+                {batch.errorMessage ? <p className="mt-2 text-xs text-[var(--adm-error)]">{batch.errorMessage}</p> : null}
               </div>
             )) : (
-              <p className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">
+              <p className="rounded-xl border border-dashed border-[var(--adm-border)] p-6 text-center text-sm text-[var(--adm-text-faint)]">
                 No supplier batches yet.
               </p>
             )}
@@ -1112,8 +1059,8 @@ export default function SupplierImportClient({
                 onClick={() => setHistoryFilter(filter)}
                 className={`rounded-lg border px-3 py-2 text-xs font-bold tracking-wide transition ${
                   historyFilter === filter
-                    ? "border-cyan-300/30 bg-cyan-300/12 text-cyan-100"
-                    : "border-white/10 bg-white/[0.025] text-slate-400 hover:text-white"
+                    ? "border-[var(--adm-primary)] bg-cyan-300/12 text-[var(--adm-primary)]"
+                    : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)] hover:text-[var(--adm-text)]"
                 }`}
               >
                 {filter === "ALL" ? "All" : filter.replace("_", " ")}
@@ -1128,19 +1075,19 @@ export default function SupplierImportClient({
           />
         </div>
 
-        <div className="mt-4 flex min-h-12 flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-300">
+        <div className="mt-4 flex min-h-12 flex-col gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-[var(--adm-text-muted)]">
             <input
               type="checkbox"
               checked={allVisibleSelected}
               onChange={toggleVisibleSelection}
               disabled={visibleHistory.length === 0 || deleting}
-              className="h-4 w-4 rounded border-white/20 bg-black/30 accent-cyan-300"
+              className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-black/30 accent-cyan-300"
             />
             Select all visible ({visibleHistory.length})
           </label>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-[var(--adm-text-faint)]">
               {selectedItemIds.size} selected
             </span>
             {selectedItemIds.size > 0 ? (
@@ -1148,7 +1095,7 @@ export default function SupplierImportClient({
                 type="button"
                 onClick={() => setSelectedItemIds(new Set())}
                 disabled={deleting}
-                className="rounded-lg px-3 py-2 text-xs font-bold text-slate-400 hover:bg-white/[0.04] hover:text-white disabled:opacity-40"
+                className="rounded-lg px-3 py-2 text-xs font-bold text-[var(--adm-text-muted)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)] disabled:opacity-40"
               >
                 Clear selection
               </button>
@@ -1173,39 +1120,39 @@ export default function SupplierImportClient({
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-          <div className="hidden grid-cols-[32px_minmax(260px,1fr)_130px_120px_120px_150px_48px] gap-3 border-b border-white/10 bg-white/[0.035] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 xl:grid">
+        <div className="mt-4 overflow-hidden rounded-xl border border-[var(--adm-border)]">
+          <div className="hidden grid-cols-[32px_minmax(260px,1fr)_130px_120px_120px_150px_48px] gap-3 border-b border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--adm-text-faint)] xl:grid">
             <span /><span>Product</span><span>Status</span><span>Cost</span><span>Sell price</span><span>Catalog</span><span />
           </div>
           <div className="divide-y divide-white/10">
             {visibleHistory.map((item) => (
               <div key={item.id}>
-                <div className="grid gap-3 bg-[#070b10] px-3 py-3 xl:grid-cols-[32px_minmax(260px,1fr)_130px_120px_120px_150px_48px] xl:items-center xl:px-4">
+                <div className="grid gap-3 bg-[var(--adm-surface)] px-3 py-3 xl:grid-cols-[32px_minmax(260px,1fr)_130px_120px_120px_150px_48px] xl:items-center xl:px-4">
                   <label className="flex items-center xl:justify-center">
                     <input
                       type="checkbox"
                       checked={selectedItemIds.has(item.id)}
                       onChange={() => toggleItemSelection(item.id)}
                       disabled={deleting}
-                      className="h-4 w-4 rounded border-white/20 bg-black/30 accent-cyan-300"
+                      className="h-4 w-4 rounded border-[var(--adm-border-strong)] bg-black/30 accent-cyan-300"
                       aria-label={`Select ${item.title}`}
                     />
-                    <span className="ml-2 text-xs font-semibold text-slate-500 xl:hidden">
+                    <span className="ml-2 text-xs font-semibold text-[var(--adm-text-faint)] xl:hidden">
                       Select
                     </span>
                   </label>
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)]">
                       {item.imageUrls[0] ? (
                         <Image src={item.imageUrls[0]} alt="" fill sizes="56px" className="object-contain p-1.5" />
-                      ) : <PhotoIcon className="m-4 h-6 w-6 text-slate-600" />}
+                      ) : <PhotoIcon className="m-4 h-6 w-6 text-[var(--adm-text-faint)]" />}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+                        <p className="truncate text-sm font-semibold text-[var(--adm-text)]">{item.title}</p>
                         {item.sourceChanges?.length ? (
                           <span
-                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-200"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#e2a136] bg-[#fff4dd] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#81560e]"
                             title={`${item.sourceChanges.length} supplier fields changed`}
                           >
                             <FlagIcon className="h-3 w-3" />
@@ -1213,50 +1160,50 @@ export default function SupplierImportClient({
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-1 truncate text-xs text-slate-500">
+                      <p className="mt-1 truncate text-xs text-[var(--adm-text-faint)]">
                         {item.manufacturer || "Bloomtech"} · {item.sku || item.handle}
                       </p>
-                      {item.importError ? <p className="mt-1 text-xs text-amber-300">{item.importError}</p> : null}
+                      {item.importError ? <p className="mt-1 text-xs text-[#81560e]">{item.importError}</p> : null}
                     </div>
                   </div>
                   <div><span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] ${statusTone(item.status)}`}>{item.status.replace("_", " ")}</span></div>
-                  <p className="text-sm font-semibold text-slate-200"><span className="mr-2 text-xs text-slate-500 xl:hidden">Cost</span>{formatMoney(item.costCents)}</p>
-                  <p className="text-sm font-semibold text-slate-200">
-                    <span className="mr-2 text-xs text-slate-500 xl:hidden">Sell</span>
+                  <p className="text-sm font-semibold text-[var(--adm-text)]"><span className="mr-2 text-xs text-[var(--adm-text-faint)] xl:hidden">Cost</span>{formatMoney(item.costCents)}</p>
+                  <p className="text-sm font-semibold text-[var(--adm-text)]">
+                    <span className="mr-2 text-xs text-[var(--adm-text-faint)] xl:hidden">Sell</span>
                     {formatMoney(item.priceCents)}
                     {item.compareAtCents ? (
-                      <del className="ml-2 text-xs font-medium text-slate-500">
+                      <del className="ml-2 text-xs font-medium text-[var(--adm-text-faint)]">
                         {formatMoney(item.compareAtCents)}
                       </del>
                     ) : null}
                   </p>
                   <div>
                     {item.linkedProduct ? (
-                      <Link href={`/admin/catalog/${item.linkedProduct.id}`} className="inline-flex items-center text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+                      <Link href={`/admin/catalog/${item.linkedProduct.id}`} className="inline-flex items-center text-xs font-semibold text-[var(--adm-primary)] hover:text-[var(--adm-primary)]">
                         Open draft <ArrowTopRightOnSquareIcon className="ml-1.5 h-3.5 w-3.5" />
                       </Link>
-                    ) : <span className="text-xs text-slate-600">Not linked</span>}
+                    ) : <span className="text-xs text-[var(--adm-text-faint)]">Not linked</span>}
                   </div>
                   <button
                     type="button"
                     onClick={() => setExpandedId((current) => current === item.id ? null : item.id)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-300 hover:text-white"
+                    className="inline-flex h-8 w-10 items-center justify-center rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface)] text-[var(--adm-text-muted)] hover:text-[var(--adm-text)]"
                     aria-label={`${expandedId === item.id ? "Collapse" : "Expand"} ${item.title}`}
                   >
                     {expandedId === item.id ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
                   </button>
                 </div>
                 {expandedId === item.id ? (
-                  <div className="grid gap-4 bg-white/[0.018] px-4 py-4 lg:grid-cols-[1fr_auto]">
+                  <div className="grid gap-4 bg-[var(--adm-surface-2)] px-4 py-4 lg:grid-cols-[1fr_auto]">
                     <div>
-                      <p className="text-sm leading-6 text-slate-400">
+                      <p className="text-sm leading-6 text-[var(--adm-text-muted)]">
                         {item.shortDescription || item.technicalDetails || "No description available."}
                       </p>
-                      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
+                      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[var(--adm-text-faint)]">
                         <span>Stock: {item.stockQuantity}</span>
                         <span>Weight: {item.weightGrams ? `${item.weightGrams} g` : "—"}</span>
                         <span>GTIN: {item.gtin || "—"}</span>
-                        <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="text-cyan-300 hover:text-cyan-200">Supplier page</a>
+                        <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="text-[var(--adm-primary)] hover:text-[var(--adm-primary)]">Supplier page</a>
                       </div>
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
@@ -1319,7 +1266,7 @@ export default function SupplierImportClient({
               </div>
             ))}
             {visibleHistory.length === 0 ? (
-              <p className="p-10 text-center text-sm text-slate-500">No review items match these filters.</p>
+              <p className="p-10 text-center text-sm text-[var(--adm-text-faint)]">No review items match these filters.</p>
             ) : null}
           </div>
         </div>
@@ -1328,14 +1275,14 @@ export default function SupplierImportClient({
       {editingItem && editDraft ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center">
           <button type="button" className="absolute inset-0 bg-black/75 backdrop-blur-sm" aria-label="Close editor" onClick={() => setEditingItem(null)} />
-          <section role="dialog" aria-modal="true" aria-labelledby="supplier-edit-title" className="relative max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-white/10 bg-[#090e14] p-4 shadow-2xl sm:p-6">
+          <section role="dialog" aria-modal="true" aria-labelledby="supplier-edit-title" className="relative max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4 shadow-2xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-300">Review copy</p>
-                <h2 id="supplier-edit-title" className="mt-1 text-xl font-bold text-white">Edit product fields</h2>
-                <p className="mt-1 text-sm text-slate-400">Approved items synchronize these fields to their linked catalog product.</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--adm-primary)]">Review copy</p>
+                <h2 id="supplier-edit-title" className="mt-1 text-xl font-bold text-[var(--adm-text)]">Edit product fields</h2>
+                <p className="mt-1 text-sm text-[var(--adm-text-muted)]">Approved items synchronize these fields to their linked catalog product.</p>
               </div>
-              <button type="button" onClick={() => setEditingItem(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 text-slate-300 hover:text-white" aria-label="Close editor">
+              <button type="button" onClick={() => setEditingItem(null)} className="inline-flex h-8 w-10 items-center justify-center rounded-lg border border-[var(--adm-border)] text-[var(--adm-text-muted)] hover:text-[var(--adm-text)]" aria-label="Close editor">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
@@ -1364,6 +1311,6 @@ export default function SupplierImportClient({
           </section>
         </div>
       ) : null}
-    </div>
+    </AdminPage>
   );
 }

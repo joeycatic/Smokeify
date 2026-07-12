@@ -22,7 +22,7 @@ export default async function AdminSupportPage({
   ]);
 
   return (
-    <div className="w-full text-slate-100">
+    <div className="w-full text-[var(--adm-text)]">
       <AdminSupportClient supportCases={supportCases} owners={owners} />
     </div>
   );

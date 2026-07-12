@@ -14,6 +14,13 @@ import {
   AdminMetricCard,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import {
+  AdminActionBar,
+  AdminKpiStrip,
+  AdminPage as AdminPageLayout,
+  AdminPageHeader,
+  AdminPrimaryGrid,
+} from "@/components/admin/ui";
 import { getFinancePageData, getVatPageData } from "@/lib/adminAddonData";
 import {
   getActiveSessionSnapshot,
@@ -419,9 +426,9 @@ const ADMIN_INBOX_PRIORITY_WEIGHT: Record<AdminInboxPriority, number> = {
 };
 
 const ADMIN_INBOX_PRIORITY_CLASS: Record<AdminInboxPriority, string> = {
-  critical: "border-rose-400/20 bg-rose-400/10 text-rose-200",
-  high: "border-amber-400/20 bg-amber-400/10 text-amber-200",
-  medium: "border-cyan-400/20 bg-cyan-400/10 text-cyan-200",
+  critical: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
+  high: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
+  medium: "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]",
 };
 
 async function getFailedWebhookCount() {
@@ -661,20 +668,20 @@ export default async function AdminPage({
   }));
 
   const statusMix = [
-    { label: copy.statusMix.paid, value: paidOrders.length, colorClassName: "#22d3ee" },
+    { label: copy.statusMix.paid, value: paidOrders.length, colorClassName: "#2f6690" },
     {
       label: copy.statusMix.pending,
       value: recentOrders.filter(
         (order) => !PAID_PAYMENT_STATUSES.has(order.paymentStatus.trim().toLowerCase()),
       ).length,
-      colorClassName: "#818cf8",
+      colorClassName: "#bd5b2b",
     },
     {
       label: copy.statusMix.canceled,
       value: recentOrders.filter((order) =>
         ["canceled", "cancelled", "failed"].includes(order.status.trim().toLowerCase()),
       ).length,
-      colorClassName: "#ef4444",
+      colorClassName: "#c0432c",
     },
   ];
 
@@ -685,17 +692,17 @@ export default async function AdminPage({
   const demandSeries = [
     {
       label: visualCopy.funnelStages.sessions,
-      color: "#38bdf8",
+      color: "#1f5f3f",
       values: funnelTrend.map((point) => point.sessions),
     },
     {
       label: visualCopy.funnelStages.checkout,
-      color: "#f59e0b",
+      color: "#e2a136",
       values: funnelTrend.map((point) => point.beginCheckout),
     },
     {
       label: visualCopy.funnelStages.paid,
-      color: "#34d399",
+      color: "#5f8b72",
       values: funnelTrend.map((point) => point.paidOrders),
     },
   ];
@@ -704,7 +711,7 @@ export default async function AdminPage({
       label: visualCopy.funnelStages.sessions,
       value: funnelSnapshot.sessions,
       helper: countFormatter.format(funnelSnapshot.sessions),
-      color: "#38bdf8",
+      color: "#1f5f3f",
     },
     {
       label: visualCopy.funnelStages.views,
@@ -721,25 +728,25 @@ export default async function AdminPage({
                 ? funnelSnapshot.productViews / funnelSnapshot.sessions
                 : 0,
             )} of sessions`,
-      color: "#818cf8",
+      color: "#bd5b2b",
     },
     {
       label: visualCopy.funnelStages.cart,
       value: funnelSnapshot.addToCart,
       helper: `${formatPercent(funnelSnapshot.viewToCartRate)} ${visualCopy.funnelRates.viewToCart}`,
-      color: "#c084fc",
+      color: "#8b6e5c",
     },
     {
       label: visualCopy.funnelStages.checkout,
       value: funnelSnapshot.beginCheckout,
       helper: `${formatPercent(funnelSnapshot.cartToCheckoutRate)} ${visualCopy.funnelRates.cartToCheckout}`,
-      color: "#f59e0b",
+      color: "#e2a136",
     },
     {
       label: visualCopy.funnelStages.paid,
       value: funnelSnapshot.paidOrders,
       helper: `${formatPercent(funnelSnapshot.checkoutToPaidRate)} ${visualCopy.funnelRates.checkoutToPaid}`,
-      color: "#34d399",
+      color: "#5f8b72",
     },
   ];
 
@@ -859,7 +866,7 @@ export default async function AdminPage({
         formatPercent(financeData.currentFinance.contributionMarginRatio),
       ),
       accentClassName: "from-emerald-400/60 via-emerald-300/15 to-transparent",
-      valueClassName: "text-emerald-100",
+      valueClassName: "text-[var(--adm-success)]",
     },
     {
       href: "/admin/vat",
@@ -869,7 +876,7 @@ export default async function AdminPage({
         formatVatStatus(vatData.current?.status ?? "estimated", language),
       ),
       accentClassName: "from-amber-400/60 via-amber-300/15 to-transparent",
-      valueClassName: "text-amber-100",
+      valueClassName: "text-[#81560e]",
     },
     {
       href: "/admin/profitability",
@@ -907,7 +914,7 @@ export default async function AdminPage({
       value: formatMoney(customerRevenueMix.returningRevenueCents, locale, dashboardCurrency),
       detail: copy.modules.customers.detail(customerRevenueMix.returningCustomerCount),
       accentClassName: "from-cyan-400/60 via-cyan-300/15 to-transparent",
-      valueClassName: "text-cyan-100",
+      valueClassName: "text-[var(--adm-primary)]",
     },
     {
       href: "/admin/catalog",
@@ -923,7 +930,7 @@ export default async function AdminPage({
       value: String(primaryAction.length),
       detail: copy.modules.alerts.detail,
       accentClassName: "from-rose-400/60 via-rose-300/15 to-transparent",
-      valueClassName: "text-rose-100",
+      valueClassName: "text-[var(--adm-error)]",
     },
   ];
   const heroSignals = [
@@ -931,7 +938,7 @@ export default async function AdminPage({
       label: visualCopy.revenuePulse,
       value: formatMoney(orderComparisons.revenue.current, locale, dashboardCurrency),
       detail: formatDelta(orderComparisons.revenue.deltaRatio, copy.noBaseline),
-      accentClassName: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+      accentClassName: "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]",
     },
     {
       label: visualCopy.demandPulse,
@@ -945,40 +952,53 @@ export default async function AdminPage({
       detail:
         primaryAction[0]?.title ??
         (language === "de" ? "Keine unmittelbare Eskalation" : "No immediate escalation"),
-      accentClassName: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+      accentClassName: "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]",
     },
     {
       label: visualCopy.funnelRecovery,
       value: formatPercent(funnelSnapshot.checkoutToPaidRate),
       detail: `${countFormatter.format(funnelSnapshot.paidOrders)} ${visualCopy.funnelStages.paid.toLowerCase()}`,
-      accentClassName: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+      accentClassName: "border-[#e2a136] bg-[#fff4dd] text-[#81560e]",
     },
   ];
 
   return (
-    <div className="admin-dashboard-page space-y-4 sm:space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#060b14] p-3 shadow-[0_18px_46px_rgba(0,0,0,0.3)] sm:rounded-[36px] sm:p-6 sm:shadow-[0_36px_90px_rgba(0,0,0,0.38)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.2),_transparent_32%),radial-gradient(circle_at_78%_14%,_rgba(251,191,36,0.16),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(244,63,94,0.14),_transparent_28%),linear-gradient(140deg,_rgba(7,12,22,0.98),_rgba(11,18,30,0.94)_48%,_rgba(15,21,35,0.92))]" />
-        <div className="absolute inset-y-0 right-0 hidden w-[46%] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)] opacity-70 sm:block" />
+    <AdminPageLayout layout="dashboard" className="admin-dashboard-page">
+      <AdminPageHeader
+        eyebrow={copy.hero.eyebrow}
+        title={copy.hero.title}
+        description={visualCopy.deckDescription}
+        actions={
+          <AdminTimeRangeTabs
+            pathname="/admin"
+            activeDays={days}
+            extraParams={{ lang: language }}
+          />
+        }
+      />
+
+      <section className="hidden">
+        <div className="absolute inset-0 bg-[var(--adm-surface)]" />
+        <div className="absolute inset-y-0 right-0 hidden w-[46%] bg-[var(--adm-surface)] opacity-70 sm:block" />
         <div className="relative grid gap-3 sm:gap-6 min-[1800px]:grid-cols-[minmax(0,1.15fr)_430px] min-[1800px]:items-start">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/70 sm:text-[11px] sm:tracking-[0.36em]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-primary)]/70 sm:text-[11px] sm:tracking-[0.36em]">
               {copy.hero.eyebrow}
             </p>
-            <h1 className="mt-2 max-w-4xl text-[1.45rem] font-semibold leading-[1.08] text-white sm:mt-4 sm:text-4xl">
+            <h1 className="mt-2 max-w-4xl text-[1.45rem] font-semibold leading-[1.08] text-[var(--adm-text)] sm:mt-4 sm:text-4xl">
               {copy.hero.title}
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-5 text-slate-300 sm:mt-4 sm:leading-6">
+            <p className="mt-2 max-w-3xl text-sm leading-5 text-[var(--adm-text-muted)] sm:mt-4 sm:leading-6">
               {visualCopy.deckDescription}
             </p>
             <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:mt-5 sm:flex-wrap sm:gap-2 sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-              <span className="inline-flex shrink-0 items-center rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 sm:px-3 sm:py-2 sm:text-xs">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--adm-text)] sm:px-3 sm:py-2 sm:text-xs">
                 {copy.hero.liveVisitors(liveSnapshot.activeVisitorCount)}
               </span>
-              <span className="inline-flex shrink-0 items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-cyan-200 sm:px-3 sm:py-2 sm:text-xs">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--adm-primary)] sm:px-3 sm:py-2 sm:text-xs">
                 {copy.hero.keyActions(primaryAction.length)}
               </span>
-              <span className="inline-flex shrink-0 items-center rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 sm:px-3 sm:py-2 sm:text-xs">
+              <span className="inline-flex shrink-0 items-center rounded-full border border-[#e2a136] bg-[#fff4dd] px-2.5 py-1.5 text-[11px] font-semibold text-[#81560e] sm:px-3 sm:py-2 sm:text-xs">
                 {copy.hero.vatBadge(
                   formatVatStatus(vatData.current?.status ?? "estimated", language),
                 )}
@@ -996,40 +1016,40 @@ export default async function AdminPage({
               {heroSignals.map((signal) => (
                 <div
                   key={signal.label}
-                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 backdrop-blur sm:rounded-[24px] sm:px-4 sm:py-4"
+                  className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-3 py-3 backdrop-blur sm:rounded-xl sm:px-4 sm:py-4"
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-[11px] sm:tracking-[0.22em]">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--adm-text-faint)] sm:text-[11px] sm:tracking-[0.22em]">
                       {signal.label}
                     </p>
                     <span className={`mt-2 hidden rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] sm:inline-flex ${signal.accentClassName}`}>
                       {visualCopy.deckEyebrow}
                     </span>
                   </div>
-                  <div className="mt-2 truncate text-lg font-semibold text-white sm:mt-4 sm:text-2xl">{signal.value}</div>
-                  <div className="mt-1 line-clamp-2 text-xs leading-4 text-slate-400 sm:mt-2 sm:text-sm">{signal.detail}</div>
+                  <div className="mt-2 truncate text-lg font-semibold text-[var(--adm-text)] sm:mt-4 sm:text-2xl">{signal.value}</div>
+                  <div className="mt-1 line-clamp-2 text-xs leading-4 text-[var(--adm-text-muted)] sm:mt-2 sm:text-sm">{signal.detail}</div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-3 backdrop-blur sm:rounded-[28px] sm:p-4">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface-2)] p-3 backdrop-blur sm:rounded-xl sm:p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-[11px] sm:tracking-[0.28em]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--adm-text-faint)] sm:text-[11px] sm:tracking-[0.28em]">
                   {visualCopy.deckEyebrow}
                 </p>
-                <h2 className="mt-1.5 text-base font-semibold text-white sm:mt-2 sm:text-lg">{visualCopy.deckTitle}</h2>
+                <h2 className="mt-1.5 text-base font-semibold text-[var(--adm-text)] sm:mt-2 sm:text-lg">{visualCopy.deckTitle}</h2>
               </div>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:px-3 sm:py-1.5 sm:tracking-[0.2em]">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--adm-text-muted)] sm:px-3 sm:py-1.5 sm:tracking-[0.2em]">
                 {paceTrendDays}d
               </span>
             </div>
             <div className="mt-4">
               <SparklineChart
                 data={salesTrend}
-                className="border-white/10 bg-white/[0.03]"
-                strokeClassName="stroke-emerald-300"
-                fillClassName="fill-emerald-400/10"
+                className="border-[var(--adm-border)] bg-[var(--adm-surface)]"
+                strokeClassName="stroke-[#1f5f3f]"
+                fillClassName="fill-[#1f5f3f]/10"
               />
             </div>
             <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-3">
@@ -1037,7 +1057,7 @@ export default async function AdminPage({
                 <Link
                   key={`${item.title}-${item.href}`}
                   href={item.href}
-                  className="group block rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/20 hover:bg-white/[0.05] sm:rounded-[22px] sm:px-4 sm:py-4"
+                  className="group block rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3 transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] sm:rounded-[22px] sm:px-4 sm:py-4"
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                     <div className="min-w-0">
@@ -1047,18 +1067,18 @@ export default async function AdminPage({
                         >
                           {copy.panels.actions.priority[item.priority]}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:px-2.5 sm:py-1 sm:tracking-[0.16em]">
+                        <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--adm-text-muted)] sm:px-2.5 sm:py-1 sm:tracking-[0.16em]">
                           {item.category}
                         </span>
                       </div>
-                      <div className="mt-2 text-sm font-semibold text-white sm:mt-3">{item.title}</div>
-                      <div className="mt-1 line-clamp-2 text-sm text-slate-400">{item.detail}</div>
+                      <div className="mt-2 text-sm font-semibold text-[var(--adm-text)] sm:mt-3">{item.title}</div>
+                      <div className="mt-1 line-clamp-2 text-sm text-[var(--adm-text-muted)]">{item.detail}</div>
                     </div>
                     <div className="flex shrink-0 items-center justify-between gap-2 text-left sm:block sm:text-right">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--adm-text-faint)]">
                         {visualCopy.actionPressure}
                       </div>
-                      <div className="text-lg font-semibold text-white sm:mt-2 sm:text-xl">{item.score}</div>
+                      <div className="text-lg font-semibold text-[var(--adm-text)] sm:mt-2 sm:text-xl">{item.score}</div>
                     </div>
                   </div>
                 </Link>
@@ -1069,7 +1089,7 @@ export default async function AdminPage({
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <AdminKpiStrip>
         <AdminMetricCard
           label={copy.metrics.grossRevenue.label}
           value={formatMoney(orderComparisons.revenue.current, locale, dashboardCurrency)}
@@ -1099,14 +1119,27 @@ export default async function AdminPage({
           footnote={copy.metrics.lowStock.footnote}
           tone="amber"
         />
-      </section>
+      </AdminKpiStrip>
 
-      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <AdminActionBar className="grid grid-cols-2 md:grid-cols-4">
+        {moduleCards.map((card) => (
+          <Link
+            key={card.href}
+            href={card.href}
+            className="inline-flex h-8 min-w-0 items-center justify-between gap-2 rounded-[10px] px-2.5 text-[13px] font-semibold text-[var(--adm-text-muted)] transition hover:bg-[var(--adm-primary-soft)] hover:text-[var(--adm-primary)]"
+          >
+            <span className="truncate">{card.title}</span>
+            <span className="font-mono text-xs tabular-nums">{card.value}</span>
+          </Link>
+        ))}
+      </AdminActionBar>
+
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow={visualCopy.paceEyebrow}
           title={visualCopy.paceTitle}
           description={visualCopy.paceDescription}
-          className="bg-[linear-gradient(180deg,rgba(10,18,30,0.95),rgba(7,12,20,0.92))]"
+          className="bg-[var(--adm-surface)]"
         >
           <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:thin] sm:mx-0 sm:px-0">
             <MultiSeriesTrendChart
@@ -1133,40 +1166,41 @@ export default async function AdminPage({
           eyebrow={visualCopy.funnelEyebrow}
           title={visualCopy.funnelTitle}
           description={visualCopy.funnelDescription}
-          className="bg-[linear-gradient(180deg,rgba(20,14,10,0.95),rgba(10,9,12,0.92))]"
+          className="bg-[var(--adm-surface)]"
         >
           <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:thin] sm:mx-0 sm:px-0">
             <FunnelChart stages={funnelStages} />
           </div>
         </AdminPanel>
-      </section>
+      </AdminPrimaryGrid>
 
-      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid gap-3">
         <AdminPanel
           eyebrow={visualCopy.moduleEyebrow}
           title={visualCopy.moduleTitle}
           description={visualCopy.moduleDescription}
+          className="hidden"
         >
           <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2">
             {moduleCards.map((card) => (
               <Link
                 key={card.href}
                 href={card.href}
-                className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/20 hover:bg-white/[0.05] sm:rounded-[24px] sm:px-4 sm:py-4"
+                className="group relative overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3 transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] sm:rounded-xl sm:px-4 sm:py-4"
               >
                 <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${card.accentClassName} opacity-70`} />
                 <div className="relative flex h-full min-h-[7rem] flex-col justify-between gap-3 sm:gap-4">
                   <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-3">
-                    <div className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-[11px] sm:tracking-[0.24em]">
+                    <div className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--adm-text-faint)] sm:text-[11px] sm:tracking-[0.24em]">
                       {card.title}
                     </div>
-                    <span className="hidden rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300 sm:inline-flex">
+                    <span className="hidden rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--adm-text-muted)] sm:inline-flex">
                       {visualCopy.queueHint}
                     </span>
                   </div>
                   <div>
                     <div className={`truncate text-lg font-semibold sm:text-2xl ${card.valueClassName}`}>{card.value}</div>
-                    <div className="mt-1 line-clamp-2 text-xs leading-4 text-slate-300 sm:mt-2 sm:text-sm">{card.detail}</div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-4 text-[var(--adm-text-muted)] sm:mt-2 sm:text-sm">{card.detail}</div>
                   </div>
                 </div>
               </Link>
@@ -1208,7 +1242,7 @@ export default async function AdminPage({
         </AdminPanel>
       </section>
 
-      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow={copy.panels.actions.eyebrow}
           title={copy.panels.actions.title}
@@ -1221,7 +1255,7 @@ export default async function AdminPage({
               {primaryAction.map((item) => (
                 <div
                   key={`${item.title}-${item.href}`}
-                  className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3 sm:rounded-[24px] sm:px-4 sm:py-4"
+                  className="relative overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 py-3 sm:rounded-xl sm:px-4 sm:py-4"
                 >
                   <div
                     className={`absolute inset-y-0 left-0 w-1 ${
@@ -1229,7 +1263,7 @@ export default async function AdminPage({
                         ? "bg-rose-400"
                         : item.priority === "high"
                           ? "bg-amber-400"
-                          : "bg-cyan-400"
+                          : "bg-[var(--adm-primary)]"
                     }`}
                   />
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -1238,26 +1272,26 @@ export default async function AdminPage({
                     >
                       {copy.panels.actions.priority[item.priority]}
                     </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:px-2.5 sm:py-1 sm:text-[11px] sm:tracking-[0.16em]">
+                    <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--adm-text-muted)] sm:px-2.5 sm:py-1 sm:text-[11px] sm:tracking-[0.16em]">
                       {item.category}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-white">{item.title}</div>
-                      <div className="mt-1 text-sm leading-5 text-slate-400">{item.detail}</div>
+                      <div className="text-sm font-semibold text-[var(--adm-text)]">{item.title}</div>
+                      <div className="mt-1 text-sm leading-5 text-[var(--adm-text-muted)]">{item.detail}</div>
                       <Link
                         href={item.href}
-                        className="mt-3 inline-flex text-xs font-semibold text-cyan-200 transition hover:text-cyan-100"
+                        className="mt-3 inline-flex text-xs font-semibold text-[var(--adm-primary)] transition hover:text-[var(--adm-primary)]"
                       >
                         {item.hrefLabel}
                       </Link>
                     </div>
                     <div className="flex shrink-0 items-center justify-between gap-3 text-left sm:block sm:text-right">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:tracking-[0.2em]">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--adm-text-faint)] sm:tracking-[0.2em]">
                         {visualCopy.actionPressure}
                       </div>
-                      <div className="text-lg font-semibold text-white sm:mt-2 sm:text-xl">{item.score}</div>
+                      <div className="text-lg font-semibold text-[var(--adm-text)] sm:mt-2 sm:text-xl">{item.score}</div>
                     </div>
                   </div>
                 </div>
@@ -1272,8 +1306,8 @@ export default async function AdminPage({
         >
           <ActivityFeed items={activityFeed} emptyLabel={copy.panels.activity.empty} locale={locale} />
         </AdminPanel>
-      </section>
-    </div>
+      </AdminPrimaryGrid>
+    </AdminPageLayout>
   );
 }
 
@@ -1294,14 +1328,14 @@ function ActivityFeed({
           {index < items.length - 1 ? (
             <div className="absolute left-[9px] top-7 bottom-[-18px] w-px bg-gradient-to-b from-cyan-400/40 to-transparent" />
           ) : null}
-          <div className="absolute left-0 top-2.5 h-[18px] w-[18px] rounded-full border border-cyan-400/20 bg-cyan-400/15 shadow-[0_0_18px_rgba(56,189,248,0.25)]" />
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.02] px-4 py-4">
+          <div className="absolute left-0 top-2.5 h-[18px] w-[18px] rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary)]/15 shadow-[0_0_18px_rgba(56,189,248,0.25)]" />
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-100">{entry.title}</p>
-                <p className="mt-1 truncate text-xs text-slate-500">{entry.subtitle}</p>
+                <p className="truncate text-sm font-semibold text-[var(--adm-text)]">{entry.title}</p>
+                <p className="mt-1 truncate text-xs text-[var(--adm-text-faint)]">{entry.subtitle}</p>
               </div>
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+              <span className="rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)]">
                 {new Date(entry.createdAt).toLocaleTimeString(locale, {
                   hour: "2-digit",
                   minute: "2-digit",

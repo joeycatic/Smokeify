@@ -12,6 +12,7 @@ import {
   AdminPageIntro,
   AdminPanel,
 } from "@/components/admin/AdminWorkspace";
+import { AdminKpiStrip, AdminPage, AdminToolbar } from "@/components/admin/ui";
 import type { AdminOrderListPage, AdminOrderRecord, AdminOrderWebhookFailure } from "@/lib/adminOrders";
 import {
   ADMIN_STOREFRONT_SCOPE_LABELS,
@@ -31,7 +32,6 @@ import {
   isPaidOrder,
   isReadyToFulfillOrder,
   matchesOrderSearch,
-  normalizeOrderStatus,
   type OrderQueueTone,
 } from "@/lib/adminOrderQueue";
 
@@ -69,23 +69,23 @@ const toneClassNames: Record<
   }
 > = {
   attention: {
-    card: "border-amber-400/30 bg-[linear-gradient(135deg,rgba(120,53,15,0.26),rgba(12,16,22,0.96))]",
-    accent: "border-amber-300/30 bg-amber-300/15 text-amber-100",
+    card: "border-[#e2a136] bg-[var(--adm-surface)]",
+    accent: "border-[#e2a136] bg-amber-300/15 text-[#81560e]",
     label: "Needs action",
   },
   progress: {
-    card: "border-cyan-400/25 bg-[linear-gradient(135deg,rgba(8,64,86,0.25),rgba(12,16,22,0.96))]",
-    accent: "border-cyan-300/25 bg-cyan-300/15 text-cyan-100",
+    card: "border-[var(--adm-primary)] bg-[var(--adm-surface)]",
+    accent: "border-[var(--adm-primary)] bg-cyan-300/15 text-[var(--adm-primary)]",
     label: "In progress",
   },
   settled: {
-    card: "border-emerald-400/25 bg-[linear-gradient(135deg,rgba(6,78,59,0.24),rgba(12,16,22,0.96))]",
-    accent: "border-emerald-300/25 bg-emerald-300/15 text-emerald-100",
+    card: "border-[var(--adm-success)] bg-[var(--adm-surface)]",
+    accent: "border-[var(--adm-success)] bg-emerald-300/15 text-[var(--adm-success)]",
     label: "Completed",
   },
   muted: {
-    card: "border-white/10 bg-[#0d1218]",
-    accent: "border-white/10 bg-white/[0.05] text-slate-200",
+    card: "border-[var(--adm-border)] bg-[var(--adm-surface)]",
+    accent: "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text)]",
     label: "Monitoring",
   },
 };
@@ -99,14 +99,14 @@ function StatusChip({
 }) {
   const className =
     tone === "success"
-      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+      ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
       : tone === "warning"
-        ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
+        ? "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
         : tone === "danger"
-          ? "border-red-400/20 bg-red-400/10 text-red-200"
+          ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
           : tone === "info"
-            ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-            : "border-white/10 bg-white/[0.04] text-slate-300";
+            ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
+            : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]";
 
   return (
     <span
@@ -125,11 +125,11 @@ function InlineMeta({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <div className="min-w-0">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--adm-text-faint)]">
         {label}
       </div>
-      <div className="mt-2 text-sm text-slate-200">{value}</div>
+      <div className="mt-1 truncate text-[13px] text-[var(--adm-text)]">{value}</div>
     </div>
   );
 }
@@ -148,9 +148,8 @@ function OrderRow({ order }: { order: AdminOrderRecord }) {
     .join(" · ");
 
   return (
-    <article className={`rounded-[26px] border p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] ${toneClasses.card}`}>
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 flex-1">
+    <article className={`grid min-w-0 gap-3 rounded-xl border p-3 lg:grid-cols-[minmax(17rem,1.35fr)_minmax(8rem,0.7fr)_minmax(8rem,0.7fr)_minmax(8rem,0.7fr)_minmax(9rem,auto)] lg:items-center ${toneClasses.card}`}>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${toneClasses.accent}`}
@@ -170,25 +169,18 @@ function OrderRow({ order }: { order: AdminOrderRecord }) {
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
-            <h2 className="text-xl font-semibold tracking-tight text-white">
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <h2 className="font-mono text-base font-semibold tabular-nums text-[var(--adm-text)]">
               #{order.orderNumber}
             </h2>
-            <div className="text-sm font-medium text-slate-200">{customerLabel}</div>
+            <div className="text-sm font-medium text-[var(--adm-text)]">{customerLabel}</div>
             {customerSecondary ? (
-              <div className="text-sm text-slate-500">{customerSecondary}</div>
+              <div className="text-sm text-[var(--adm-text-faint)]">{customerSecondary}</div>
             ) : null}
           </div>
 
-          <div className="mt-2 text-sm text-slate-400">{getOrderItemSummary(order)}</div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <InlineMeta label="Created" value={formatDateTime(order.createdAt)} />
-            <InlineMeta label="Source" value={getOrderSourceDetail(order)} />
-            <InlineMeta label="Tracking" value={getOrderTrackingSummary(order)} />
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500">
+          <div className="mt-1 truncate text-[13px] text-[var(--adm-text-muted)]">{getOrderItemSummary(order)}</div>
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--adm-text-faint)]">
             {destination ? <span>{destination}</span> : null}
             {order.discountCode ? <span>Discount {order.discountCode}</span> : null}
             {order.amountRefunded > 0 ? (
@@ -199,61 +191,40 @@ function OrderRow({ order }: { order: AdminOrderRecord }) {
             <span>Updated {formatDateTime(order.updatedAt)}</span>
           </div>
         </div>
-
-        <div className="flex w-full shrink-0 flex-col gap-3 xl:w-[220px] xl:items-end">
-          <div className="w-full rounded-[22px] border border-white/10 bg-black/20 px-4 py-4 text-left xl:text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <InlineMeta label="Created" value={formatDateTime(order.createdAt)} />
+        <InlineMeta label="Source" value={getOrderSourceDetail(order)} />
+        <InlineMeta label="Tracking" value={getOrderTrackingSummary(order)} />
+        <div className="flex min-w-0 flex-col gap-2 lg:items-end">
+          <div className="text-left lg:text-right">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--adm-text-faint)]">
               Total
             </div>
-            <div className="mt-2 text-2xl font-semibold tracking-tight text-white">
+            <div className="mt-1 font-mono text-base font-semibold tabular-nums text-[var(--adm-text)]">
               {formatPrice(order.amountTotal, order.currency)}
             </div>
-            <div className="mt-2 text-xs text-slate-500">
-              {readyToFulfill
-                ? "Paid and available for fulfillment."
-                : paymentFailed
-                  ? "Payment issue requires review."
-                  : tone === "progress"
-                    ? "Tracking already attached."
-                    : normalizeOrderStatus(order.status) === "fulfilled"
-                      ? "Completed order."
-                      : "Open order in detailed view for next steps."}
-            </div>
           </div>
-
-          <a
-            href={`/api/admin/orders/${order.id}/lieferschein`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300/25 bg-emerald-300/15 px-4 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-300/25"
-          >
-            Lieferschein
-          </a>
-          <Link
-            href={`/admin/orders/${order.id}`}
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-          >
-            Open detail
-          </Link>
+          <div className="flex gap-1.5">
+            <a href={`/api/admin/orders/${order.id}/lieferschein`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center justify-center rounded-[10px] border border-[var(--adm-border-strong)] px-2.5 text-xs font-semibold text-[var(--adm-text-muted)]">Slip</a>
+            <Link href={`/admin/orders/${order.id}`} className="inline-flex h-8 items-center justify-center rounded-[10px] bg-[var(--adm-primary)] px-2.5 text-xs font-semibold text-white">Open</Link>
+          </div>
         </div>
-      </div>
     </article>
   );
 }
 
 function WebhookFailureRow({ failure }: { failure: AdminOrderWebhookFailure }) {
   return (
-    <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 md:grid-cols-[1fr_auto] md:items-center">
+    <div className="grid gap-2 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4 md:grid-cols-[1fr_auto] md:items-center">
       <div>
-        <div className="text-sm font-semibold text-white">{failure.type}</div>
-        <div className="mt-1 text-xs text-slate-500">
+        <div className="text-sm font-semibold text-[var(--adm-text)]">{failure.type}</div>
+        <div className="mt-1 text-xs text-[var(--adm-text-faint)]">
           Event {failure.eventId} · {failure.status}
         </div>
         {failure.errorMessage ? (
-          <div className="mt-2 text-xs text-rose-200">{failure.errorMessage}</div>
+          <div className="mt-2 text-xs text-[var(--adm-error)]">{failure.errorMessage}</div>
         ) : null}
       </div>
-      <div className="text-xs text-slate-500">{formatDateTime(failure.createdAt)}</div>
+      <div className="text-xs text-[var(--adm-text-faint)]">{formatDateTime(failure.createdAt)}</div>
     </div>
   );
 }
@@ -354,13 +325,13 @@ export default function AdminOrdersClient({
   };
 
   return (
-    <div className="space-y-6 text-slate-100">
+    <AdminPage layout="queue">
       <AdminPageIntro
         eyebrow="Admin Orders"
         title="Order queue"
         description={`Compact operator view for ${activeStorefrontLabel}. The main queue now focuses on fulfillment and payment triage; refunds, customer actions, and line-item detail stay in the dedicated order view.`}
         metrics={
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <AdminKpiStrip>
             <AdminMetricCard
               label="Result set"
               value={String(orderPage.totalCount)}
@@ -381,14 +352,26 @@ export default function AdminOrdersClient({
               value={formatPrice(paidRevenue, dashboardCurrency)}
               detail={`${filteredOrders.length} orders shown on this page${orderPage.totalCount > filteredOrders.length ? ` out of ${orderPage.totalCount}` : ""}.`}
             />
-          </div>
+          </AdminKpiStrip>
         }
       />
 
-      <AdminPanel
-        title="Search and scope"
-        description="Search by order number, customer, email, tracking, source, city, discount code, or item name."
-        actions={
+      <AdminToolbar>
+        <div className="grid min-w-0 flex-1 gap-2 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
+          <AdminInput
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onBlur={() => applyQueryState(searchQuery)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              applyQueryState(searchQuery);
+            }}
+            placeholder="Search orders"
+          />
+          <InlineMeta label="Scope" value={activeStorefrontLabel} />
+          <InlineMeta label="Ready to ship" value={`${readyToFulfillCount} orders`} />
+        </div>
+        {
           searchQuery.trim() ? (
             <AdminButton
               tone="secondary"
@@ -401,32 +384,7 @@ export default function AdminOrdersClient({
             </AdminButton>
           ) : null
         }
-      >
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
-          <AdminInput
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            onBlur={() => applyQueryState(searchQuery)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              applyQueryState(searchQuery);
-            }}
-            placeholder="Search orders"
-          />
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Scope
-            </div>
-            <div className="mt-2 text-sm text-slate-200">{activeStorefrontLabel}</div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Ready to ship
-            </div>
-            <div className="mt-2 text-sm text-slate-200">{readyToFulfillCount} orders</div>
-          </div>
-        </div>
-      </AdminPanel>
+      </AdminToolbar>
 
       {webhookFailures.length > 0 ? (
         <AdminPanel
@@ -496,7 +454,7 @@ export default function AdminOrdersClient({
           description="Server-framed order pages keep the first load small while preserving storefront and search scope."
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-slate-400">
+            <div className="text-sm text-[var(--adm-text-muted)]">
               Showing page {orderPage.currentPage} of {orderPage.totalPages} for {orderPage.totalCount} matching orders.
             </div>
             <div className="flex gap-2">
@@ -518,6 +476,6 @@ export default function AdminOrdersClient({
           </div>
         </AdminPanel>
       ) : null}
-    </div>
+    </AdminPage>
   );
 }

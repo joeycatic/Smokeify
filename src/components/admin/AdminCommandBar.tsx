@@ -326,12 +326,12 @@ export default function AdminCommandBar({
       <button
         type="button"
         onClick={openCommandBar}
-        className="hidden min-w-[20rem] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm text-slate-400 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-slate-200 xl:flex"
+        className="hidden h-8 min-w-[20rem] items-center gap-3 rounded-[10px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-3 text-left text-[13px] text-[var(--adm-text-muted)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)] xl:flex"
         aria-label="Open admin command bar"
       >
         <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">Search pages, records, or actions</span>
-        <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-slate-500">
+        <span className="rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-1 text-[11px] font-semibold text-[var(--adm-text-faint)]">
           Ctrl K
         </span>
       </button>
@@ -339,7 +339,7 @@ export default function AdminCommandBar({
       <button
         type="button"
         onClick={openCommandBar}
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-0 text-sm font-medium text-slate-300 transition hover:border-white/15 hover:bg-white/[0.05] hover:text-white sm:h-10 sm:w-auto sm:rounded-xl sm:px-3 xl:hidden"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-[var(--adm-border)] bg-[var(--adm-surface)] px-0 text-[13px] font-medium text-[var(--adm-text-muted)] transition hover:border-[var(--adm-border-strong)] hover:bg-[var(--adm-surface-2)] hover:text-[var(--adm-text)] sm:w-auto sm:px-3 xl:hidden"
         aria-label="Open admin command bar"
       >
         <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -350,7 +350,7 @@ export default function AdminCommandBar({
         <div className="fixed inset-0 z-50 flex items-start justify-center px-2.5 py-3 sm:px-4 sm:pt-[10vh]">
           <button
             type="button"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-[#16241a]/30"
             onClick={() => setOpen(false)}
             aria-label="Close admin command bar"
           />
@@ -359,10 +359,10 @@ export default function AdminCommandBar({
             role="dialog"
             aria-modal="true"
             aria-label="Admin command bar"
-            className="relative z-10 flex max-h-[calc(100dvh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#090d12]/95 shadow-[0_22px_64px_rgba(0,0,0,0.42)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px] sm:shadow-[0_30px_80px_rgba(0,0,0,0.45)]"
+            className="relative z-10 flex max-h-[calc(100dvh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] shadow-[var(--adm-shadow-lg)] sm:max-h-[calc(100dvh-2rem)]"
           >
-            <div className="flex min-w-0 items-center gap-2.5 border-b border-white/10 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-4">
-              <MagnifyingGlassIcon className="h-5 w-5 shrink-0 text-slate-500" />
+            <div className="flex min-w-0 items-center gap-2.5 border-b border-[var(--adm-border)] px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-4">
+              <MagnifyingGlassIcon className="h-5 w-5 shrink-0 text-[var(--adm-text-faint)]" />
               <input
                 ref={inputRef}
                 value={query}
@@ -381,22 +381,22 @@ export default function AdminCommandBar({
                     ? "Search pages, orders, customers, products, suppliers..."
                     : "Search admin pages and actions"
                 }
-                className="h-10 w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500 sm:h-11"
+                className="h-8 w-full bg-transparent text-sm text-[var(--adm-text)] outline-none placeholder:text-[var(--adm-text-faint)] sm:h-9"
                 aria-label="Search admin commands"
               />
-              <span className="hidden rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-slate-500 sm:inline-flex">
+              <span className="hidden rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2 py-1 text-[11px] font-semibold text-[var(--adm-text-faint)] sm:inline-flex">
                 Esc
               </span>
             </div>
 
             <div className="min-h-0 overflow-y-auto p-2.5 sm:p-3">
               {notice ? (
-                <div className="mb-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-100">
+                <div className="mb-3 rounded-xl border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-4 py-3 text-sm font-medium text-[var(--adm-primary)]">
                   {notice}
                 </div>
               ) : null}
               {displayCommands.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-8 text-center text-sm text-[var(--adm-text-faint)]">
                   {normalizedQuery.length >= 2
                     ? "No admin pages or records match that search."
                     : "No admin pages match that search."}
@@ -421,36 +421,36 @@ export default function AdminCommandBar({
                         onClick={() => {
                           void selectCommand(command);
                         }}
-                        className={`flex w-full min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2.5 text-left transition sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 ${
+                        className={`flex w-full min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2.5 text-left transition sm:gap-3 sm:rounded-xl sm:px-4 sm:py-3 ${
                           active
-                            ? "border-cyan-400/20 bg-cyan-400/10"
-                            : "border-transparent bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
+                            ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)]"
+                            : "border-transparent bg-[var(--adm-surface)] hover:border-[var(--adm-border)] hover:bg-[var(--adm-surface-2)]"
                         }`}
                       >
                         {Icon ? (
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 sm:h-10 sm:w-10 sm:rounded-xl">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)] sm:h-8 sm:w-10 sm:rounded-xl">
                             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                           </span>
                         ) : (
-                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:h-10 sm:min-w-10 sm:rounded-xl sm:px-2 sm:text-[10px] sm:tracking-[0.16em]">
+                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--adm-text-muted)] sm:h-8 sm:min-w-10 sm:rounded-xl sm:px-2 sm:text-[10px] sm:tracking-[0.16em]">
                             {command.group.slice(0, 2)}
                           </span>
                         )}
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-white">
+                          <span className="block truncate text-sm font-semibold text-[var(--adm-text)]">
                             {command.title}
                           </span>
-                          <span className="mt-1 block truncate text-xs text-slate-500">
+                          <span className="mt-1 block truncate text-xs text-[var(--adm-text-faint)]">
                             {command.subtitle}
                           </span>
                         </span>
                         {command.badge ? (
-                          <span className="hidden shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300 sm:inline-flex">
+                          <span className="hidden shrink-0 rounded-full border border-[var(--adm-border)] bg-[var(--adm-surface-2)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-text-muted)] sm:inline-flex">
                             {command.badge}
                           </span>
                         ) : null}
                         {current ? (
-                          <span className="hidden shrink-0 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 sm:inline-flex">
+                          <span className="hidden shrink-0 rounded-full border border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--adm-primary)] sm:inline-flex">
                             Current
                           </span>
                         ) : null}
@@ -460,7 +460,7 @@ export default function AdminCommandBar({
                 </div>
               )}
               {searchLoading && normalizedQuery.length >= 2 ? (
-                <div className="mt-3 text-center text-xs text-slate-500">Searching records…</div>
+                <div className="mt-3 text-center text-xs text-[var(--adm-text-faint)]">Searching records…</div>
               ) : null}
             </div>
           </div>

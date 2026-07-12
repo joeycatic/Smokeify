@@ -263,36 +263,36 @@ export default function AdminNewsletterCampaignPanel({
         className="admin-reveal-delay-2"
       >
         <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
               Storefront notes
             </div>
-            <div className="mt-2 text-sm text-slate-300">
+            <div className="mt-2 text-sm text-[var(--adm-text-muted)]">
               {storefrontLabel} branding is active for this campaign. Links in the email will open the selected storefront.
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4">
-            <pre className="max-h-[24rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-slate-300">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+            <pre className="max-h-[24rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-[var(--adm-text-muted)]">
               {JSON.stringify(previewPayload, null, 2)}
             </pre>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
               Readiness
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                 Subject: {validation.subjectReady ? "Ready" : "Missing"}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                 Body: {validation.bodyReady ? "Ready" : "Missing"}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                 Audience: {validation.audienceReady ? `${selectedAudienceCount} recipients` : "No recipients"}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3 text-sm text-[var(--adm-text-muted)]">
                 Test: {validation.testRecipientReady ? "Recipient set" : "Recipient missing"}
               </div>
             </div>

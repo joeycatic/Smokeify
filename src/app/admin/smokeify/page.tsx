@@ -19,7 +19,7 @@ export default async function AdminSmokeifyPage({
   });
 
   return (
-    <div className="w-full text-slate-100">
+    <div className="w-full text-[var(--adm-text)]">
       <AdminStorefrontDashboard data={dashboardData} pathname="/admin/smokeify" />
     </div>
   );

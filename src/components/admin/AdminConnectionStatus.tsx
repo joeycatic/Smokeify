@@ -133,8 +133,8 @@ export default function AdminConnectionStatus() {
 
   const toneClass =
     state.tone === "critical" || state.tone === "error"
-      ? "border-rose-400/25 bg-rose-500/15 text-rose-100"
-      : "border-amber-400/25 bg-amber-400/15 text-amber-100";
+      ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
+      : "border-[#e2a136] bg-[#fff4dd] text-[#81560e]";
 
   return (
     <div className={`border-t px-2.5 py-1.5 text-xs sm:px-6 sm:py-2 sm:text-sm lg:px-8 ${toneClass}`}>
@@ -147,7 +147,7 @@ export default function AdminConnectionStatus() {
           <button
             type="button"
             onClick={() => setDismissedProblemId(visibleProblem.id)}
-            className="inline-flex h-8 items-center justify-center rounded-lg border border-white/10 bg-black/10 px-3 text-xs font-semibold sm:h-9"
+            className="inline-flex h-8 items-center justify-center rounded-[10px] border border-current bg-[var(--adm-surface-2)]0 px-3 text-xs font-semibold"
           >
             Dismiss
           </button>

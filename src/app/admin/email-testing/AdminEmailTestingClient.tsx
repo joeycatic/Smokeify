@@ -13,6 +13,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminWorkspace";
+import { AdminPage, AdminPrimaryGrid } from "@/components/admin/ui";
 import AdminNewsletterCampaignPanel from "./AdminNewsletterCampaignPanel";
 import {
   STOREFRONT_OPTION_ROWS,
@@ -322,7 +323,7 @@ export default function AdminEmailTestingClient({
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPage layout="editor">
       <AdminPageIntro
         eyebrow="Admin / Email Testing"
         title="Email operations workbench"
@@ -346,7 +347,7 @@ export default function AdminEmailTestingClient({
         initialStorefront={initialStorefront}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <AdminPrimaryGrid rail="balanced">
         <AdminPanel
           eyebrow="Configure"
           title="Email type and payload"
@@ -360,14 +361,14 @@ export default function AdminEmailTestingClient({
                   key={key}
                   type="button"
                   onClick={() => setType(key)}
-                  className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  className={`rounded-xl border px-4 py-3 text-left transition ${
                     type === key
-                      ? "border-cyan-400/20 bg-cyan-400/10"
-                      : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"
+                      ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)]"
+                      : "border-[var(--adm-border)] bg-[var(--adm-surface)] hover:bg-[var(--adm-surface-2)]"
                   }`}
                 >
-                  <div className="font-semibold text-white">{value.title}</div>
-                  <div className="mt-1 text-xs text-slate-500">{value.subtitle}</div>
+                  <div className="font-semibold text-[var(--adm-text)]">{value.title}</div>
+                  <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{value.subtitle}</div>
                 </button>
               )
             )}
@@ -581,8 +582,8 @@ export default function AdminEmailTestingClient({
             description="Live preview of the payload that will be sent to the email testing API. Final emails add storefront branding, legal footer details, and the relevant policy links automatically."
             className="admin-reveal-delay-2"
           >
-            <div className="rounded-[24px] border border-white/10 bg-[#070a0f] p-4">
-              <pre className="max-h-[24rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-slate-300">
+            <div className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4">
+              <pre className="max-h-[24rem] overflow-auto whitespace-pre-wrap break-all text-xs leading-6 text-[var(--adm-text-muted)]">
                 {JSON.stringify(payloadPreview, null, 2)}
               </pre>
             </div>
@@ -597,17 +598,17 @@ export default function AdminEmailTestingClient({
               {validationItems.map((item) => (
                 <div
                   key={item.label}
-                  className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-3"
+                  className="flex items-start justify-between gap-3 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-3"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-white">{item.label}</div>
-                    <div className="mt-1 text-xs text-slate-500">{item.detail}</div>
+                    <div className="text-sm font-semibold text-[var(--adm-text)]">{item.label}</div>
+                    <div className="mt-1 text-xs text-[var(--adm-text-faint)]">{item.detail}</div>
                   </div>
                   <span
                     className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                       item.valid
-                        ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                        : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+                        ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
+                        : "border-[#e2a136] bg-[#fff4dd] text-[#81560e]"
                     }`}
                   >
                     {item.valid ? "Ready" : "Needs input"}
@@ -616,13 +617,13 @@ export default function AdminEmailTestingClient({
               ))}
             </div>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-[#070a0f] px-4 py-4">
+            <div className="mt-4 rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] px-4 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                     Send result
                   </div>
-                  <div className="mt-2 text-sm text-slate-300">
+                  <div className="mt-2 text-sm text-[var(--adm-text-muted)]">
                     {status === "idle"
                       ? "No send attempted yet."
                       : status === "loading"
@@ -633,12 +634,12 @@ export default function AdminEmailTestingClient({
                 <span
                   className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                     status === "ok"
-                      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                      ? "border-[var(--adm-success)] bg-[var(--adm-primary-soft)] text-[var(--adm-success)]"
                       : status === "error"
-                      ? "border-red-400/20 bg-red-400/10 text-red-200"
+                      ? "border-[var(--adm-error)] bg-[#fae7e3] text-[var(--adm-error)]"
                       : status === "loading"
-                      ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-                      : "border-white/10 bg-white/[0.04] text-slate-400"
+                      ? "border-[var(--adm-primary)] bg-[var(--adm-primary-soft)] text-[var(--adm-primary)]"
+                      : "border-[var(--adm-border)] bg-[var(--adm-surface-2)] text-[var(--adm-text-muted)]"
                   }`}
                 >
                   {status === "idle" ? "Idle" : status}
@@ -683,10 +684,10 @@ export default function AdminEmailTestingClient({
                   {items.map((item, index) => (
                     <div
                       key={item.id}
-                      className="rounded-2xl border border-white/10 bg-[#070a0f] p-4"
+                      className="rounded-xl border border-[var(--adm-border)] bg-[var(--adm-surface)] p-4"
                     >
                       <div className="mb-3 flex items-center justify-between">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--adm-text-faint)]">
                           Item {index + 1}
                         </div>
                         {items.length > 1 ? (
@@ -719,7 +720,7 @@ export default function AdminEmailTestingClient({
             </AdminPanel>
           ) : null}
         </div>
-      </div>
-    </div>
+      </AdminPrimaryGrid>
+    </AdminPage>
   );
 }
