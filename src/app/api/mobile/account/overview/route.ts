@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseMobileToken } from "@/lib/mobileToken";
-import { getProductsByIdsAllowInactive } from "@/lib/catalog";
+import { getProductsByIds } from "@/lib/catalog";
 
 export async function GET(request: Request) {
   const payload = parseMobileToken(request.headers.get("authorization"));
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
   const displayName =
     [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.name || user.email;
 
-  const wishlistProducts = await getProductsByIdsAllowInactive(
+  const wishlistProducts = await getProductsByIds(
     wishlistItems.map((item) => item.productId),
   );
 

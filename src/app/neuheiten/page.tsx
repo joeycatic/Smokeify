@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 
 export default async function NeuheitenPage() {
   const newestIds = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", storefronts: { has: "MAIN" } },
     orderBy: { createdAt: "desc" },
     take: 120,
     select: { id: true },

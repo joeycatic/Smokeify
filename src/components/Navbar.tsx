@@ -1,43 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Bars3Icon,
+  FireIcon,
   HeartIcon,
   MagnifyingGlassIcon,
   ShoppingBagIcon,
-  SparklesIcon,
   Squares2X2Icon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
-import type { AddedItem } from "./CartProvider";
 import { useNavbarCategories } from "@/components/NavbarCategoriesProvider";
 import { useWishlist } from "@/hooks/useWishlist";
-import { useSession } from "next-auth/react";
+import { useSafeSession } from "@/hooks/useSafeSession";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import LoadingSpinner from "@/components/LoadingSpinner";
-import { trackAnalyticsEvent } from "@/lib/analytics";
-import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
-import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
-import { SMOKEIFY_ROUTES } from "@/config/smokeify-routes";
+import LanguageSwitch from "@/components/LanguageSwitch";
+import { useDocumentLanguage } from "@/hooks/useDocumentLanguage";
 import { GrowvaultIcon } from "@/components/icons/GrowvaultIcon";
+import { NAV_ICON_BY_KEY } from "@/config/growvault-icons";
+import { trackAnalyticsEvent } from "@/lib/analytics";
+import { buildGrowvaultAnalyzerUrl, buildGrowvaultCustomizerUrl } from "@/lib/growvaultPublicStorefront";
+import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
+import { buildMerchantItemId } from "@/lib/merchantFeed";
 import type { NavbarSearchResult } from "@/components/navbar/NavbarSearchResultsPopover";
 import type { NavbarCategory } from "@/lib/navbarCategories";
-import { getCategoryIcon } from "@/components/navbar/categoryIcons";
+import NavbarSubcategoriesPopup from "@/components/navbar/NavbarSubcategoriesPopup";
+import NavbarCategoryBar from "@/components/navbar/NavbarCategoryBar";
+import { getCategoryIconName } from "@/components/navbar/categoryIcons";
+import { useDropdownPopupPosition } from "@/hooks/useDropdownPopupPosition";
+import {
+  type Language,
+} from "@/lib/language";
 
-const PaymentMethodLogos = dynamic(
-  () => import("@/components/PaymentMethodLogos"),
-  { ssr: false },
-);
-const CheckoutAuthModal = dynamic(
-  () => import("@/components/CheckoutAuthModal"),
-  { ssr: false },
-);
 const NavbarAccountPanel = dynamic(
   () => import("@/components/navbar/NavbarAccountPanel"),
   { ssr: false },
@@ -55,25 +53,10 @@ const NavbarMobileCategoriesSheet = dynamic(
   { ssr: false },
 );
 
-function formatPrice(amount: string, currencyCode: string) {
-  const value = Number(amount);
-  if (!Number.isFinite(value)) return "";
-  return new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency: currencyCode,
-    minimumFractionDigits: 2,
-  }).format(value);
-}
-
-const getPrimaryCategoryLabel = (category: NavbarCategory) => {
-  if (category.handle === "zelte") return "Growzelte";
-  return category.name;
-};
-
 const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
   cart.lines.map((line) => ({
     product_id: line.merchandise.product.id,
-    item_id: line.merchandise.id,
+    item_id: buildMerchantItemId(line.merchandise.id),
     item_name: line.merchandise.product.title,
     item_variant: line.merchandise.title,
     item_brand: line.merchandise.product.manufacturer ?? undefined,
@@ -84,13 +67,15 @@ const toCartItems = (cart: NonNullable<ReturnType<typeof useCart>["cart"]>) =>
 
 type NavbarProps = {
   initialCategories?: NavbarCategory[];
+  language?: Language;
 };
 
-export function Navbar({ initialCategories }: NavbarProps) {
+export function Navbar({ initialCategories, language: initialLanguage }: NavbarProps) {
+  const language = useDocumentLanguage(initialLanguage);
   const { cart, loading, error, refresh } = useCart();
   const { ids } = useWishlist();
   const contextCategories = useNavbarCategories();
-  const { status } = useSession();
+  const { status } = useSafeSession();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -98,7 +83,6 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const isAuthenticated = status === "authenticated";
   const [accountOpen, setAccountOpen] = useState(false);
   const [categoryNavTarget, setCategoryNavTarget] = useState<string | null>(null);
-  const [categoryHoverLocked, setCategoryHoverLocked] = useState(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const cartRef = useRef<HTMLDivElement | null>(null);
@@ -106,19 +90,8 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const [checkoutStatus, setCheckoutStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
-  const [drawerDiscountCode, setDrawerDiscountCode] = useState("");
-  const [appliedDrawerDiscountCode, setAppliedDrawerDiscountCode] = useState("");
-  const [showCheckoutAuthModal, setShowCheckoutAuthModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileAddedItem, setMobileAddedItem] = useState<AddedItem | null>(
-    null,
-  );
-  const [mobileAddedOpen, setMobileAddedOpen] = useState(false);
-  const [mobileAddedAnchor, setMobileAddedAnchor] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
   const [productsOpen, setProductsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,7 +101,9 @@ export function Navbar({ initialCategories }: NavbarProps) {
   >("idle");
   const searchTrackedRef = useRef<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
-  const [categoryStack, setCategoryStack] = useState<string[]>([]);
+  const [selectedRootCategoryId, setSelectedRootCategoryId] = useState<string | null>(null);
+  const [desktopCategoryPopupCategoryId, setDesktopCategoryPopupCategoryId] =
+    useState<string | null>(null);
   const categories =
     initialCategories && initialCategories.length > 0
       ? initialCategories
@@ -150,65 +125,90 @@ export function Navbar({ initialCategories }: NavbarProps) {
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const productsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const productsPopupRef = useRef<HTMLDivElement | null>(null);
+  const desktopCategoryPopupRef = useRef<HTMLDivElement | null>(null);
+  const desktopCategoryTriggerRefs = useRef(
+    new Map<string, HTMLButtonElement | null>(),
+  );
   const searchPopupRef = useRef<HTMLDivElement | null>(null);
   const accountPopupRef = useRef<HTMLDivElement | null>(null);
   const menuPopupRef = useRef<HTMLDivElement | null>(null);
+  const navRef = useRef<HTMLElement | null>(null);
+  const [navHeight, setNavHeight] = useState<number | null>(null);
+  const cartButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const count = loading ? 0 : (cart?.totalQuantity ?? 0);
-  const wishlistCount = ids.length;
+  const count = cart?.totalQuantity ?? 0;
+  const wishlistCount = mounted ? ids.length : 0;
   const [cartPop, setCartPop] = useState(false);
   const [wishlistPop, setWishlistPop] = useState(false);
   const canCheckout =
     !loading && !!cart && cart.lines.length > 0 && checkoutStatus !== "loading";
-  const normalizedDrawerDiscountCode = drawerDiscountCode.trim();
-  const appliedDrawerDiscountAmount =
-    appliedDrawerDiscountCode && cart
-      ? Math.min(
-          Number(cart.cost.totalAmount.amount),
-          NEWSLETTER_OFFER_DISCOUNT_CENTS / 100,
-        )
-      : 0;
   const returnTo = useMemo(() => {
     if (pathname?.startsWith("/auth")) return "/";
     const query = searchParams?.toString();
     return query ? `${pathname}?${query}` : pathname || "/";
   }, [pathname, searchParams]);
+  const copy =
+    language === "en"
+      ? {
+          openNavigation: "Open navigation",
+          products: "Products",
+          configurator: "Setup",
+          analyzer: "Analyzer",
+          catalog: "Catalog",
+          findProductsFaster: "Find products faster",
+          assortment: "Catalog",
+          allProducts: "All products",
+          quickSelect: "Quick pick",
+          searchCategory: "Search category...",
+          categoryLoadError: "Could not load categories.",
+          noCategories: "No categories found.",
+          noSubcategories:
+            "There are currently no subcategories in this category.",
+          searchProducts: "Search products...",
+          searchResults: "Search results",
+          results: "results",
+          mainCategory: "Main category",
+          active: "Active",
+          openCart: "Open cart",
+          viewCart: "View cart",
+          checkout: "Checkout",
+          wishlist: "Wishlist",
+          account: "Account",
+          subcategories: "Subcategories",
+          viewAll: "View all",
+        }
+      : {
+          openNavigation: "Navigation öffnen",
+          products: "Produkte",
+          configurator: "Setup",
+          analyzer: "Analyse",
+          catalog: "Katalog",
+          findProductsFaster: "Produkte schneller finden",
+          assortment: "Sortiment",
+          allProducts: "Alle Produkte",
+          quickSelect: "Schnellwahl",
+          searchCategory: "Kategorie suchen...",
+          categoryLoadError: "Kategorien konnten nicht geladen werden.",
+          noCategories: "Keine Kategorien gefunden.",
+          noSubcategories:
+            "Für diese Kategorie gibt es aktuell keine Unterkategorien.",
+          searchProducts: "Produkte suchen...",
+          searchResults: "Suchtreffer",
+          results: "Treffer",
+          mainCategory: "Hauptkategorie",
+          active: "Aktiv",
+          openCart: "Warenkorb öffnen",
+          viewCart: "Warenkorb ansehen",
+          checkout: "Zur Kasse",
+          wishlist: "Wunschliste",
+          account: "Konto",
+          subcategories: "Unterkategorien",
+          viewAll: "Alle ansehen",
+        };
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!isMobile || !mobileAddedOpen) return;
-    let rafId: number | null = null;
-    const updateAnchor = () => {
-      const rect = cartRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const right = Math.max(0, window.innerWidth - rect.right);
-      const top = rect.bottom + 8;
-      setMobileAddedAnchor((prev) => {
-        if (prev && prev.top === top && prev.right === right) return prev;
-        return { top, right };
-      });
-    };
-    const scheduleAnchorUpdate = () => {
-      if (rafId !== null) return;
-      rafId = window.requestAnimationFrame(() => {
-        rafId = null;
-        updateAnchor();
-      });
-    };
-    updateAnchor();
-    window.addEventListener("resize", scheduleAnchorUpdate);
-    window.addEventListener("scroll", scheduleAnchorUpdate, { passive: true });
-    return () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-      window.removeEventListener("resize", scheduleAnchorUpdate);
-      window.removeEventListener("scroll", scheduleAnchorUpdate);
-    };
-  }, [isMobile, mobileAddedOpen]);
 
   useEffect(() => {
     if (!cartOpen || isMobile || loading || cart) return;
@@ -217,7 +217,11 @@ export function Navbar({ initialCategories }: NavbarProps) {
 
   useEffect(() => {
     setCategoryNavTarget(null);
-    setCategoryHoverLocked(false);
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    setCartOpen(false);
+    setDesktopCategoryPopupCategoryId(null);
   }, [pathname, searchParams]);
 
   useEffect(() => {
@@ -236,33 +240,48 @@ export function Navbar({ initialCategories }: NavbarProps) {
 
   useEffect(() => {
     const handleOutsideInteraction = (event: MouseEvent | FocusEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
       if (
         accountOpen &&
         accountPopupRef.current &&
-        accountPopupRef.current.contains(event.target as Node)
+        accountPopupRef.current.contains(target)
       ) {
         return;
       }
-      if (!accountRef.current) return;
-      if (!accountRef.current.contains(event.target as Node)) {
+      if (
+        accountOpen &&
+        accountRef.current &&
+        !accountRef.current.contains(target)
+      ) {
         setAccountOpen(false);
       }
-      if (!cartRef.current) return;
-      const target = event.target as Node;
-      const clickInsideToggle = cartRef.current.contains(target);
-      const clickInsidePanel = cartPanelRef.current?.contains(target) ?? false;
-      if (!clickInsideToggle && !clickInsidePanel) {
+      if (
+        cartOpen &&
+        cartRef.current &&
+        !cartRef.current.contains(target) &&
+        !(cartPanelRef.current?.contains(target) ?? false)
+      ) {
         setCartOpen(false);
       }
       if (
         productsOpen &&
-        !productsRef.current?.contains(event.target as Node) &&
-        !mobileProductsRef.current?.contains(event.target as Node) &&
-        !productsPopupRef.current?.contains(event.target as Node)
+        !productsRef.current?.contains(target) &&
+        !mobileProductsRef.current?.contains(target) &&
+        !productsPopupRef.current?.contains(target)
       ) {
         setProductsOpen(false);
-        setCategoryStack([]);
         setCategoryQuery("");
+      }
+      const activeDesktopCategoryTrigger = desktopCategoryPopupCategoryId
+        ? desktopCategoryTriggerRefs.current.get(desktopCategoryPopupCategoryId)
+        : null;
+      const clickInsideDesktopCategory =
+        (activeDesktopCategoryTrigger?.contains(target) ?? false) ||
+        (desktopCategoryPopupRef.current?.contains(target) ?? false);
+      if (desktopCategoryPopupCategoryId && !clickInsideDesktopCategory) {
+        setDesktopCategoryPopupCategoryId(null);
       }
       const clickInsideSearch =
         searchRef.current?.contains(target) ||
@@ -271,12 +290,11 @@ export function Navbar({ initialCategories }: NavbarProps) {
       if (searchOpen && !clickInsideSearch) {
         setSearchOpen(false);
       }
-      const menuTarget = event.target as Node;
-      if (menuOpen && menuPopupRef.current?.contains(menuTarget)) {
+      if (menuOpen && menuPopupRef.current?.contains(target)) {
         return;
       }
       const menuRoot = document.getElementById("mobile-nav-menu");
-      if (menuOpen && menuRoot && !menuRoot.contains(menuTarget)) {
+      if (menuOpen && menuRoot && !menuRoot.contains(target)) {
         setMenuOpen(false);
       }
     };
@@ -286,7 +304,14 @@ export function Navbar({ initialCategories }: NavbarProps) {
       document.removeEventListener("mousedown", handleOutsideInteraction);
       document.removeEventListener("focusin", handleOutsideInteraction);
     };
-  }, [accountOpen, cartOpen, menuOpen, productsOpen, searchOpen]);
+  }, [
+    accountOpen,
+    cartOpen,
+    desktopCategoryPopupCategoryId,
+    menuOpen,
+    productsOpen,
+    searchOpen,
+  ]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
@@ -296,11 +321,27 @@ export function Navbar({ initialCategories }: NavbarProps) {
     return () => media.removeEventListener("change", update);
   }, []);
 
+  // Keep the fixed-navbar spacer in sync with the real navbar height so the
+  // category bar (now shown on every breakpoint) never overlaps page content.
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => setNavHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [showCategoryBar, showMobileSearch]);
+
   const canPortal = mounted;
+  const productsActive = Boolean(productsOpen || pathname?.startsWith("/products"));
+  const configuratorActive = Boolean(pathname?.startsWith("/customizer"));
+  const analyzerActive = Boolean(pathname?.startsWith("/pflanzen-analyse"));
   const [productsPopupStyle, setProductsPopupStyle] = useState<{
     top: number;
     left: number;
     width: number;
+    maxHeight: string;
   } | null>(null);
   const [searchPopupStyle, setSearchPopupStyle] = useState<{
     top: number;
@@ -311,6 +352,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
     top: number;
     left: number;
     width: number;
+    maxHeight: string;
   } | null>(null);
   const [menuPopupStyle, setMenuPopupStyle] = useState<{
     top: number;
@@ -324,18 +366,27 @@ export function Navbar({ initialCategories }: NavbarProps) {
     const update = () => {
       const rect = productsTriggerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const width = Math.min(660, window.innerWidth - 32);
+      const viewportPadding = 16;
+      const viewportWidth = window.innerWidth;
+      const width = Math.min(780, viewportWidth - viewportPadding * 2);
+      const left = Math.min(
+        Math.max(rect.left, viewportPadding),
+        viewportWidth - viewportPadding - width,
+      );
+      const top = rect.bottom + 12;
       const next = {
-        top: rect.bottom + 12,
-        left: Math.min(rect.left, window.innerWidth - width - 16),
+        top,
+        left,
         width,
+        maxHeight: `calc(100dvh - ${Math.round(top + viewportPadding)}px)`,
       };
       setProductsPopupStyle((prev) => {
         if (
           prev &&
           prev.top === next.top &&
           prev.left === next.left &&
-          prev.width === next.width
+          prev.width === next.width &&
+          prev.maxHeight === next.maxHeight
         ) {
           return prev;
         }
@@ -350,17 +401,39 @@ export function Navbar({ initialCategories }: NavbarProps) {
       });
     };
     update();
-    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    const closeOnScroll = () => setProductsOpen(false);
     window.addEventListener("resize", scheduleUpdate);
+    window.addEventListener("scroll", closeOnScroll, { passive: true });
     return () => {
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      window.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
+      window.removeEventListener("scroll", closeOnScroll);
     };
   }, [productsOpen]);
 
+  useEffect(() => {
+    if (!productsOpen) return;
+
+    document.documentElement.setAttribute("data-products-open", "true");
+    document.body.setAttribute("data-products-open", "true");
+
+    return () => {
+      document.documentElement.removeAttribute("data-products-open");
+      document.body.removeAttribute("data-products-open");
+    };
+  }, [productsOpen]);
+
+  const desktopCategoryPopupTrigger = desktopCategoryPopupCategoryId
+    ? (desktopCategoryTriggerRefs.current.get(desktopCategoryPopupCategoryId) ??
+      null)
+    : null;
+  const desktopCategoryPopupStyle = useDropdownPopupPosition(
+    desktopCategoryPopupTrigger,
+    Boolean(desktopCategoryPopupCategoryId),
+    340,
+  );
   useEffect(() => {
     const activeSearchRef = isMobile
       ? (mobileSearchRef.current ?? searchRef.current)
@@ -402,13 +475,11 @@ export function Navbar({ initialCategories }: NavbarProps) {
       });
     };
     update();
-    window.addEventListener("scroll", scheduleUpdate, { passive: true });
     window.addEventListener("resize", scheduleUpdate);
     return () => {
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      window.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
     };
   }, [isMobile, searchOpen]);
@@ -419,18 +490,28 @@ export function Navbar({ initialCategories }: NavbarProps) {
     const update = () => {
       const rect = accountRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const width = Math.min(320, Math.max(280, rect.width));
+      const viewportPadding = 16;
+      const viewportWidth = window.innerWidth;
+      const width = Math.min(
+        400,
+        Math.max(280, viewportWidth - viewportPadding * 2),
+      );
       const next = {
         top: rect.bottom + 12,
-        left: rect.right - width,
+        left: Math.min(
+          Math.max(rect.right - width, viewportPadding),
+          viewportWidth - viewportPadding - width,
+        ),
         width,
+        maxHeight: `calc(100dvh - ${rect.bottom + 28}px)`,
       };
       setAccountPopupStyle((prev) => {
         if (
           prev &&
           prev.top === next.top &&
           prev.left === next.left &&
-          prev.width === next.width
+          prev.width === next.width &&
+          prev.maxHeight === next.maxHeight
         ) {
           return prev;
         }
@@ -445,13 +526,11 @@ export function Navbar({ initialCategories }: NavbarProps) {
       });
     };
     update();
-    window.addEventListener("scroll", scheduleUpdate, { passive: true });
     window.addEventListener("resize", scheduleUpdate);
     return () => {
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      window.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
     };
   }, [accountOpen]);
@@ -487,64 +566,32 @@ export function Navbar({ initialCategories }: NavbarProps) {
       });
     };
     update();
-    window.addEventListener("scroll", scheduleUpdate, { passive: true });
     window.addEventListener("resize", scheduleUpdate);
     return () => {
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      window.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
     };
   }, [menuOpen]);
 
   const mainCategories = useMemo(() => {
     const roots = categories.filter((category) => !category.parentId);
-    const preferredOrder = [
-      "messen",
-      "zelte",
-      "anzucht",
-      "bewaesserung",
-      "licht",
-      "luft",
-      "headshop",
-      "substrate-und-zubehoer",
-    ];
-    const sortedRoots = [...roots].sort((a, b) => {
-      const orderA = preferredOrder.indexOf(a.handle);
-      const orderB = preferredOrder.indexOf(b.handle);
-      if (orderA !== -1 || orderB !== -1) {
-        if (orderA === -1) return 1;
-        if (orderB === -1) return -1;
-        return orderA - orderB;
-      }
-      return a.name.localeCompare(b.name);
-    });
-    return sortedRoots;
-  }, [categories]);
-  const allRootCategories = useMemo(() => {
-    const roots = categories.filter((category) => !category.parentId);
-    const preferredOrder = [
-      "messen",
-      "zelte",
-      "anzucht",
-      "bewaesserung",
-      "licht",
-      "luft",
-      "headshop",
-      "substrate-und-zubehoer",
-    ];
     return [...roots].sort((a, b) => {
-      const orderA = preferredOrder.indexOf(a.handle);
-      const orderB = preferredOrder.indexOf(b.handle);
-      if (orderA !== -1 || orderB !== -1) {
-        if (orderA === -1) return 1;
-        if (orderB === -1) return -1;
-        return orderA - orderB;
-      }
+      if (a.handle === "zelte" && b.handle !== "zelte") return -1;
+      if (b.handle === "zelte" && a.handle !== "zelte") return 1;
       return a.name.localeCompare(b.name);
     });
   }, [categories]);
+  useEffect(() => {
+    if (mainCategories.length === 0) return;
+    setSelectedRootCategoryId((current) => {
+      if (current && mainCategories.some((category) => category.id === current)) {
+        return current;
+      }
+      return mainCategories[0]?.id ?? null;
+    });
+  }, [mainCategories]);
 
   useEffect(() => {
     const trimmed = searchQuery.trim();
@@ -594,30 +641,29 @@ export function Navbar({ initialCategories }: NavbarProps) {
 
   useEffect(() => {
     setProductsOpen(false);
-    setCategoryStack([]);
     setCategoryQuery("");
   }, [pathname]);
 
-  useEffect(() => {
-    if (!isMobile) {
-      setMobileAddedOpen(false);
-      return;
-    }
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const handleAdded = (event: Event) => {
-      const detail = (event as CustomEvent<AddedItem>).detail;
-      if (!detail) return;
-      setMobileAddedItem(detail);
-      setMobileAddedOpen(true);
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => setMobileAddedOpen(false), 3500);
-    };
-    window.addEventListener("cart:item-added", handleAdded);
-    return () => {
-      if (timer) clearTimeout(timer);
-      window.removeEventListener("cart:item-added", handleAdded);
-    };
-  }, [isMobile]);
+  const desktopNavLinkClass = (active: boolean) =>
+    `relative isolate inline-flex min-h-[52px] cursor-pointer select-none items-center overflow-hidden rounded-[20px] border px-4 py-2 text-[0.95rem] font-semibold tracking-[-0.02em] transition-all duration-200 ease-out after:absolute after:bottom-2 after:left-4 after:h-[2px] after:rounded-full after:transition-all after:duration-200 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)] ${
+      active
+        ? "border-transparent bg-[color:var(--gv-brand-soft)] text-[color:var(--gv-text)] after:w-12 after:bg-[color:var(--gv-lime)]"
+        : "border-transparent bg-transparent text-[color:var(--gv-text-muted)] after:w-8 after:bg-transparent hover:-translate-y-0.5 hover:bg-[color:var(--gv-brand-soft)]/60 hover:text-[color:var(--gv-text)] hover:after:w-12 hover:after:bg-[color:var(--gv-lime)]/55"
+    }`;
+  const mobileMenuLinkClass =
+    "block rounded-[20px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-4 py-3 text-[15px] font-semibold tracking-[-0.01em] text-[color:var(--gv-text)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/32 hover:bg-[color:var(--gv-brand-soft)] hover:text-[color:var(--gv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]";
+  const utilityIconButtonClass =
+    "relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] text-[color:var(--gv-text-muted)] transition-colors duration-200 hover:border-[color:var(--gv-lime)]/24 hover:bg-[color:var(--gv-brand-soft)] hover:text-[color:var(--gv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)] sm:h-11 sm:w-11";
+  const renderNavLabel = (iconKey: keyof typeof NAV_ICON_BY_KEY, label: string) => (
+    <span className="relative z-[1] inline-flex items-center gap-1.5 whitespace-nowrap">
+      <GrowvaultIcon
+        name={NAV_ICON_BY_KEY[iconKey]}
+        size={15}
+        className="text-[color:var(--gv-lime)]"
+      />
+      <span>{label}</span>
+    </span>
+  );
 
   const proceedToCheckout = async () => {
     if (!cart || cart.lines.length === 0) {
@@ -632,7 +678,6 @@ export function Navbar({ initialCategories }: NavbarProps) {
     setCheckoutStatus("loading");
     const checkoutStartUrl = buildCheckoutStartUrl({
       country: "DE",
-      discountCode: appliedDrawerDiscountCode || undefined,
     });
     setCartOpen(false);
     if (typeof window !== "undefined") {
@@ -647,16 +692,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
       router.push("/cart");
       return;
     }
-    if (status === "loading") return;
-    if (status === "unauthenticated") {
-      setShowCheckoutAuthModal(true);
-      return;
-    }
     await proceedToCheckout();
-  };
-
-  const applyDrawerDiscountCode = () => {
-    setAppliedDrawerDiscountCode(normalizedDrawerDiscountCode);
   };
 
   const categoriesByParent = useMemo(() => {
@@ -696,21 +732,27 @@ export function Navbar({ initialCategories }: NavbarProps) {
     });
     return map;
   }, [categories]);
-  const activeParentId =
-    categoryStack.length > 0
-      ? String(categoryStack[categoryStack.length - 1])
-      : null;
-  const activeCategories = categoriesByParent.get(activeParentId) ?? [];
   const categoryById = useMemo(() => {
-    const map = new Map<string, NavbarCategory>();
+    const map = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        handle: string;
+        href: string;
+        parentId: string | null;
+        itemCount: number;
+        totalItemCount: number;
+      }
+    >();
     categories.forEach((category) => {
-      map.set(category.id, category);
+      map.set(category.id, {
+        ...category,
+        parentId: category.parentId ? String(category.parentId) : null,
+      });
     });
     return map;
   }, [categories]);
-  const activeParentCategory = activeParentId
-    ? (categoryById.get(activeParentId) ?? null)
-    : null;
   const childCountByCategoryId = useMemo(() => {
     const map = new Map<string, number>();
     categoriesByParent.forEach((list, key) => {
@@ -719,87 +761,120 @@ export function Navbar({ initialCategories }: NavbarProps) {
     });
     return map;
   }, [categoriesByParent]);
-  const filteredCategories =
-    categoryQuery.trim().length > 0
-      ? activeCategories.filter((category) =>
-          category.name.toLowerCase().includes(categoryQuery.toLowerCase()),
-        )
-      : activeCategories;
-  const activeDesktopRootId = useMemo(() => {
-    const selectedRootId = categoryStack[0];
-    if (selectedRootId && allRootCategories.some((category) => category.id === selectedRootId)) {
-      return selectedRootId;
+  const activeRootCategory = useMemo(() => {
+    if (mainCategories.length === 0) return null;
+    if (selectedRootCategoryId) {
+      const match = mainCategories.find((category) => category.id === selectedRootCategoryId);
+      if (match) return match;
     }
-    return allRootCategories[0]?.id ?? null;
-  }, [allRootCategories, categoryStack]);
-  const activeDesktopRootCategory = activeDesktopRootId
-    ? (categoryById.get(activeDesktopRootId) ?? null)
-    : null;
-  const activeDesktopChildren = activeDesktopRootId
-    ? categoriesByParent.get(activeDesktopRootId) ?? []
+    return mainCategories[0] ?? null;
+  }, [mainCategories, selectedRootCategoryId]);
+  const activeRootChildren = activeRootCategory
+    ? (categoriesByParent.get(String(activeRootCategory.id)) ?? [])
     : [];
-  const filteredDesktopRootCategories =
-    categoryQuery.trim().length > 0
-      ? allRootCategories.filter((category) =>
-          getPrimaryCategoryLabel(category)
-            .toLowerCase()
-            .includes(categoryQuery.toLowerCase()),
-        )
-      : allRootCategories;
-  const productsActive = Boolean(
-    productsOpen || pathname?.startsWith(SMOKEIFY_ROUTES.products),
-  );
-  const configuratorActive = Boolean(
-    pathname?.startsWith(SMOKEIFY_ROUTES.customizer),
-  );
-  const analyzerActive = Boolean(
-    pathname?.startsWith(SMOKEIFY_ROUTES.analyzer) ||
-      pathname?.startsWith("/pflanzen-analyzer"),
-  );
-  const utilityIconButtonClass =
-    "relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
-  const desktopNavLinkClass = (active: boolean) =>
-    `relative isolate inline-flex min-h-[52px] cursor-pointer select-none items-center overflow-hidden rounded-[20px] border px-4 py-2 text-[0.98rem] font-semibold tracking-[-0.02em] shadow-[0_14px_30px_rgba(0,0,0,0.24)] backdrop-blur-md transition-all duration-200 ease-out before:absolute before:inset-x-4 before:top-0 before:h-px before:rounded-full before:bg-white/12 before:content-[''] after:absolute after:bottom-2 after:left-4 after:h-[2px] after:rounded-full after:transition-all after:duration-200 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-      active
-        ? "border-[var(--smk-border-strong)] bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.03)_28%,rgba(233,188,116,0.14)_100%)] text-[var(--smk-text)] shadow-[0_20px_42px_rgba(233,188,116,0.14)] ring-1 ring-white/8 after:w-12 after:bg-[var(--smk-accent)]"
-        : "border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015)_42%,rgba(0,0,0,0.08))] text-[var(--smk-text-muted)] after:w-8 after:bg-white/8 hover:-translate-y-0.5 hover:border-[var(--smk-border-strong)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(233,188,116,0.08)_100%)] hover:text-[var(--smk-text)] hover:shadow-[0_22px_38px_rgba(233,188,116,0.1)] hover:after:w-12 hover:after:bg-[var(--smk-accent)]/55"
-    }`;
-  const renderNavLabel = (
-    iconName: "package" | "configurator" | "analyzer",
-    label: string,
-  ) => (
-    <span className="relative z-[1] inline-flex items-center gap-2 whitespace-nowrap">
-      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[rgba(233,188,116,0.16)] bg-[rgba(233,188,116,0.08)] text-[var(--smk-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-        <GrowvaultIcon name={iconName} size={15} />
-      </span>
-      <span>{label}</span>
-    </span>
-  );
+  const categorySearchResults = useMemo(() => {
+    const trimmedQuery = categoryQuery.trim().toLowerCase();
+    if (!trimmedQuery) return [];
+
+    return categories
+      .filter((category) => {
+        const parentName = category.parentId
+          ? categoryById.get(String(category.parentId))?.name.toLowerCase() ?? ""
+          : "";
+        return (
+          category.name.toLowerCase().includes(trimmedQuery) ||
+          parentName.includes(trimmedQuery)
+        );
+      })
+      .map((category) => ({
+        ...category,
+        parentId: category.parentId ? String(category.parentId) : null,
+        parentName: category.parentId
+          ? categoryById.get(String(category.parentId))?.name ?? null
+          : null,
+      }))
+      .sort((a, b) => {
+        const aStarts = a.name.toLowerCase().startsWith(trimmedQuery) ? 1 : 0;
+        const bStarts = b.name.toLowerCase().startsWith(trimmedQuery) ? 1 : 0;
+        if (aStarts !== bStarts) return bStarts - aStarts;
+        const aChildren = childCountByCategoryId.get(a.id) ?? 0;
+        const bChildren = childCountByCategoryId.get(b.id) ?? 0;
+        if (aChildren !== bChildren) return bChildren - aChildren;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 12);
+  }, [categories, categoryById, categoryQuery, childCountByCategoryId]);
+
+  const closeProductsExplorer = () => {
+    setProductsOpen(false);
+    setCategoryQuery("");
+  };
+
+  const openProductsExplorer = (categoryId?: string) => {
+    if (categoryId) {
+      setSelectedRootCategoryId(categoryId);
+    } else if (!selectedRootCategoryId && mainCategories[0]) {
+      setSelectedRootCategoryId(mainCategories[0].id);
+    }
+    setCategoryQuery("");
+    setProductsOpen(true);
+  };
+
+  const navigateToCategory = (category: { href: string }) => {
+    setCategoryNavTarget(category.href);
+    closeProductsExplorer();
+    setDesktopCategoryPopupCategoryId(null);
+    router.push(category.href);
+  };
+
+  const handleBarCategoryClick = (category: NavbarCategory) => {
+    if (isMobile) {
+      navigateToCategory(category);
+      return;
+    }
+    const hasChildren =
+      (categoriesByParent.get(String(category.id))?.length ?? 0) > 0;
+    if (!hasChildren) {
+      navigateToCategory(category);
+      return;
+    }
+    setDesktopCategoryPopupCategoryId((prev) =>
+      prev === category.id ? null : category.id,
+    );
+  };
+
+  const activeDesktopCategoryChildren = desktopCategoryPopupCategoryId
+    ? (categoriesByParent.get(desktopCategoryPopupCategoryId) ?? [])
+    : [];
+  const activeDesktopCategory = desktopCategoryPopupCategoryId
+    ? categoryById.get(desktopCategoryPopupCategoryId)
+    : null;
 
   return (
     <>
-      <nav
-        className="fixed left-0 top-0 z-40 isolate w-full border-b border-[var(--smk-border)] bg-[rgba(14,14,13,0.82)] shadow-[0_20px_56px_rgba(0,0,0,0.28)] backdrop-blur-2xl transition-transform duration-300"
-        style={{ transform: "translateY(var(--smk-announcement-offset))" }}
-      >
+    <nav
+      ref={navRef}
+      className="fixed left-0 z-40 isolate w-full border-b border-[color:var(--gv-border)] bg-[color:var(--gv-dark)]/90 backdrop-blur-md transition-[top] duration-150 ease-out"
+      style={{ top: "var(--gv-announcement-offset, 40px)" }}
+    >
         <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-[1280px] lg:px-8">
-          <div className="py-2 sm:py-2">
-            <div className="relative flex items-center justify-center sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
+          <div className="py-1.5 sm:py-2">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-8 lg:gap-12">
               {/* LEFT (spacer) */}
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0">
+              <div className="min-w-0 justify-self-start">
                 <div id="mobile-nav-menu" className="relative sm:hidden">
                   <button
                     type="button"
                     onClick={() => setMenuOpen((prev) => !prev)}
                     ref={menuTriggerRef}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-[var(--smk-text)] shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-full border text-[color:var(--gv-text)] shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40 focus-visible:ring-offset-2 sm:h-10 sm:w-10 ${
                       menuOpen
-                        ? "border-[var(--smk-border-strong)] bg-[rgba(255,255,255,0.08)] shadow-lg shadow-black/30 focus-visible:ring-offset-black"
-                        : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:ring-offset-black"
+                        ? "border-[color:var(--gv-lime)]/45 bg-[color:var(--gv-surface)] text-[color:var(--gv-text)] shadow-lg shadow-black/20 focus-visible:ring-offset-[color:var(--gv-forest)]"
+                        : "border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] text-[color:var(--gv-text)] hover:border-[color:var(--gv-lime)]/50 hover:text-[color:var(--gv-lime)] focus-visible:ring-offset-[color:var(--gv-forest)]"
                     }`}
                     aria-expanded={menuOpen}
                     aria-haspopup="true"
-                    aria-label="Navigation öffnen"
+                    aria-label={copy.openNavigation}
                   >
                     <Bars3Icon className="h-5 w-5" />
                   </button>
@@ -810,7 +885,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                   createPortal(
                     <div
                       ref={menuPopupRef}
-                      className="webshop-dropdown-in fixed z-[1300] mt-3 w-60 rounded-[26px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-3 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
+                        className="webshop-dropdown-in fixed z-[1300] mt-3 w-60 rounded-[28px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] p-3 text-sm text-[color:var(--gv-text)] shadow-[var(--gv-shadow-lg)]"
                       style={{
                         top: menuPopupStyle.top,
                         left: menuPopupStyle.left,
@@ -820,182 +895,155 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     >
                       <Link
                         href="/products"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        setMenuOpen(false);
-                        setProductsOpen(true);
-                      }}
-                      className="block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                    >
-                        {renderNavLabel("package", "Produkte")}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setMenuOpen(false);
+                          openProductsExplorer();
+                        }}
+                        className={mobileMenuLinkClass}
+                      >
+                        {renderNavLabel("products", copy.products)}
                       </Link>
                       <Link
-                        href={SMOKEIFY_ROUTES.customizer}
+                        href={buildGrowvaultCustomizerUrl()}
                         onClick={() => setMenuOpen(false)}
-                        className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                    >
-                        {renderNavLabel("configurator", "Setup")}
+                        className={`mt-2 ${mobileMenuLinkClass}`}
+                      >
+                        {renderNavLabel("configurator", copy.configurator)}
                       </Link>
                       <Link
-                        href={SMOKEIFY_ROUTES.analyzer}
+                        href={buildGrowvaultAnalyzerUrl()}
                         onClick={() => setMenuOpen(false)}
-                        className="mt-2 block rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                    >
-                        {renderNavLabel("analyzer", "Analyse")}
+                        className={`mt-2 ${mobileMenuLinkClass}`}
+                      >
+                        {renderNavLabel("analyzer", copy.analyzer)}
                       </Link>
                     </div>,
                     document.body,
                   )}
-                <div className="hidden items-center gap-5 text-xs font-semibold text-[var(--smk-text-muted)] sm:flex sm:gap-8 sm:text-base">
-                  <div className="relative" ref={productsRef}>
-                    <button
-                      ref={productsTriggerRef}
-                      type="button"
-                      onClick={() =>
-                        setProductsOpen((prev) => {
-                          const next = !prev;
-                          if (!next) {
-                            setCategoryStack([]);
-                            setCategoryQuery("");
-                          }
-                          return next;
-                        })
-                      }
-                      className={desktopNavLinkClass(productsActive)}
-                      aria-expanded={productsOpen}
-                      aria-haspopup="true"
-                    >
-                      {renderNavLabel("package", "Produkte")}
-                    </button>
-                    {productsOpen &&
-                      !isMobile &&
-                      canPortal &&
-                      productsPopupStyle &&
-                      createPortal(
+                <div className="hidden items-center gap-3 text-xs font-semibold text-[color:var(--gv-text)] sm:flex sm:gap-4 sm:text-sm lg:gap-5">
+                  {mounted ? (
+                    <div className="relative" ref={productsRef}>
+                      <button
+                        ref={productsTriggerRef}
+                        type="button"
+                        onClick={() =>
+                          productsOpen ? closeProductsExplorer() : openProductsExplorer()
+                        }
+                        className={desktopNavLinkClass(productsActive)}
+                        aria-expanded={productsOpen}
+                        aria-haspopup="true"
+                      >
+                        {renderNavLabel("products", copy.products)}
+                      </button>
+                      {productsOpen &&
+                        !isMobile &&
+                        canPortal &&
+                        productsPopupStyle &&
+                        createPortal(
                           <div
                             ref={productsPopupRef}
-                            className="webshop-dropdown-in fixed z-[999] mt-3 max-h-[calc(100vh-8rem)] w-[340px] overflow-hidden rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-1.5 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
+                            className="no-scrollbar webshop-dropdown-in fixed z-[999] touch-pan-y overflow-y-auto overscroll-contain rounded-[32px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] p-4 text-sm text-[color:var(--gv-text)] shadow-[var(--gv-shadow-lg)]"
                             style={{
                               top: productsPopupStyle.top,
                               left: productsPopupStyle.left,
                               width: productsPopupStyle.width,
+                              maxHeight: productsPopupStyle.maxHeight,
                             }}
                           >
-                            <div className="h-full rounded-[20px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-3">
-                              <div className="flex items-start justify-between gap-3 border-b border-[var(--smk-border)] pb-2.5">
-                                <div>
-                                  <p className="smk-kicker text-[11px] text-[var(--smk-accent)]">
-                                    Katalog
-                                  </p>
-                                  <h3 className="mt-1 text-[1.28rem] font-semibold tracking-[-0.04em] text-[var(--smk-text)] lg:text-[1.45rem]">
-                                    Produkte finden
-                                  </h3>
+                            <div className="gv-panel rounded-[28px] px-4 py-4">
+                              <div className="relative border-b border-[color:var(--gv-border)] pb-4 pr-20">
+                                <div className="absolute right-0 top-0">
+                                  <LanguageSwitch language={language} compact />
                                 </div>
-                                <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-1.5 py-1 text-[11px] font-semibold text-[var(--smk-text-muted)]">
-                                  <span className="rounded-full bg-[var(--smk-accent)] px-1.5 py-0.5 text-[var(--smk-bg)]">
-                                    DE
-                                  </span>
-                                  <span>EN</span>
+                                <div className="flex flex-wrap items-start justify-between gap-4">
+                                  <div>
+                                    <span className="gv-chip">{copy.catalog}</span>
+                                    <h3 className="mt-4 font-[family:var(--font-syne)] text-3xl font-bold tracking-[-0.06em] text-[color:var(--gv-text)]">
+                                      {copy.findProductsFaster}
+                                    </h3>
+                                  </div>
+                                  <div className="flex flex-col items-stretch gap-3 sm:items-end">
+                                    <div className="flex flex-wrap gap-3 sm:justify-end">
+                                      <Link
+                                        href="/products"
+                                        onClick={closeProductsExplorer}
+                                        className="group inline-flex min-w-[12rem] items-center justify-between gap-3 rounded-[20px] border border-transparent bg-[linear-gradient(135deg,var(--gv-lime),var(--gv-lime-dim))] px-4 py-3 text-[color:var(--gv-forest)] shadow-[0_18px_36px_var(--gv-lime-glow)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_42px_var(--gv-lime-glow)]"
+                                      >
+                                        <span className="flex flex-col text-left">
+                                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-forest)]/70">
+                                            {copy.assortment}
+                                          </span>
+                                          <span className="mt-1 text-sm font-semibold">
+                                            {copy.allProducts}
+                                          </span>
+                                        </span>
+                                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--gv-forest)]/12 bg-[color:var(--gv-forest)]/8 transition-transform group-hover:translate-x-0.5">
+                                          <Squares2X2Icon className="h-4 w-4" />
+                                        </span>
+                                      </Link>
+                                      <Link
+                                        href="/bestseller"
+                                        onClick={closeProductsExplorer}
+                                        className="group inline-flex min-w-[12rem] items-center justify-between gap-3 rounded-[20px] border border-[color:var(--gv-lime)]/24 bg-[linear-gradient(135deg,var(--gv-lime-glow),transparent_55%),color-mix(in_srgb,var(--gv-surface)_90%,transparent)] px-4 py-3 text-[color:var(--gv-text)] shadow-[var(--gv-shadow)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/42 hover:bg-[color:var(--gv-lime)]/10 hover:shadow-[var(--gv-shadow-lg)]"
+                                      >
+                                        <span className="flex flex-col text-left">
+                                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-lime)]/75">
+                                            {copy.quickSelect}
+                                          </span>
+                                          <span className="mt-1 text-sm font-semibold">
+                                            Bestseller
+                                          </span>
+                                        </span>
+                                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-dark)] text-[color:var(--gv-lime)] transition-all group-hover:translate-x-0.5 group-hover:border-[color:var(--gv-lime)]/34">
+                                          <FireIcon className="h-4 w-4" />
+                                        </span>
+                                      </Link>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
 
-                              <div className="mt-2.5 grid grid-cols-2 gap-2 border-b border-[var(--smk-border)] pb-2.5">
-                                <Link
-                                  href="/products"
-                                  onClick={() => {
-                                    setProductsOpen(false);
-                                    setCategoryStack([]);
-                                    setCategoryQuery("");
-                                  }}
-                                  className="flex min-w-0 items-center justify-between gap-3 rounded-[18px] border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-3 py-2 text-[var(--smk-bg)] transition hover:brightness-105"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(28,21,16,0.68)]">
-                                      Sortiment
-                                    </p>
-                                    <p className="mt-1 text-[0.95rem] font-semibold leading-tight tracking-[-0.03em]">
-                                      Alle Produkte
-                                    </p>
-                                  </div>
-                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-[rgba(28,21,16,0.12)] bg-[rgba(255,255,255,0.18)]">
-                                    <Squares2X2Icon className="h-4.5 w-4.5" />
-                                  </span>
-                                </Link>
-                                <Link
-                                  href="/bestseller"
-                                  onClick={() => {
-                                    setProductsOpen(false);
-                                    setCategoryStack([]);
-                                    setCategoryQuery("");
-                                  }}
-                                  className="flex min-w-0 items-center justify-between gap-3 rounded-[18px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)]"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-accent)]">
-                                      Schnellwahl
-                                    </p>
-                                    <p className="mt-1 text-[0.95rem] font-semibold leading-tight tracking-[-0.03em]">
-                                      Bestseller
-                                    </p>
-                                  </div>
-                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)]">
-                                    <SparklesIcon className="h-4.5 w-4.5 text-[var(--smk-accent)]" />
-                                  </span>
-                                </Link>
-                              </div>
-
-                              <div className="mt-2.5 grid gap-2.5 lg:grid-cols-[196px_minmax(0,1fr)]">
-                                <div className="space-y-2">
+                              <div className="mt-4 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                                <div className="space-y-3">
                                   <div className="relative">
-                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--smk-text-dim)]" />
+                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-text-muted)]" />
                                     <input
                                       type="search"
                                       value={categoryQuery}
-                                      onChange={(event) =>
-                                        setCategoryQuery(event.target.value)
-                                      }
-                                      placeholder="Kategorie suchen..."
-                                      className="smk-input h-11 w-full rounded-full pl-11 pr-4 text-sm"
+                                      onChange={(event) => setCategoryQuery(event.target.value)}
+                                      placeholder={copy.searchCategory}
+                                      className="gv-input h-11 w-full rounded-[18px] pl-11 pr-4 text-sm outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
                                     />
                                   </div>
-                                  {categoriesStatus === "error" ? (
-                                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-                                      Kategorien konnten nicht geladen werden.
-                                    </div>
-                                  ) : null}
-                                  {categoriesStatus === "idle" &&
-                                  filteredDesktopRootCategories.length === 0 ? (
-                                    <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-xs text-[var(--smk-text-muted)]">
-                                      Keine Kategorien gefunden.
-                                    </div>
-                                  ) : null}
-                                  <div className="no-scrollbar max-h-[min(46vh,330px)] space-y-2 overflow-y-auto pr-1">
-                                    {filteredDesktopRootCategories.map((category) => {
-                                      const CategoryIcon = getCategoryIcon(category.name);
-                                      const isActive =
-                                        activeDesktopRootId === category.id;
+
+                                  <div className="space-y-2 pr-1">
+                                    {mainCategories.map((category) => {
+                                      const categoryIconName = getCategoryIconName(category.name);
+                                      const isActive = activeRootCategory?.id === category.id;
                                       return (
                                         <button
                                           key={category.id}
                                           type="button"
-                                          onMouseEnter={() => setCategoryStack([category.id])}
-                                          onFocus={() => setCategoryStack([category.id])}
-                                          onClick={() => setCategoryStack([category.id])}
-                                          className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-[20px] border px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                                          onClick={() => {
+                                            setSelectedRootCategoryId(category.id);
+                                            setCategoryQuery("");
+                                          }}
+                                          className={`group flex w-full items-center justify-between rounded-[22px] border px-3 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
                                             isActive
-                                              ? "border-[rgba(241,198,132,0.22)] bg-[rgba(241,198,132,0.08)]"
-                                              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
+                                              ? "border-[color:var(--gv-lime)]/50 bg-[color:var(--gv-lime)]/12 shadow-[0_16px_30px_rgba(31,95,63,0.12)] hover:border-[color:var(--gv-lime)]/65 hover:bg-[color:var(--gv-lime)]/16 hover:shadow-[0_22px_38px_rgba(31,95,63,0.16)]"
+                                              : "gv-glass hover:border-[color:var(--gv-lime)]/25 hover:bg-[color:var(--gv-lime)]/8 hover:shadow-[0_20px_34px_rgba(0,0,0,0.2)]"
                                           }`}
                                         >
-                                          <span className="flex min-w-0 items-center gap-3">
-                                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
-                                              <CategoryIcon className="h-4 w-4" />
+                                          <span className="flex items-center gap-3">
+                                            <span className="grid h-10 w-10 place-items-center rounded-2xl border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-surface)] text-[color:var(--gv-lime)] transition-all duration-200 group-hover:scale-105 group-hover:border-[color:var(--gv-lime)]/34 group-hover:bg-[color:var(--gv-lime)]/10">
+                                              <GrowvaultIcon name={categoryIconName} size={18} />
                                             </span>
-                                            <span className="truncate text-[0.92rem] font-semibold text-[var(--smk-text)]">
-                                              {getPrimaryCategoryLabel(category)}
+                                            <span className="text-sm font-semibold text-[color:var(--gv-text)]">
+                                              {category.name}
                                             </span>
                                           </span>
-                                          <span className="shrink-0 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-[11px] font-semibold text-[var(--smk-text-muted)]">
+                                          <span className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-2.5 py-1 text-xs font-semibold text-[color:var(--gv-text-muted)] transition-colors duration-200 group-hover:border-[color:var(--gv-lime)]/20 group-hover:text-[color:var(--gv-lime)]">
                                             {category.totalItemCount}
                                           </span>
                                         </button>
@@ -1004,81 +1052,124 @@ export function Navbar({ initialCategories }: NavbarProps) {
                                   </div>
                                 </div>
 
-                                <div className="no-scrollbar max-h-[min(46vh,330px)] overflow-y-auto rounded-[20px] border border-[var(--smk-border)] bg-[rgba(8,8,7,0.18)] p-3.5">
-                                  {activeDesktopRootCategory ? (
-                                    <>
-                                      <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div>
-                                          <p className="smk-kicker text-[var(--smk-accent)]">
-                                            Aktiv
-                                          </p>
-                                          <h3 className="mt-1.5 text-[1.45rem] font-semibold tracking-[-0.04em] text-[var(--smk-text)] lg:text-[1.6rem]">
-                                            {getPrimaryCategoryLabel(activeDesktopRootCategory)}
-                                          </h3>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            router.push(
-                                              `/products?category=${encodeURIComponent(
-                                                activeDesktopRootCategory.handle,
-                                              )}`,
-                                            );
-                                            setProductsOpen(false);
-                                            setCategoryStack([]);
-                                            setCategoryQuery("");
-                                          }}
-                                          className="rounded-full border border-[rgba(241,198,132,0.18)] bg-[linear-gradient(135deg,rgba(241,198,132,0.95),rgba(217,119,69,0.92))] px-4 py-2 text-sm font-semibold text-[var(--smk-bg)] transition hover:brightness-105"
-                                        >
-                                          Alle ansehen
-                                        </button>
+                                <div className="touch-pan-y rounded-[26px] border border-[color:var(--gv-border)] bg-[linear-gradient(135deg,rgba(31,95,63,0.08),transparent_38%),var(--gv-surface)] p-4">
+                                  {categoriesStatus === "error" ? (
+                                    <div className="rounded-[22px] border border-[color:var(--gv-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-4 text-sm text-[color:var(--gv-error)]">
+                                      {copy.categoryLoadError}
+                                    </div>
+                                  ) : categoryQuery.trim().length > 0 ? (
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <p className="font-[family:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-[color:var(--gv-text-muted)]">
+                                          {copy.searchResults}
+                                        </p>
+                                        <span className="text-xs text-[color:var(--gv-text-muted)]">
+                                          {categorySearchResults.length} {copy.results}
+                                        </span>
                                       </div>
-
-                                      {activeDesktopChildren.length > 0 ? (
-                                        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                                          {activeDesktopChildren.map((category) => {
-                                            const CategoryIcon = getCategoryIcon(
-                                              category.name,
-                                            );
+                                      {categorySearchResults.length === 0 ? (
+                                        <div className="gv-glass rounded-[22px] px-4 py-4 text-sm text-[color:var(--gv-text-muted)]">
+                                          {copy.noCategories}
+                                        </div>
+                                      ) : (
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                          {categorySearchResults.map((category) => {
+                                            const categoryIconName = getCategoryIconName(category.name);
+                                            const hasChildren =
+                                              (childCountByCategoryId.get(category.id) ?? 0) > 0;
                                             return (
-                                              <Link
+                                              <button
                                                 key={category.id}
-                                                href={category.href}
+                                                type="button"
                                                 onClick={() => {
-                                                  setProductsOpen(false);
-                                                  setCategoryStack([]);
-                                                  setCategoryQuery("");
+                                                  if (hasChildren) {
+                                                    setSelectedRootCategoryId(category.id);
+                                                    setCategoryQuery("");
+                                                    return;
+                                                  }
+                                                  navigateToCategory(category);
                                                 }}
-                                                className="flex min-w-0 items-start justify-between gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3.5 py-3 text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.06)]"
+                                                className="group gv-glass flex touch-pan-y items-center justify-between rounded-[22px] px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-lime)]/10 hover:shadow-[0_22px_38px_rgba(0,0,0,0.22)]"
                                               >
-                                                <span className="flex min-w-0 items-start gap-3">
-                                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-accent)]">
-                                                    <CategoryIcon className="h-5 w-5" />
+                                                <span className="flex items-center gap-3">
+                                                  <span className="grid h-11 w-11 place-items-center rounded-2xl border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-surface)] text-[color:var(--gv-lime)] transition-all duration-200 group-hover:scale-105 group-hover:border-[color:var(--gv-lime)]/34 group-hover:bg-[color:var(--gv-lime)]/10">
+                                                    <GrowvaultIcon name={categoryIconName} size={20} />
                                                   </span>
-                                                  <span className="min-w-0 text-sm font-semibold leading-5 sm:text-[0.95rem]">
-                                                    {getPrimaryCategoryLabel(category)}
+                                                  <span className="min-w-0">
+                                                    <span className="block text-sm font-semibold text-[color:var(--gv-text)]">
+                                                      {category.name}
+                                                    </span>
+                                                    <span className="mt-1 block text-xs text-[color:var(--gv-text-muted)]">
+                                                      {category.parentName ?? copy.mainCategory}
+                                                    </span>
                                                   </span>
                                                 </span>
-                                                <span className="shrink-0 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-[11px] font-semibold text-[var(--smk-text-muted)]">
+                                                <span className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-2.5 py-1 text-xs font-semibold text-[color:var(--gv-lime)] transition-colors duration-200 group-hover:border-[color:var(--gv-lime)]/26 group-hover:bg-[color:var(--gv-lime)]/10">
                                                   {category.totalItemCount}
                                                 </span>
-                                              </Link>
+                                              </button>
                                             );
                                           })}
                                         </div>
-                                      ) : (
-                                        <div className="mt-6 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-5">
-                                          <p className="text-sm leading-6 text-[var(--smk-text-muted)]">
-                                            Diese Kategorie führt direkt auf die
-                                            Produktliste. Öffne sie, um alle
-                                            zugeordneten Smokeify Produkte zu sehen.
-                                          </p>
-                                        </div>
                                       )}
-                                    </>
+                                    </div>
+                                  ) : activeRootCategory && !isMobile ? (
+                                    <div>
+                                      <div className="flex flex-wrap items-start justify-between gap-4">
+                                        <div>
+                                          <p className="font-[family:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-[color:var(--gv-lime)]">
+                                            {copy.active}
+                                          </p>
+                                          <h4 className="mt-2 font-[family:var(--font-syne)] text-3xl font-bold tracking-[-0.05em] text-[color:var(--gv-text)]">
+                                            {activeRootCategory.name}
+                                          </h4>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => navigateToCategory(activeRootCategory)}
+                                          className="inline-flex items-center justify-center rounded-full bg-[color:var(--gv-lime)] px-4 py-2.5 text-sm font-semibold text-[color:var(--gv-forest)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_20px_34px_rgba(31,95,63,0.24)]"
+                                        >
+                                          {copy.viewAll} {activeRootCategory.name}
+                                        </button>
+                                      </div>
+
+                                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                        {activeRootChildren.length === 0 ? (
+                                          <div className="gv-glass rounded-[22px] px-4 py-4 text-sm text-[color:var(--gv-text-muted)]">
+                                            {copy.noSubcategories}
+                                          </div>
+                                        ) : (
+                                          activeRootChildren.map((category) => {
+                                            const categoryIconName = getCategoryIconName(category.name);
+                                            return (
+                                              <button
+                                                key={category.id}
+                                                type="button"
+                                                onClick={() => navigateToCategory(category)}
+                                                className="group gv-glass flex touch-pan-y items-center justify-between rounded-[22px] px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-lime)]/10 hover:shadow-[0_22px_38px_rgba(0,0,0,0.22)]"
+                                              >
+                                                <span className="flex items-center gap-3">
+                                                  <span className="grid h-11 w-11 place-items-center rounded-2xl border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-surface)] text-[color:var(--gv-lime)] transition-all duration-200 group-hover:scale-105 group-hover:border-[color:var(--gv-lime)]/34 group-hover:bg-[color:var(--gv-lime)]/10">
+                                                    <GrowvaultIcon name={categoryIconName} size={20} />
+                                                  </span>
+                                                  <span className="min-w-0">
+                                                    <span className="block text-sm font-semibold text-[color:var(--gv-text)]">
+                                                      {category.name}
+                                                    </span>
+                                                  </span>
+                                                </span>
+                                                <span className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-2.5 py-1 text-xs font-semibold text-[color:var(--gv-lime)] transition-colors duration-200 group-hover:border-[color:var(--gv-lime)]/26 group-hover:bg-[color:var(--gv-lime)]/10">
+                                                  {category.totalItemCount}
+                                                </span>
+                                              </button>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </div>
                                   ) : (
-                                    <div className="rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-5 text-sm text-[var(--smk-text-muted)]">
-                                      Keine Kategorien gefunden.
+                                    <div className="gv-glass rounded-[22px] px-4 py-4 text-sm text-[color:var(--gv-text-muted)]">
+                                      {copy.noCategories}
                                     </div>
                                   )}
                                 </div>
@@ -1087,46 +1178,53 @@ export function Navbar({ initialCategories }: NavbarProps) {
                           </div>,
                           document.body,
                         )}
-                  </div>
+                    </div>
+                  ) : (
+                    <Link
+                      href="/products"
+                      className={desktopNavLinkClass(productsActive)}
+                    >
+                      {renderNavLabel("products", copy.products)}
+                    </Link>
+                  )}
                   <Link
-                    href={SMOKEIFY_ROUTES.customizer}
+                    href={buildGrowvaultCustomizerUrl()}
                     className={desktopNavLinkClass(configuratorActive)}
                   >
-                    {renderNavLabel("configurator", "Setup")}
+                    {renderNavLabel("configurator", copy.configurator)}
                   </Link>
                   <Link
-                    href={SMOKEIFY_ROUTES.analyzer}
-                    className={`${desktopNavLinkClass(analyzerActive)} whitespace-nowrap`}
+                    href={buildGrowvaultAnalyzerUrl()}
+                    className={desktopNavLinkClass(analyzerActive)}
                   >
-                    {renderNavLabel("analyzer", "Analyse")}
+                    {renderNavLabel("analyzer", copy.analyzer)}
                   </Link>
                 </div>
               </div>
 
               {/* CENTER */}
-              <div className="flex flex-wrap items-center justify-center gap-3 sm:col-start-2 sm:flex-nowrap sm:gap-6">
-                <div className="relative flex items-center gap-3 sm:gap-6">
-                  <Link href="/" className="flex h-12 items-center overflow-visible sm:h-16">
-                    <Image
-                      src="/images/Logo.png"
-                      alt="Smokeify Logo"
-                      className="h-10 w-auto translate-y-1 scale-[1.65] object-contain sm:h-14 sm:translate-y-1.5 sm:scale-[1.82]"
-                      priority
-                      width={320}
-                      height={110}
-                    />
+              <div className="min-w-0 justify-self-center sm:col-start-2">
+                <div className="relative flex min-w-0 items-center justify-center">
+                  <Link
+                    href="/"
+                    className="flex min-w-0 flex-col items-center justify-center leading-none text-center"
+                  >
+                    <span className="text-[1.4rem] font-[family:var(--font-syne)] font-extrabold tracking-[-0.08em] sm:mt-1 sm:text-[2rem] lg:text-[2.1rem]">
+                      <span className="text-[color:var(--gv-text)]">Smoke</span>
+                      <span className="text-[color:var(--gv-lime)]">ify</span>
+                    </span>
                   </Link>
                 </div>
               </div>
 
               {/* RIGHT */}
-              <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-0 text-[var(--smk-text)] sm:static sm:col-start-3 sm:translate-y-0 sm:justify-end sm:gap-2">
+              <div className="flex items-center justify-end gap-1 text-[color:var(--gv-text)] sm:col-start-3 sm:gap-2 lg:gap-3">
                 <div
                   ref={searchRef}
-                  className="relative z-[60] hidden w-[240px] md:block lg:w-[300px] lg:-translate-x-2"
+                  className="relative z-[60] hidden w-[235px] md:block lg:mr-2 lg:w-[275px]"
                 >
                   <div className="relative">
-                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--smk-text-dim)]" />
+                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-text-muted)]" />
                     <input
                       type="search"
                       value={searchQuery}
@@ -1145,8 +1243,8 @@ export function Navbar({ initialCategories }: NavbarProps) {
                           setSearchOpen(false);
                         }
                       }}
-                      placeholder="Produkte suchen..."
-                      className="smk-input h-10 w-full rounded-full pl-9 pr-4 text-sm"
+                      placeholder={copy.searchProducts}
+                      className="gv-input h-11 w-full rounded-full pl-10 pr-4 text-sm shadow-none outline-none focus:border-[color:var(--gv-lime)]/45 focus:ring-2 focus:ring-[color:var(--gv-lime)]/10"
                     />
                   </div>
                   {canPortal && (
@@ -1158,13 +1256,16 @@ export function Navbar({ initialCategories }: NavbarProps) {
                       searchPopupStyle={searchPopupStyle}
                       popupRef={searchPopupRef}
                       onClose={() => setSearchOpen(false)}
+                      language={language}
                       onSelectResult={(item) => {
                         trackAnalyticsEvent("select_item", {
                           item_list_id: "search",
                           item_list_name: "search",
                           items: [
                             {
-                              item_id: item.defaultVariantId ?? item.id,
+                              item_id: buildMerchantItemId(
+                                item.defaultVariantId ?? item.id,
+                              ),
                               item_name: item.title,
                               price: item.price
                                 ? Number(item.price.amount)
@@ -1180,6 +1281,7 @@ export function Navbar({ initialCategories }: NavbarProps) {
                 </div>
                 <div className="relative" ref={cartRef}>
                   <button
+                    ref={cartButtonRef}
                     type="button"
                     onClick={() => {
                       if (isMobile) {
@@ -1194,12 +1296,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     className={utilityIconButtonClass}
                     aria-expanded={cartOpen}
                     aria-haspopup="true"
-                    aria-label="Warenkorb öffnen"
+                    aria-label={copy.openCart}
                   >
-                    <ShoppingBagIcon className="h-6 w-6" />
+                    <ShoppingBagIcon className="h-[1.35rem] w-[1.35rem]" />
                     {count > 0 && (
                       <span
-                        className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-center text-[12px] font-semibold leading-none text-white ${
+                        className={`absolute -right-1 -top-1 inline-flex h-[1.4rem] min-w-[1.4rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-center text-[12px] font-semibold leading-none text-white ${
                           cartPop ? "badge-pop" : ""
                         }`}
                       >
@@ -1207,84 +1309,16 @@ export function Navbar({ initialCategories }: NavbarProps) {
                       </span>
                     )}
                   </button>
-                  {isMobile &&
-                    mobileAddedOpen &&
-                    mobileAddedItem &&
-                    mobileAddedAnchor &&
-                    createPortal(
-                      <div
-                        className="fixed z-[90] w-64 rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-3 text-[var(--smk-text)] shadow-2xl shadow-black/40"
-                        style={{
-                          top: mobileAddedAnchor.top,
-                          right: mobileAddedAnchor.right,
-                        }}
-                      >
-                      <div className="flex items-center gap-3">
-                        {mobileAddedItem.imageUrl ? (
-                          <Image
-                            src={mobileAddedItem.imageUrl}
-                            alt={
-                              mobileAddedItem.imageAlt ?? mobileAddedItem.title
-                            }
-                            className="h-12 w-12 rounded-md object-cover"
-                            width={48}
-                            height={48}
-                            sizes="48px"
-                          />
-                        ) : (
-                          <div className="h-12 w-12 rounded-md bg-[rgba(255,255,255,0.06)]" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-[var(--smk-text)]">
-                            {mobileAddedItem.title}
-                          </p>
-                          {mobileAddedItem.price && (
-                            <p className="text-xs text-[var(--smk-text-muted)]">
-                              {formatPrice(
-                                mobileAddedItem.price.amount,
-                                mobileAddedItem.price.currencyCode,
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="mt-3 grid gap-2 text-xs font-semibold">
-                        <Link
-                          href="/cart"
-                          onClick={() => setMobileAddedOpen(false)}
-                          className="smk-button-secondary block w-full rounded-full px-3 py-2 text-center focus-visible:ring-offset-black"
-                        >
-                          Warenkorb ansehen
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMobileAddedOpen(false);
-                            startCheckout();
-                          }}
-                          className="smk-button-primary block w-full rounded-full px-3 py-2 text-center focus-visible:ring-offset-black"
-                        >
-                          Zur Kasse
-                        </button>
-                        <PaymentMethodLogos
-                          className="justify-center gap-[2px] sm:gap-2"
-                          pillClassName="h-7 border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2 sm:h-8 sm:px-3"
-                          logoClassName="h-4 sm:h-5"
-                        />
-                      </div>
-                    </div>,
-                      document.body,
-                    )}
                 </div>
                 <Link
                   href="/wishlist"
-                  className={utilityIconButtonClass}
-                  aria-label="Wunschliste"
+                  className={`hidden sm:inline-flex ${utilityIconButtonClass}`}
+                  aria-label={copy.wishlist}
                 >
-                  <HeartIcon className="h-6 w-6" />
+                  <HeartIcon className="h-[1.35rem] w-[1.35rem]" />
                   {wishlistCount > 0 && (
                     <span
-                      className={`absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-center text-[12px] font-semibold leading-none text-white ${
+                      className={`absolute -right-1 -top-1 inline-flex h-[1.4rem] min-w-[1.4rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-center text-[12px] font-semibold leading-none text-white ${
                         wishlistPop ? "badge-pop" : ""
                       }`}
                     >
@@ -1292,16 +1326,16 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     </span>
                   )}
                 </Link>
-                <div className="relative -mr-1" ref={accountRef}>
+                <div className="relative" ref={accountRef}>
                   <button
                     type="button"
                     onClick={() => setAccountOpen((prev) => !prev)}
                     className={utilityIconButtonClass}
                     aria-expanded={accountOpen}
                     aria-haspopup="true"
-                    aria-label="Account"
+                    aria-label={copy.account}
                   >
-                    <UserCircleIcon className="h-6 w-6" />
+                    <UserCircleIcon className="h-[1.35rem] w-[1.35rem]" />
                   </button>
                   {accountOpen &&
                     canPortal &&
@@ -1309,11 +1343,12 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     createPortal(
                       <div
                         ref={accountPopupRef}
-                        className="fixed z-[1005] mt-3 origin-top-right rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-4 text-sm text-[var(--smk-text)] shadow-2xl shadow-black/40"
+                        className="pretty-scrollbar webshop-dropdown-in fixed z-[1005] mt-3 overflow-y-auto overscroll-contain rounded-2xl border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] p-2 text-sm text-[color:var(--gv-text)] shadow-[var(--gv-shadow-lg)]"
                         style={{
                           top: accountPopupStyle.top,
                           left: accountPopupStyle.left,
                           width: accountPopupStyle.width,
+                          maxHeight: accountPopupStyle.maxHeight,
                         }}
                         aria-hidden={!accountOpen}
                       >
@@ -1332,11 +1367,11 @@ export function Navbar({ initialCategories }: NavbarProps) {
         </div>
         {showMobileSearch && (
           <div
-            className="relative z-[800] sm:hidden px-4 pb-3"
+            className="relative z-[800] px-4 pb-1.5 sm:hidden"
             ref={mobileSearchRef}
           >
             <div className="relative">
-              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--smk-text-dim)]" />
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-text-muted)]" />
               <input
                 type="search"
                 value={searchQuery}
@@ -1355,217 +1390,95 @@ export function Navbar({ initialCategories }: NavbarProps) {
                     setSearchOpen(false);
                   }
                 }}
-                placeholder="Produkte suchen..."
-                className="smk-input h-11 w-full rounded-full pl-9 pr-4 text-sm"
+                placeholder={copy.searchProducts}
+                className="gv-input h-9 w-full rounded-full pl-9 pr-4 text-[13px] shadow-[0_12px_32px_rgba(0,0,0,0.2)] outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
               />
             </div>
           </div>
         )}
         {showCategoryBar && (
-          <div className="relative z-10 mt-3 hidden border-t border-[var(--smk-border)] bg-[rgba(20,18,17,0.82)] backdrop-blur-xl sm:block">
-            <div className="mx-auto flex w-full flex-wrap items-center justify-center gap-2.5 px-4 py-3 text-sm text-[var(--smk-text-muted)] sm:px-6 lg:max-w-[1280px] lg:px-8">
-              <Link
-                href="/bestseller"
-                onClick={() => {
-                  setCategoryNavTarget("/bestseller");
-                  setCategoryHoverLocked(true);
+          <div className="relative z-10 mt-1 block border-y border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] shadow-[var(--gv-shadow)]">
+            <div className="mx-auto w-full px-4 sm:px-6 lg:max-w-[1280px] lg:px-8">
+              <NavbarCategoryBar
+                categories={mainCategories}
+                categoriesStatus={categoriesStatus}
+                childCountById={childCountByCategoryId}
+                isMobile={isMobile}
+                pathname={pathname}
+                categoryNavTarget={categoryNavTarget}
+                activeCategoryId={desktopCategoryPopupCategoryId}
+                bestsellerLabel="Bestseller"
+                errorLabel={copy.categoryLoadError}
+                emptyLabel={copy.noCategories}
+                onBestsellerClick={() => setCategoryNavTarget("/bestseller")}
+                onCategoryClick={handleBarCategoryClick}
+                registerTriggerRef={(id, node) => {
+                  desktopCategoryTriggerRefs.current.set(id, node);
                 }}
-                className="flex min-h-[2.65rem] items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-[15px] font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
-              >
-                <span>Bestseller</span>
-                {categoryNavTarget === "/bestseller" && (
-                  <LoadingSpinner
-                    size="sm"
-                    className="h-3 w-3 border-2 border-[rgba(255,255,255,0.18)] border-t-[var(--smk-accent)]"
-                  />
-                )}
-              </Link>
-              {categoriesStatus === "error" && (
-                <span className="text-xs text-[var(--smk-error)]">
-                  Kategorien konnten nicht geladen werden.
-                </span>
-              )}
-              {categoriesStatus === "idle" && mainCategories.length === 0 && (
-                <span className="text-xs text-[var(--smk-text-dim)]">
-                  Keine Kategorien gefunden.
-                </span>
-              )}
-              {categoriesStatus === "idle" &&
-                mainCategories.map((category) => (
-                  <div
-                    key={category.id}
-                    className="relative group"
-                  >
-                    <Link
-                      href={category.href}
-                      onClick={() => {
-                        setCategoryNavTarget(category.href);
-                        setCategoryHoverLocked(true);
-                      }}
-                      className="flex min-h-[2.65rem] items-center gap-2 whitespace-nowrap rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-[15px] font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
-                    >
-                      <span>{getPrimaryCategoryLabel(category)}</span>
-                      <span className="rounded-full border border-[rgba(241,198,132,0.18)] bg-[rgba(241,198,132,0.1)] px-2 py-0.5 text-xs font-semibold text-[var(--smk-accent)]">
-                        {category.totalItemCount}
-                      </span>
-                      {categoryNavTarget === category.href && (
-                        <LoadingSpinner
-                          size="sm"
-                          className="h-3 w-3 border-2 border-[rgba(255,255,255,0.18)] border-t-[var(--smk-accent)]"
-                        />
-                      )}
-                    </Link>
-                    {(categoriesByParent.get(String(category.id))?.length ?? 0) >
-                      0 && (
-                      <>
-                        <div className="pointer-events-auto absolute left-1/2 top-full z-20 h-3 w-28 -translate-x-1/2" />
-                        <div
-                          className={`invisible absolute left-1/2 top-full z-30 mt-1 -translate-x-1/2 translate-y-1 opacity-0 transition duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 delay-100 group-hover:delay-150 ${
-                            categoryHoverLocked ? "hidden" : ""
-                          }`}
-                        >
-                          <div
-                            className="grid grid-flow-col auto-cols-max gap-2 rounded-[24px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.98))] p-3 text-[15px] text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl"
-                            style={{
-                              gridTemplateRows: `repeat(${Math.max(
-                                1,
-                                Math.min(
-                                  6,
-                                  (categoriesByParent.get(String(category.id)) ?? [])
-                                    .length,
-                                ),
-                              )}, minmax(0, auto))`,
-                            }}
-                          >
-                            {(categoriesByParent.get(String(category.id)) ?? []).map(
-                              (child) => {
-                                const ChildIcon = getCategoryIcon(child.name);
-                                return (
-                                  <Link
-                                    key={child.id}
-                                    href={child.href}
-                                    onClick={() => {
-                                      setCategoryNavTarget(child.href);
-                                      setCategoryHoverLocked(true);
-                                    }}
-                                    className="flex min-w-0 items-center gap-2 rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)]"
-                                  >
-                                    <span className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)]">
-                                      <ChildIcon className="h-4.5 w-4.5" />
-                                    </span>
-                                    <span className="min-w-0 flex-1 truncate">
-                                      {child.name}
-                                    </span>
-                                    {categoryNavTarget === child.href && (
-                                      <LoadingSpinner
-                                        size="sm"
-                                        className="h-3 w-3 border-2 border-[rgba(255,255,255,0.18)] border-t-[var(--smk-accent)]"
-                                      />
-                                    )}
-                                  </Link>
-                                );
-                              },
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+              />
             </div>
           </div>
         )}
-        {cartOpen && !isMobile && canPortal
-          ? createPortal(
-              <NavbarCartDrawer
-                open
-                cart={cart}
-                loading={loading}
-                error={error}
-                canCheckout={canCheckout}
-                checkoutStatus={checkoutStatus}
-                discountCode={drawerDiscountCode}
-                appliedDiscountCode={appliedDrawerDiscountCode}
-                appliedDiscountAmount={appliedDrawerDiscountAmount}
-                onDiscountCodeChange={(value) => {
-                  setAppliedDrawerDiscountCode("");
-                  setDrawerDiscountCode(value);
-                }}
-                onApplyDiscountCode={applyDrawerDiscountCode}
-                onClose={() => setCartOpen(false)}
-                onStartCheckout={() => void startCheckout()}
-                panelRef={cartPanelRef}
-              />,
-              document.body,
-            )
-          : null}
+        {desktopCategoryPopupCategoryId &&
+          desktopCategoryPopupStyle &&
+          activeDesktopCategoryChildren.length > 0 &&
+          activeDesktopCategory &&
+          canPortal && (
+          <NavbarSubcategoriesPopup
+            category={activeDesktopCategory}
+            categories={activeDesktopCategoryChildren}
+            copy={{ subcategories: copy.subcategories, viewAll: copy.viewAll }}
+            onNavigate={navigateToCategory}
+            popupRef={desktopCategoryPopupRef}
+            popupStyle={desktopCategoryPopupStyle}
+          />
+        )}
+        {cartOpen && !isMobile ? (
+          <NavbarCartDrawer
+            open
+            cart={cart}
+            loading={loading}
+            error={error}
+            canCheckout={canCheckout}
+            checkoutStatus={checkoutStatus}
+            onClose={() => setCartOpen(false)}
+            onStartCheckout={() => void startCheckout()}
+            onViewCart={() => setCartOpen(false)}
+            panelRef={cartPanelRef}
+            language={language}
+          />
+        ) : null}
       </nav>
       <div
-        className={
-          showCategoryBar
-            ? "h-[calc(var(--smk-announcement-offset)+110px)] sm:h-[calc(var(--smk-announcement-offset)+154px)]"
-            : "h-[calc(var(--smk-announcement-offset)+40px)] sm:h-[calc(var(--smk-announcement-offset)+73px)]"
-        }
+        style={{
+          height:
+            navHeight != null
+              ? `calc(${navHeight}px + var(--gv-announcement-offset, 28px))`
+              : `calc(${showCategoryBar ? 146 : 49}px + var(--gv-announcement-offset, 28px))`,
+        }}
+        className="transition-[height] duration-150 ease-out sm:hidden"
+        aria-hidden="true"
+      />
+      <div
+        style={{
+          height:
+            navHeight != null
+              ? `calc(${navHeight}px + var(--gv-announcement-offset, 40px))`
+              : `calc(${showCategoryBar ? 118 : 61}px + var(--gv-announcement-offset, 40px))`,
+        }}
+        className="hidden transition-[height] duration-150 ease-out sm:block"
         aria-hidden="true"
       />
       {isMobile && productsOpen ? (
         <NavbarMobileCategoriesSheet
           open
           mobileProductsRef={mobileProductsRef}
-          activeParentName={activeParentCategory?.name ?? "Übersicht"}
-          categoryQuery={categoryQuery}
-          hasCategoryStack={categoryStack.length > 0}
           categoriesStatus={categoriesStatus}
-          filteredCategories={filteredCategories}
-          childCountByCategoryId={childCountByCategoryId}
-          onClose={() => {
-            setProductsOpen(false);
-            setCategoryStack([]);
-            setCategoryQuery("");
-          }}
-          onCategoryQueryChange={setCategoryQuery}
-          onBack={() => setCategoryStack((prev) => prev.slice(0, -1))}
-          onViewAllProducts={() => {
-            setProductsOpen(false);
-            setCategoryStack([]);
-            setCategoryQuery("");
-          }}
-          onViewParentCategory={() => {
-            if (!activeParentCategory) return;
-            router.push(
-              `/products?category=${encodeURIComponent(activeParentCategory.handle)}`,
-            );
-            setProductsOpen(false);
-            setCategoryStack([]);
-            setCategoryQuery("");
-          }}
-          onSelectCategory={(category, isLeaf) => {
-            if (isLeaf) {
-              router.push(
-                `/products?category=${encodeURIComponent(category.handle)}`,
-              );
-              setProductsOpen(false);
-              setCategoryStack([]);
-              setCategoryQuery("");
-              return;
-            }
-            setCategoryStack((prev) => [...prev, category.id]);
-            setCategoryQuery("");
-          }}
-        />
-      ) : null}
-      {showCheckoutAuthModal ? (
-        <CheckoutAuthModal
-          open
-          returnTo={buildCheckoutStartUrl({
-            country: "DE",
-            discountCode: appliedDrawerDiscountCode || undefined,
-          })}
-          onClose={() => setShowCheckoutAuthModal(false)}
-          onContinueAsGuest={() => {
-            setShowCheckoutAuthModal(false);
-            return proceedToCheckout();
-          }}
+          rootCategories={mainCategories}
+          onClose={closeProductsExplorer}
+          onOpenAllProducts={closeProductsExplorer}
+          onOpenRootCategory={navigateToCategory}
+          language={language}
         />
       ) : null}
     </>

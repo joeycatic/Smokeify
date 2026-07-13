@@ -58,7 +58,6 @@ function VivaComLogo({ className = "" }: { className?: string }) {
     </span>
   );
 }
-
 const toAnalyticsItems = (summary: CheckoutSummarySnapshot) =>
   summary.items.map((item) => ({
     item_id: item.variantId,
@@ -252,8 +251,8 @@ export default function CheckoutPaymentClient() {
   if (loadState === "error") {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <section className="rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
-          <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-4 py-3 text-sm text-[var(--smk-error)]">
+        <section className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
+          <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm text-[var(--smk-error)]">
             {pageError ?? "Checkout-Session konnte nicht geladen werden."}
           </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -295,7 +294,7 @@ export default function CheckoutPaymentClient() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+        <section className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
           <div className="mb-6 flex items-center justify-between gap-4 border-b border-[var(--smk-border)] pb-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
@@ -344,18 +343,18 @@ export default function CheckoutPaymentClient() {
           </div>
         </section>
 
-        <aside className="rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+        <aside className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Bestellübersicht</p>
           <div className="mt-4 space-y-3">
             {summary.items.map((item) => (
-              <div key={`${item.variantId}-${item.name}`} className="flex items-center gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-3">
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[rgba(255,255,255,0.05)]">{item.imageUrl ? <Image src={item.imageUrl} alt={item.name} fill sizes="64px" className="object-cover" /> : null}</div>
+              <div key={`${item.variantId}-${item.name}`} className="flex items-center gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] p-3">
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white">{item.imageUrl ? <Image src={item.imageUrl} alt={item.name} fill sizes="64px" className="object-cover" /> : null}</div>
                 <div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm font-semibold text-[var(--smk-text)]">{item.name}</p><p className="mt-1 text-xs text-[var(--smk-text-muted)]">Menge {item.quantity}</p></div>
                 <p className="text-sm font-semibold text-[var(--smk-text)]">{formatMoney(item.lineTotalCents, summary.currency)}</p>
               </div>
             ))}
           </div>
-          <div className="mt-6 space-y-3 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] p-4">
+          <div className="mt-6 space-y-3 rounded-[24px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] p-4">
             <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Zwischensumme</span><span>{formatMoney(summary.subtotalCents, summary.currency)}</span></div>
             {(summary.discountCents ?? 0) > 0 ? <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Rabatt</span><span>-{formatMoney(summary.discountCents ?? 0, summary.currency)}</span></div> : null}
             <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Versand</span><span>{formatMoney(summary.shippingCents, summary.currency)}</span></div>

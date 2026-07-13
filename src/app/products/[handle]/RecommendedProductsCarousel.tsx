@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { shouldBypassImageOptimization } from "@/lib/storefrontImages";
 
 export type RecommendedProduct = {
   id: string;
@@ -62,58 +63,60 @@ export default function RecommendedProductsCarousel({ items }: Props) {
   if (items.length === 0) return null;
 
   return (
-    <section className="mt-10 overflow-hidden rounded-[28px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--smk-border)] px-5 py-4">
+    <section className="mt-10 overflow-hidden rounded-[32px] border border-[color:var(--gv-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent_24%),var(--gv-dark)] shadow-[0_24px_70px_rgba(0,0,0,0.28)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[color:var(--gv-border)] px-5 py-4">
         <div className="flex items-center gap-2.5">
-          <span className="h-3.5 w-1 rounded-full bg-[var(--smk-accent-2)]" />
-          <h2 className="smk-heading text-lg font-bold">
-            Empfohlen für dich
-          </h2>
+          <span className="h-3.5 w-1 rounded-full bg-[color:var(--gv-lime)]" />
+          <div>
+            <p className="font-[family:var(--font-jetbrains-mono)] text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--gv-lime)]">
+              Empfehlungen
+            </p>
+            <h2 className="mt-1 font-[family:var(--font-syne)] text-xl font-bold tracking-[-0.04em] text-[color:var(--gv-text)]">
+              Empfohlen für dich
+            </h2>
+          </div>
         </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => scrollTrack("left")}
             disabled={!canScrollPrev}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text-muted)] transition hover:border-[color:var(--gv-lime)]/35 hover:text-[color:var(--gv-text)] disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Empfehlungen nach links"
           >
-            <ChevronLeftIcon className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => scrollTrack("right")}
             disabled={!canScrollNext}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)] disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text-muted)] transition hover:border-[color:var(--gv-lime)]/35 hover:text-[color:var(--gv-text)] disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Empfehlungen nach rechts"
           >
-            <ChevronRightIcon className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4" />
           </button>
           <Link
             href="/products"
-            className="ml-1.5 rounded-full border border-[var(--smk-border-strong)] bg-[rgba(233,188,116,0.12)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--smk-accent-2)] transition hover:bg-[rgba(233,188,116,0.18)]"
+            className="ml-1.5 inline-flex h-9 items-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-[color:var(--gv-text)] transition hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-lime)] hover:text-[color:var(--gv-forest)]"
           >
             Alle Produkte
           </Link>
         </div>
       </div>
 
-      {/* Carousel track */}
       <div
         ref={trackRef}
-        className="no-scrollbar flex snap-x snap-mandatory gap-0 overflow-x-auto"
+        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto"
       >
-        {items.map((item, index) => (
+        {items.map((item) => (
           <Link
             key={item.id}
             href={`/products/${item.handle}`}
-            className="group relative w-[13rem] shrink-0 snap-start border-r border-[var(--smk-border)] p-4 transition last:border-r-0 hover:bg-[rgba(255,255,255,0.03)] sm:w-[15rem]"
+            className="group relative w-[13rem] shrink-0 snap-start border-r border-[color:var(--gv-border)] p-4 transition last:border-r-0 hover:bg-[color:var(--gv-lime)]/6 sm:w-[15rem]"
           >
-            {/* Hover top accent */}
-            <span className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-[var(--smk-accent-2)] transition-transform duration-200 group-hover:scale-x-100" />
+            <span className="absolute inset-x-0 top-0 h-0.5 scale-x-0 bg-[color:var(--gv-lime)] transition-transform duration-200 group-hover:scale-x-100" />
 
-            <div className="smk-white-well relative h-36 overflow-hidden rounded-[20px] sm:h-44">
+            <div className="relative h-36 overflow-hidden rounded-[24px] border border-[color:var(--gv-border)] bg-white sm:h-44">
               {item.imageUrl ? (
                 <Image
                   src={item.imageUrl}
@@ -121,19 +124,20 @@ export default function RecommendedProductsCarousel({ items }: Props) {
                   fill
                   className="object-contain p-2 transition duration-300 group-hover:scale-[1.04]"
                   sizes="(min-width: 640px) 240px, 208px"
-                  loading={index < 4 ? "eager" : "lazy"}
+                  loading="lazy"
                   quality={70}
+                  unoptimized={shouldBypassImageOptimization(item.imageUrl)}
                 />
               ) : (
-                <div className="h-full w-full" />
+                <div className="h-full w-full bg-white" />
               )}
             </div>
 
-            <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-snug text-[var(--smk-text)] transition group-hover:text-[var(--smk-accent-2)]">
+            <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-snug text-[color:var(--gv-text)] transition group-hover:text-[color:var(--gv-lime)]">
               {item.title}
             </p>
             {item.price && (
-              <p className="mt-1.5 text-sm font-bold text-[var(--smk-accent-2)]">
+              <p className="mt-1.5 text-sm font-bold text-[color:var(--gv-lime)]">
                 {formatPrice(item.price.amount, item.price.currencyCode)}
               </p>
             )}

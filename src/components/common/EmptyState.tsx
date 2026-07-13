@@ -25,7 +25,7 @@ export default function EmptyState({
 }) {
   return (
     <div
-      className={`rounded-[32px] border border-[color:var(--smk-border)] bg-[linear-gradient(135deg,rgba(163,230,53,0.08),transparent_42%),var(--smk-bg-soft)] px-6 py-8 text-center shadow-[0_28px_80px_rgba(0,0,0,0.3)] ${className}`}
+      className={`rounded-[30px] border border-[color:var(--gv-border)] bg-[linear-gradient(135deg,rgba(31,95,63,0.08),transparent_42%),var(--gv-dark)] px-6 py-8 text-center shadow-[var(--gv-shadow)] ${className}`}
     >
       {icon ? (
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl border border-[color:var(--smk-accent-2)]/20 bg-[color:var(--smk-accent-2)]/10 text-[color:var(--smk-accent-2)]">
@@ -70,5 +70,4 @@ export default function EmptyState({
     </div>
   );
 }
-
 

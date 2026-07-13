@@ -21,6 +21,20 @@ function normalizeSearch(search?: string) {
   return search.startsWith("?") ? search : `?${search}`;
 }
 
+export function serializeForwardedSearchParams(
+  params: Record<string, string | string[] | undefined>,
+) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => search.append(key, entry));
+    } else if (value !== undefined) {
+      search.set(key, value);
+    }
+  });
+  return search.toString();
+}
+
 export const GROWVAULT_PUBLIC_URL = normalizeUrl(
   process.env.NEXT_PUBLIC_GROWVAULT_APP_URL ??
     process.env.GROWVAULT_APP_URL ??

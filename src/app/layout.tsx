@@ -1,33 +1,40 @@
 // src/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Providers from "@/app/providers";
 import { Analytics } from "@vercel/analytics/next";
-import { Fraunces, Manrope } from "next/font/google";
+import { DM_Sans, JetBrains_Mono, Syne } from "next/font/google";
+import {
+  DEFAULT_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/siteConfig";
 import "./globals.css";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
-  "https://www.smokeify.de";
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-manrope",
-});
-
-const fraunces = Fraunces({
+const syne = Syne({
   subsets: ["latin"],
   weight: ["600", "700", "800"],
-  variable: "--font-fraunces",
+  variable: "--font-syne",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-jetbrains-mono",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Smokeify",
-    template: "%s | Smokeify",
+    default: "Smokeify — Grow- und Headshop-Equipment klar auswählen",
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
-  metadataBase: new URL(siteUrl),
+  description: DEFAULT_DESCRIPTION,
+  metadataBase: new URL(SITE_URL),
   alternates: {
     languages: {
       "de-DE": "/",
@@ -40,17 +47,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "de_DE",
-    url: siteUrl,
-    title: "Smokeify",
-    description:
-      "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
-    siteName: "Smokeify",
+    url: SITE_URL,
+    title: "Smokeify — Equipment ohne Rätselraten",
+    description: DEFAULT_DESCRIPTION,
+    siteName: SITE_NAME,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Smokeify",
-    description:
-      "Hochwertiges Equipment für Indoor-Gärten – Pflanzenleuchten, Lüftungssysteme, Bewässerung und mehr.",
+    title: "Smokeify — Equipment ohne Rätselraten",
+    description: DEFAULT_DESCRIPTION,
   },
   robots: {
     index: true,
@@ -74,6 +79,11 @@ export const metadata: Metadata = {
   manifest: "/favicons/site.webmanifest",
 };
 
+export const viewport: Viewport = {
+  colorScheme: "light",
+  themeColor: "#f7f8f7",
+};
+
 export default async function RootLayout({
   children,
 }: {
@@ -83,7 +93,7 @@ export default async function RootLayout({
     <html lang="de">
       <head />
       <body
-        className={`${manrope.variable} ${fraunces.variable} min-h-screen bg-[var(--smk-bg)] font-[family:var(--font-manrope)] text-[var(--smk-text)] antialiased`}
+        className={`${syne.variable} ${dmSans.variable} ${jetBrainsMono.variable} min-h-screen bg-[var(--gv-forest)] font-[family:var(--font-dm-sans)] text-[var(--gv-text)] antialiased`}
       >
         <Providers>{children}</Providers>
         <Analytics />

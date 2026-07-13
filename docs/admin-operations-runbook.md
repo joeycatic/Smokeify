@@ -51,6 +51,22 @@ Run these after a schema or admin deployment:
 3. Create or edit an expense and confirm storefront allocations serialize in the API response.
 4. Open `/admin/reports`, `/admin/profitability`, and `/admin/email-testing` and confirm attribution warnings link to `/admin/attribution`.
 
+## Storefront catalog and homepage operations
+
+Use the storefront scope deliberately before editing public merchandise:
+
+1. In `/admin/catalog`, assign products and their visible categories to `MAIN` for Smokeify, `GROW` for GrowVault, or both when appropriate.
+2. Keep products active and confirm variant price, image, and stock before expecting them on a public surface.
+3. In `/admin/landing-page`, select `MAIN` to control Smokeify hero, deal, and bestseller slots. Select `GROW` only for GrowVault merchandising.
+4. Publish the landing-page revision after review. If a slot is left automatic, the storefront uses catalog-driven products from the selected storefront only.
+5. Preview and verify Smokeify search, wishlist, recommendation, sitemap, and product pages after changing assignments. Shared image URLs remain owned by Smokeify storage and must load from both deployments where assigned.
+6. For a cross-storefront change, run the Smokeify and GrowVault checks documented in `docs/cross-storefront-operating-runbook.md` before release.
+
+The public storefront overhaul does not change admin layout, Prisma ownership,
+Viva/webhook behavior, or shared-feed contracts. Do not work around a missing
+public item by hardcoding it into a storefront component; correct the product,
+category, landing-page, stock, or publication state in admin.
+
 ## Attribution remediation workflow
 
 Use `/admin/attribution` for one-off fixes.

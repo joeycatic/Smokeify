@@ -103,7 +103,7 @@ export default function WishlistPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 text-[var(--smk-text)] sm:px-6 sm:py-10">
-        <section className="rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(241,198,132,0.16),transparent_26%),linear-gradient(135deg,rgba(24,20,17,0.99),rgba(12,11,10,1))] px-6 py-8 shadow-[0_30px_80px_rgba(0,0,0,0.32)] sm:px-8">
+        <section className="legacy-light-surface rounded-[30px] border border-[var(--smk-border)] bg-white px-6 py-8 shadow-[var(--gv-shadow)] sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="smk-kicker">Smokeify Merkliste</p>

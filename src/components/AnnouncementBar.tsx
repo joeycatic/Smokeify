@@ -1,63 +1,189 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { TruckIcon } from "@heroicons/react/24/outline";
+import { useEffect, useRef, useState } from "react";
+import { useDocumentLanguage } from "@/hooks/useDocumentLanguage";
+import {
+  ArrowPathIcon,
+  CheckBadgeIcon,
+  TruckIcon,
+} from "@heroicons/react/24/outline";
+import type { Language } from "@/lib/language";
+import { ANNOUNCEMENT_ITEMS } from "@/lib/storefrontTrust";
 
-const ANNOUNCEMENT_BAR_HEIGHT = 40;
+const ITEMS: Record<
+  Language,
+  Array<{ icon: typeof TruckIcon; text: string }>
+> = {
+  de: [
+    {
+      icon: TruckIcon,
+      text: ANNOUNCEMENT_ITEMS.de[0],
+    },
+    {
+      icon: ArrowPathIcon,
+      text: ANNOUNCEMENT_ITEMS.de[1],
+    },
+    {
+      icon: CheckBadgeIcon,
+      text: ANNOUNCEMENT_ITEMS.de[2],
+    },
+  ],
+  en: [
+    {
+      icon: TruckIcon,
+      text: ANNOUNCEMENT_ITEMS.en[0],
+    },
+    {
+      icon: ArrowPathIcon,
+      text: ANNOUNCEMENT_ITEMS.en[1],
+    },
+    {
+      icon: CheckBadgeIcon,
+      text: ANNOUNCEMENT_ITEMS.en[2],
+    },
+  ],
+};
 
-export function AnnouncementBar() {
-  const [isHidden, setIsHidden] = useState(false);
+const ANNOUNCEMENT_OFFSET_HIDDEN = "0px";
+const TOP_REVEAL_SCROLL_Y = 8;
+const DIRECTION_DELTA_THRESHOLD = 4;
+const MOBILE_HIDE_AFTER_SCROLL_Y = 12;
+const DESKTOP_HIDE_AFTER_SCROLL_Y = 24;
+const MOBILE_UPWARD_REVEAL_DISTANCE = 56;
+const DESKTOP_UPWARD_REVEAL_DISTANCE = 96;
+
+export function AnnouncementBar({ language: initialLanguage }: { language?: Language }) {
+  const language = useDocumentLanguage(initialLanguage);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(true);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const lastScrollYRef = useRef(0);
+  const lastVisibilityChangeScrollYRef = useRef(0);
+  const isVisibleRef = useRef(true);
+  const upwardScrollDistanceRef = useRef(0);
+  const items = ITEMS[language];
 
   useEffect(() => {
-    let frameId: number | null = null;
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % items.length);
+    }, 4000);
 
-    const syncHiddenState = () => {
-      frameId = null;
-      setIsHidden(window.scrollY > 12);
-    };
+    return () => window.clearInterval(timer);
+  }, [items.length]);
 
-    const onScroll = () => {
-      if (frameId !== null) return;
-      frameId = window.requestAnimationFrame(syncHiddenState);
-    };
+  useEffect(() => {
+    lastScrollYRef.current = window.scrollY;
 
-    syncHiddenState();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - lastScrollYRef.current;
+      const isMobile = window.matchMedia("(max-width: 639px)").matches;
+      const hideAfterScrollY = isMobile
+        ? MOBILE_HIDE_AFTER_SCROLL_Y
+        : DESKTOP_HIDE_AFTER_SCROLL_Y;
+      const upwardRevealDistance = isMobile
+        ? MOBILE_UPWARD_REVEAL_DISTANCE
+        : DESKTOP_UPWARD_REVEAL_DISTANCE;
+      let nextVisible = isVisibleRef.current;
 
-    return () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
+      if (delta < -DIRECTION_DELTA_THRESHOLD) {
+        upwardScrollDistanceRef.current += Math.abs(delta);
+      } else if (delta > DIRECTION_DELTA_THRESHOLD) {
+        upwardScrollDistanceRef.current = 0;
       }
-      window.removeEventListener("scroll", onScroll);
+
+      if (currentScrollY <= TOP_REVEAL_SCROLL_Y) {
+        nextVisible = true;
+      } else if (
+        isVisibleRef.current &&
+        currentScrollY >= hideAfterScrollY &&
+        currentScrollY - lastVisibilityChangeScrollYRef.current >=
+          hideAfterScrollY &&
+        delta > DIRECTION_DELTA_THRESHOLD
+      ) {
+        nextVisible = false;
+      } else if (
+        !isVisibleRef.current &&
+        upwardScrollDistanceRef.current >= upwardRevealDistance
+      ) {
+        nextVisible = true;
+      }
+
+      if (nextVisible !== isVisibleRef.current) {
+        isVisibleRef.current = nextVisible;
+        lastVisibilityChangeScrollYRef.current = currentScrollY;
+        setIsVisible(nextVisible);
+        upwardScrollDistanceRef.current = 0;
+      }
+
+      lastScrollYRef.current = currentScrollY;
     };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty(
-      "--smk-announcement-offset",
-      isHidden ? "0px" : `${ANNOUNCEMENT_BAR_HEIGHT}px`,
-    );
+    const updateOffset = () => {
+      const nextOffset = isVisible
+        ? `${barRef.current?.getBoundingClientRect().height ?? 0}px`
+        : ANNOUNCEMENT_OFFSET_HIDDEN;
+
+      if (
+        document.documentElement.style.getPropertyValue("--gv-announcement-offset") !==
+        nextOffset
+      ) {
+        document.documentElement.style.setProperty(
+          "--gv-announcement-offset",
+          nextOffset,
+        );
+      }
+    };
+
+    updateOffset();
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" || !barRef.current
+        ? null
+        : new ResizeObserver(updateOffset);
+    if (barRef.current) resizeObserver?.observe(barRef.current);
+    window.addEventListener("resize", updateOffset);
 
     return () => {
-      root.style.setProperty("--smk-announcement-offset", "0px");
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateOffset);
     };
-  }, [isHidden]);
+  }, [isVisible]);
+
+  useEffect(() => {
+    return () => {
+      document.documentElement.style.removeProperty("--gv-announcement-offset");
+    };
+  }, []);
+
+  const item = items[activeIndex];
+  const Icon = item.icon;
 
   return (
     <div
-      className={`announcement-bar fixed left-0 top-0 z-50 w-full border-b border-[var(--smk-border)] bg-[linear-gradient(90deg,rgba(20,20,18,0.97),rgba(34,28,24,0.97),rgba(16,16,14,0.97))] text-[11px] text-[var(--smk-text-muted)] shadow-[0_14px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-[transform,opacity] duration-300 ${
-        isHidden
-          ? "pointer-events-none -translate-y-full opacity-0"
-          : "translate-y-0 opacity-100"
+      ref={barRef}
+      className={`gv-announcement-bar w-full border-b border-[color:var(--gv-border)] bg-[color:var(--gv-lime-dim)] text-white shadow-[var(--gv-shadow)] transition-transform duration-150 ease-out will-change-transform ${
+        isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: "var(--gv-z-announcement)",
+      }}
     >
-      <div className="mx-auto flex h-10 max-w-[1280px] items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-[var(--smk-accent)]">
-          <TruckIcon className="h-4 w-4" />
-          <span className="tracking-[0.16em] uppercase">
-            Kostenloser Versand ab 69 EUR
-          </span>
+      <div className="mx-auto flex h-7 max-w-[1280px] items-center justify-center px-3 text-center sm:h-10 sm:px-4">
+        <div
+          key={item.text}
+          className="gv-fadeup flex min-w-0 items-center gap-1.5 text-[11px] font-semibold sm:gap-2 sm:text-[13px]"
+        >
+          <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="truncate">{item.text}</span>
         </div>
       </div>
     </div>

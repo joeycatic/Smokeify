@@ -3,6 +3,11 @@ export const ANALYTICS_SESSION_STORAGE_KEY = "smokeify_analytics_session_v1";
 export const ANALYTICS_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 export const ANALYTICS_HEARTBEAT_INTERVAL_MS = 30 * 1000;
 export const ACTIVE_ANALYTICS_WINDOW_MINUTES = 5;
+export const ANALYTICS_CONSENT_ACCEPTED_EVENT = "cookie-consent-accepted";
+export const ANALYTICS_CONSENT_CHANGED_EVENT =
+  "smokeify-cookie-consent-change";
+export const COOKIE_CONSENT_SETTINGS_REQUESTED_EVENT =
+  "smokeify-cookie-consent-settings-requested";
 
 export type TrafficAttributionInput = {
   utmSource?: string | null;
@@ -172,3 +177,6 @@ export const deriveAnalyticsPageType = (pathname: string): AnalyticsPageType => 
 };
 
 export const isTrackedAnalyticsPath = (pathname: string) => !pathname.startsWith("/admin");
+
+export const shouldShowCookieConsent = (pathname: string) =>
+  !pathname.startsWith("/admin") && pathname !== "/auth/admin";

@@ -59,7 +59,9 @@ type Props = {
   size?: "sm" | "lg";
   showWishlist?: boolean;
   showCart?: boolean;
+  wishlistDisplay?: "icon" | "pill";
   hideCartLabel?: boolean;
+  mobileFullWidthCart?: boolean;
   itemTitle?: string;
   itemImageUrl?: string | null;
   itemImageAlt?: string | null;
@@ -75,7 +77,9 @@ export default function ProductCardActions({
   size = "sm",
   showWishlist = true,
   showCart = true,
+  wishlistDisplay = "icon",
   hideCartLabel = false,
+  mobileFullWidthCart = false,
   itemTitle,
   itemImageUrl,
   itemImageAlt,
@@ -178,10 +182,14 @@ export default function ProductCardActions({
             e.stopPropagation();
             toggle(productId);
           }}
-          className={`${buttonClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+          className={`cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 ${
+            wishlistDisplay === "pill"
+              ? "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition"
+              : buttonClass
+          } ${
             wishlisted
-              ? "border-[var(--smk-accent)]/40 bg-[rgba(255,255,255,0.06)] text-[var(--smk-accent)]"
-              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-muted)] hover:border-[var(--smk-accent)]/40 hover:text-[var(--smk-accent)]"
+              ? "border-[color:var(--gv-lime)]/45 bg-[color:var(--gv-lime)]/10 text-[color:var(--gv-lime)]"
+              : "border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text-muted)] hover:border-[color:var(--gv-lime)]/40 hover:text-[color:var(--gv-lime)]"
           }`}
         >
           {wishlisted ? (
@@ -189,6 +197,9 @@ export default function ProductCardActions({
           ) : (
             <HeartIconOutline className={iconClass} />
           )}
+          {wishlistDisplay === "pill" ? (
+            <span>{wishlisted ? "Gemerkt" : "Merken"}</span>
+          ) : null}
         </button>
       )}
       {showCart && (
@@ -228,11 +239,11 @@ export default function ProductCardActions({
           }}
           aria-label="In den Warenkorb"
           title="In den Warenkorb"
-          className={`add-to-cart-sweep inline-flex items-center ${cartGapClass} rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
+          className={`add-to-cart-sweep inline-flex min-w-0 items-center justify-center ${cartGapClass} rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
             available && !adding
-              ? "border-[var(--smk-border)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f] shadow-sm hover:brightness-[1.02]"
-              : "border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-dim)]"
-          } ${size === "lg" ? "px-5 py-3 text-sm" : "px-3.5 py-3 text-sm"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black`}
+              ? "border-[color:var(--gv-lime)] bg-[color:var(--gv-lime)] text-white shadow-[0_14px_34px_rgba(31,95,63,0.16)] hover:-translate-y-0.5 hover:bg-[color:var(--gv-lime-dim)]"
+              : "border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text-muted)]"
+          } ${size === "lg" ? "px-5 py-3 text-sm" : "px-3.5 py-3 text-sm"} ${mobileFullWidthCart ? "w-full sm:w-auto" : ""} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)] focus-visible:ring-offset-2`}
         >
           <ShoppingCartIcon className={cartIconClass} />
           {hideCartLabel ? (

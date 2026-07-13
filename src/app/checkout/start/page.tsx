@@ -1,6 +1,13 @@
-import PageLayout from "@/components/PageLayout";
+import type { Metadata } from "next";
+import CheckoutShell from "@/components/checkout/CheckoutShell";
 import type { ShippingCountry } from "@/lib/shippingPolicy";
 import CheckoutStartClient from "@/app/checkout/start/CheckoutStartClient";
+
+export const metadata: Metadata = {
+  title: "Checkout starten",
+  description: "Checkout-Einstieg für deinen bestehenden Warenkorb.",
+  robots: { index: false, follow: false },
+};
 
 const toShippingCountry = (value?: string): ShippingCountry => {
   const normalized = value?.trim().toUpperCase();
@@ -39,13 +46,13 @@ export default async function CheckoutStartPage({
     ? resolvedSearchParams.useLoyaltyPoints[0] === "1"
     : resolvedSearchParams.useLoyaltyPoints === "1";
   return (
-    <PageLayout commerce>
+    <CheckoutShell>
       <CheckoutStartClient
         initialCountry={country}
         initialDiscountCode={discountCode}
         initialRecoverySessionId={recoverySessionId}
         initialUseLoyaltyPoints={useLoyaltyPoints}
       />
-    </PageLayout>
+    </CheckoutShell>
   );
 }

@@ -27,6 +27,7 @@ export default function SeoProductGrid({ products }: Props) {
       titleLines={3}
       showGrowboxSize
       hideCartLabel={isMobile}
+      prioritizeFirstImage
     />
   );
 }

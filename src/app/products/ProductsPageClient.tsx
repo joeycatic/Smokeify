@@ -1,73 +1,81 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import {
   Bars3BottomLeftIcon,
+  MagnifyingGlassIcon,
   Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 import type { Product, ProductFilters } from "@/data/types";
 import DisplayProducts, { DisplayProductsList } from "@/components/DisplayProducts";
+import EmptyState from "@/components/common/EmptyState";
 import FilterDrawer from "@/components/FilterDrawer";
+import { ListingGuidanceSection } from "@/components/storefront/CategoryDecisionModules";
 import { useSearchParams } from "next/navigation";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import {
+  buildNoResultsGuidance,
+  buildSearchIntentGuidance,
+} from "@/lib/categoryDecision";
+import { buildMerchantItemId } from "@/lib/merchantFeed";
 import type { ProductsQueryResult, SortMode } from "@/lib/productsQuery";
-import type { ProductsUrlState } from "@/lib/productsUrlState";
+import {
+  buildListingQuickPickChips,
+  buildListingResultSummary,
+} from "@/lib/listingIntent";
+import { buildGrowvaultAnalyzerUrl, buildGrowvaultCustomizerUrl } from "@/lib/growvaultPublicStorefront";
+import {
+  buildProductsSearchParams,
+  filtersFromProductsUrlState,
+  parseProductsUrlState,
+  type ProductsUrlState,
+} from "@/lib/productsUrlState";
+import { usePathname, useRouter } from "next/navigation";
 
 type Props = {
   initialData: ProductsQueryResult;
   initialUrlState?: ProductsUrlState;
+  scope?: "all" | "bestseller";
+  headerChip?: string;
+  headerTitle?: string;
+  headerDescription?: string;
 };
 
 const PAGE_SIZE = 24;
+const SEARCH_SUGGESTIONS = ["LED", "Abluft", "60x60", "leise", "Bewässerung", "Erde"] as const;
 
-const parseCsv = (value: string) =>
-  value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-export default function ProductsPageClient({ initialData, initialUrlState }: Props) {
+export default function ProductsPageClient({
+  initialData,
+  initialUrlState,
+  scope = "all",
+  headerChip = "Produkte",
+  headerTitle = "Der Smokeify Katalog",
+  headerDescription = "Finde Zelte, LEDs, Klima- und Messtechnik über einen sauberen Katalog mit klaren Filtern und nachvollziehbarer Sortierung.",
+}: Props) {
+  const resolvedInitialUrlState =
+    initialUrlState ?? parseProductsUrlState(new URLSearchParams());
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const categoryParam = searchParams?.get("category") ?? initialUrlState?.category ?? "";
-  const categoriesParam =
-    searchParams?.get("categories") ?? initialUrlState?.categories.join(",") ?? "";
-  const manufacturerParam =
-    searchParams?.get("manufacturer") ?? initialUrlState?.manufacturer ?? "";
-  const manufacturersParam =
-    searchParams?.get("manufacturers") ??
-    initialUrlState?.manufacturers.join(",") ??
-    "";
+  const searchParamString = searchParams?.toString() ?? "";
+  const urlState = useMemo(
+    () => parseProductsUrlState(new URLSearchParams(searchParamString)),
+    [searchParamString],
+  );
+  const categoryParam = urlState.category;
 
-  const [layout, setLayout] = useState<"grid" | "list">(
-    initialUrlState?.view ?? "grid",
-  );
-  const [sortBy, setSortBy] = useState<SortMode>(
-    initialUrlState?.sortBy ?? "featured",
-  );
+  const [layout, setLayout] = useState<"grid" | "list">(resolvedInitialUrlState.view);
+  const [sortBy, setSortBy] = useState<SortMode>(resolvedInitialUrlState.sortBy);
   const [isMobile, setIsMobile] = useState(false);
 
-  const [filters, setFilters] = useState<ProductFilters>({
-    categories:
-      initialUrlState?.categories.length
-        ? [
-            ...(initialUrlState.category ? [initialUrlState.category] : []),
-            ...initialUrlState.categories,
-          ]
-        : categoryParam
-          ? [categoryParam]
-          : [],
-    manufacturers:
-      initialUrlState?.manufacturers.length
-        ? initialUrlState.manufacturers
-        : manufacturerParam
-          ? parseCsv(manufacturerParam)
-          : [],
-    priceMin: initialUrlState?.priceMin ?? initialData.priceMinBound,
-    priceMax: initialUrlState?.priceMax ?? initialData.priceMaxBound,
-    searchQuery: initialUrlState?.searchQuery ?? "",
-  });
+  const [filters, setFilters] = useState<ProductFilters>(() =>
+    filtersFromProductsUrlState(resolvedInitialUrlState, {
+      priceMinBound: initialData.priceMinBound,
+      priceMaxBound: initialData.priceMaxBound,
+    }),
+  );
 
   const [products, setProducts] = useState<Product[]>(initialData.products);
   const [total, setTotal] = useState(initialData.total);
@@ -89,17 +97,14 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
   const viewListTrackedRef = useRef<string | null>(null);
   const searchTrackedRef = useRef<string | null>(null);
   const skippedInitialFetchRef = useRef(false);
+  const skippedInitialUrlSyncRef = useRef(false);
   const categoriesKey = filters.categories.join("|");
   const manufacturersKey = filters.manufacturers.join("|");
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 640px)");
     const apply = () => {
-      const mobile = media.matches;
-      setIsMobile(mobile);
-      if (mobile) {
-        setLayout("grid");
-      }
+      setIsMobile(media.matches);
     };
     apply();
     media.addEventListener("change", apply);
@@ -107,39 +112,76 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
   }, []);
 
   useEffect(() => {
-    setFilters((prev) => ({
-      ...prev,
-      categories: categoryParam ? [categoryParam] : parseCsv(categoriesParam),
-    }));
-  }, [categoriesParam, categoryParam]);
+    setSortBy(urlState.sortBy);
+    setLayout(urlState.view);
+    setFilters(
+      filtersFromProductsUrlState(urlState, {
+        priceMinBound,
+        priceMaxBound,
+      }),
+    );
+  }, [priceMaxBound, priceMinBound, urlState]);
 
   useEffect(() => {
-    setFilters((prev) => ({
-      ...prev,
-      manufacturers: manufacturerParam
-        ? parseCsv(manufacturerParam)
-        : parseCsv(manufacturersParam),
-    }));
-  }, [manufacturerParam, manufacturersParam]);
+    if (!skippedInitialUrlSyncRef.current) {
+      skippedInitialUrlSyncRef.current = true;
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const params = buildProductsSearchParams({
+        filters,
+        sortBy,
+        view: layout,
+        priceMinBound,
+        priceMaxBound,
+      });
+      const nextQuery = params.toString();
+      startTransition(() => {
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+          scroll: false,
+        });
+      });
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    categoriesKey,
+    filters,
+    filters.priceMin,
+    filters.priceMax,
+    filters.searchQuery,
+    layout,
+    manufacturersKey,
+    pathname,
+    priceMaxBound,
+    priceMinBound,
+    router,
+    searchParamString,
+    sortBy,
+  ]);
 
   const listName = useMemo(() => {
     const searchTerm = filters.searchQuery?.trim();
     if (searchTerm) return `search:${searchTerm}`;
-    if (categoryParam) {
-      const categoryTitle = new Map(allCategoryTitles).get(categoryParam);
-      return categoryTitle ? `category:${categoryTitle}` : `category:${categoryParam}`;
+    if (filters.categories.length === 1) {
+      const handle = filters.categories[0];
+      const categoryTitle = new Map(allCategoryTitles).get(handle);
+      return categoryTitle ? `category:${categoryTitle}` : `category:${handle}`;
     }
-    if (manufacturerParam) return `manufacturer:${manufacturerParam}`;
+    if (filters.manufacturers.length === 1) return `manufacturer:${filters.manufacturers[0]}`;
     return "products";
-  }, [allCategoryTitles, categoryParam, filters.searchQuery, manufacturerParam]);
+  }, [allCategoryTitles, filters.categories, filters.manufacturers, filters.searchQuery]);
 
   const listId = useMemo(() => {
     const searchTerm = filters.searchQuery?.trim();
     if (searchTerm) return `search:${searchTerm.toLowerCase()}`;
-    if (categoryParam) return `category:${categoryParam}`;
-    if (manufacturerParam) return `manufacturer:${manufacturerParam.toLowerCase()}`;
+    if (filters.categories.length === 1) return `category:${filters.categories[0]}`;
+    if (filters.manufacturers.length === 1) {
+      return `manufacturer:${filters.manufacturers[0].toLowerCase()}`;
+    }
     return "products";
-  }, [categoryParam, filters.searchQuery, manufacturerParam]);
+  }, [filters.categories, filters.manufacturers, filters.searchQuery]);
 
   const fetchProducts = async (offset: number, append: boolean) => {
     fetchAbortRef.current?.abort();
@@ -154,32 +196,34 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
       params.set("offset", String(offset));
       params.set("limit", String(PAGE_SIZE));
       params.set("sortBy", sortBy);
-      if (categoryParam) params.set("category", categoryParam);
-      if (manufacturerParam) params.set("manufacturer", manufacturerParam);
-      if (filters.categories.length > 0) {
-        params.set("categories", filters.categories.join(","));
-      }
-      if (filters.manufacturers.length > 0) {
-        params.set("manufacturers", filters.manufacturers.join(","));
-      }
-      params.set("priceMin", String(filters.priceMin));
-      params.set("priceMax", String(filters.priceMax));
-      if (filters.searchQuery?.trim()) {
-        params.set("searchQuery", filters.searchQuery.trim());
-      }
+      params.set("scope", scope);
+      const canonicalParams = buildProductsSearchParams({
+        filters,
+        sortBy,
+        view: layout,
+        priceMinBound,
+        priceMaxBound,
+      });
+      canonicalParams.forEach((value, key) => {
+        if (key !== "view") params.set(key, value);
+      });
 
       const res = await fetch(`/api/products/query?${params.toString()}`, {
         signal: controller.signal,
       });
       if (!res.ok) return;
       const data = (await res.json()) as ProductsQueryResult;
-      setProducts((prev) => (append ? [...prev, ...data.products] : data.products));
-      setTotal(data.total);
-      setAvailableCategories(data.availableCategories);
-      setAvailableManufacturers(data.availableManufacturers);
-      setAllCategoryTitles(data.allCategoryTitles);
-      setPriceMinBound(data.priceMinBound);
-      setPriceMaxBound(data.priceMaxBound);
+      startTransition(() => {
+        setProducts((prev) =>
+          append ? [...prev, ...data.products] : data.products,
+        );
+        setTotal(data.total);
+        setAvailableCategories(data.availableCategories);
+        setAvailableManufacturers(data.availableManufacturers);
+        setAllCategoryTitles(data.allCategoryTitles);
+        setPriceMinBound(data.priceMinBound);
+        setPriceMaxBound(data.priceMaxBound);
+      });
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
         // no-op
@@ -195,16 +239,20 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
       skippedInitialFetchRef.current = true;
       return;
     }
-    void fetchProducts(0, false);
+    const delayMs = filters.searchQuery?.trim() ? 250 : 0;
+    const timer = window.setTimeout(() => {
+      void fetchProducts(0, false);
+    }, delayMs);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    categoryParam,
-    manufacturerParam,
+    scope,
     categoriesKey,
     manufacturersKey,
     filters.priceMin,
     filters.priceMax,
     filters.searchQuery,
+    layout,
     sortBy,
   ]);
 
@@ -214,7 +262,7 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
     if (viewListTrackedRef.current === key) return;
     viewListTrackedRef.current = key;
     const items = products.slice(0, 20).map((product) => ({
-      item_id: product.defaultVariantId ?? product.id,
+      item_id: buildMerchantItemId(product.defaultVariantId ?? product.id),
       item_name: product.title,
       item_brand: product.manufacturer ?? undefined,
       item_category: product.categories?.[0]?.title,
@@ -247,46 +295,36 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
     [allCategoryTitles],
   );
 
-  const heroContent = useMemo(() => {
-    const activeCategoryTitle = categoryParam
-      ? (categoryTitleByHandle.get(categoryParam) ?? categoryParam)
-      : null;
-    const activeManufacturers = manufacturerParam
-      ? parseCsv(manufacturerParam)
-      : [];
+  const activeCategoryHandle = useMemo(() => {
+    if (filters.categories.length === 1) return filters.categories[0] ?? "";
+    return categoryParam;
+  }, [categoryParam, filters.categories]);
 
-    if (filters.searchQuery?.trim()) {
-      return {
-        kicker: "Suche",
-        title: `Ergebnisse für “${filters.searchQuery.trim()}”`,
-        description:
-          "Verfeinere deine Suche mit Filtern, Layout und Sortierung, ohne den neuen Storeflow zu verlassen.",
-      };
-    }
+  const activeCategoryTitle = useMemo(
+    () => categoryTitleByHandle.get(activeCategoryHandle) ?? "",
+    [activeCategoryHandle, categoryTitleByHandle],
+  );
 
-    if (activeCategoryTitle) {
-      return {
-        kicker: "Kategorie",
-        title: activeCategoryTitle,
-        description: `Ausgewählte Produkte aus ${activeCategoryTitle} im aktuellen Smokeify Store-Look.`,
-      };
-    }
+  const searchIntentGuidance = useMemo(
+    () =>
+      buildSearchIntentGuidance(
+        filters.searchQuery,
+        activeCategoryHandle,
+        activeCategoryTitle,
+      ),
+    [activeCategoryHandle, activeCategoryTitle, filters.searchQuery],
+  );
 
-    if (activeManufacturers.length > 0) {
-      return {
-        kicker: "Hersteller",
-        title: activeManufacturers.join(", "),
-        description:
-          "Markenfokussierte Auswahl mit denselben Filtern und Produktkarten wie im restlichen Store.",
-      };
-    }
-
-    return {
-      kicker: "Katalog",
-      title: "Unsere Produkte",
-      description: "Kuratierte Technik für Licht, Luft, Zelte und Zubehör.",
-    };
-  }, [categoryParam, categoryTitleByHandle, filters.searchQuery, manufacturerParam]);
+  const noResultsGuidance = useMemo(
+    () =>
+      buildNoResultsGuidance({
+        categoryHandle: activeCategoryHandle,
+        categoryTitle: activeCategoryTitle,
+        searchQuery: filters.searchQuery,
+        availableCategories,
+      }),
+    [activeCategoryHandle, activeCategoryTitle, availableCategories, filters.searchQuery],
+  );
 
   const activeChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
@@ -304,7 +342,7 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
     filters.manufacturers.forEach((manufacturer) => {
       chips.push({
         key: `manufacturer-${manufacturer}`,
-        label: `Manufacturer: ${manufacturer}`,
+        label: `Hersteller: ${manufacturer}`,
         onRemove: () =>
           setFilters((prev) => ({
             ...prev,
@@ -327,24 +365,56 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
     if (filters.searchQuery?.trim()) {
       chips.push({
         key: "search",
-        label: `Search: ${filters.searchQuery.trim()}`,
+        label: `Suche: ${filters.searchQuery.trim()}`,
         onRemove: () => setFilters((prev) => ({ ...prev, searchQuery: "" })),
       });
     }
     return chips;
   }, [categoryTitleByHandle, filters, priceMinBound, priceMaxBound]);
 
+  const quickPickChips = useMemo(
+    () =>
+      buildListingQuickPickChips({
+        categoryHandle: activeCategoryHandle,
+        categoryTitle: activeCategoryTitle,
+      }),
+    [activeCategoryHandle, activeCategoryTitle],
+  );
+
+  const resultSummary = useMemo(
+    () =>
+      buildListingResultSummary({
+        total,
+        categoryTitle: activeCategoryTitle,
+        searchQuery: filters.searchQuery,
+        manufacturers: filters.manufacturers,
+        activeFilterCount: activeChips.length,
+      }),
+    [activeCategoryTitle, activeChips.length, filters.manufacturers, filters.searchQuery, total],
+  );
+
   const resetFilters = () => {
     setFilters({
-      categories: categoryParam ? [categoryParam] : [],
-      manufacturers: manufacturerParam ? parseCsv(manufacturerParam) : [],
+      categories: [],
+      manufacturers: [],
       priceMin: priceMinBound,
       priceMax: priceMaxBound,
       searchQuery: "",
     });
+    setSortBy("featured");
+    setLayout("grid");
   };
 
   const canLoadMore = products.length < total;
+  const normalizedSearchQuery = (filters.searchQuery ?? "").trim().toLowerCase();
+  const hasIssueIntent = ["gelbe blätter", "gelb", "krank", "problem"].some((term) =>
+    normalizedSearchQuery.includes(term),
+  );
+  const hasQuietIntent = normalizedSearchQuery.includes("leise");
+  const hasSizeIntent =
+    normalizedSearchQuery.includes("60x60") || normalizedSearchQuery.includes("80x80");
+  const hasVaultEasterEgg =
+    normalizedSearchQuery === "vault" || normalizedSearchQuery === "geheim";
 
   const handleSelectItem = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement | null;
@@ -377,98 +447,107 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
   };
 
   return (
-    <div className="w-full text-[var(--smk-text)]">
-      <div className="mt-3 overflow-hidden rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.12),transparent_22%),radial-gradient(circle_at_82%_18%,rgba(217,119,69,0.1),transparent_24%),linear-gradient(135deg,rgba(18,16,14,0.99)_0%,rgba(28,24,21,0.98)_42%,rgba(11,10,9,1)_100%)] px-6 py-10 text-[var(--smk-text)] shadow-[0_18px_48px_rgba(0,0,0,0.28)] sm:px-10">
-        <div className="relative text-center">
-          <div className="absolute left-0 top-0 h-24 w-24 rounded-full bg-[rgba(233,188,116,0.1)] blur-2xl" />
-          <div className="absolute bottom-0 right-0 h-28 w-28 rounded-full bg-[rgba(217,119,69,0.1)] blur-2xl" />
-          <div className="relative">
-            <p className="smk-kicker">{heroContent.kicker}</p>
-            <h1 className="smk-heading mt-4 text-4xl text-[var(--smk-text)] sm:text-5xl">
-              {heroContent.title}
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm text-[var(--smk-text-muted)] sm:text-base">
-              {heroContent.description}
-            </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-              <span className="smk-chip">{total} Produkte</span>
-              {categoryParam && (
-                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-muted)]">
-                  {categoryTitleByHandle.get(categoryParam) ?? categoryParam}
-                </span>
-              )}
-              {manufacturerParam && (
-                <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-muted)]">
-                  {parseCsv(manufacturerParam).join(", ")}
-                </span>
-              )}
+    <div className="w-full text-[color:var(--gv-text)]">
+      <section className="gv-panel mt-3 rounded-[28px] px-4 py-4 sm:px-7 sm:py-6">
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <span className="gv-chip">{headerChip}</span>
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                <h1 className="font-[family:var(--font-syne)] text-3xl font-bold tracking-[-0.04em] sm:text-4xl">
+                  {headerTitle}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--gv-text-muted)]">
+                  {headerDescription}
+                </p>
+              </div>
+                <div className="font-[family:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-[color:var(--gv-lime)]">
+                  {total} Treffer
+                </div>
+              </div>
+              <p className="max-w-3xl text-sm leading-6 text-[color:var(--gv-text-muted)]">
+                {resultSummary}
+              </p>
             </div>
-          </div>
-        </div>
 
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-md">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#3a4b41]">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <line x1="20" y1="20" x2="16.5" y2="16.5" />
-              </svg>
-            </span>
-            <input
-              type="search"
-              value={filters.searchQuery ?? ""}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
-              }
-              placeholder="Produkte suchen..."
-              className="smk-input h-12 w-full rounded-2xl pl-12 pr-4 text-sm shadow-[0_12px_30px_rgba(8,18,14,0.15)]"
-            />
-          </div>
-          <div className="mx-auto w-full max-w-[23rem] sm:mx-0 sm:max-w-none sm:flex sm:w-auto sm:items-center">
-            <div className="flex justify-center gap-2 sm:flex sm:items-center sm:justify-center sm:gap-3">
-              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-white/40 bg-white/95 p-[6px] shadow-sm sm:h-12 sm:w-40">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div>
+              <div className="relative">
+                <MagnifyingGlassIcon
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[color:var(--gv-text-muted)]"
+                />
+              <input
+                type="search"
+                value={filters.searchQuery ?? ""}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
+                }
+                placeholder="Produkte suchen..."
+                className="gv-input h-11 w-full rounded-[20px] pl-12 pr-4 text-sm outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
+              />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--gv-text-muted)]">
+                <span>Versuch:</span>
+                {SEARCH_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        searchQuery: suggestion,
+                      }))
+                    }
+                    className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-3 py-1.5 font-semibold text-[color:var(--gv-text)] transition-colors duration-200 hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-lime)]/8"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 sm:flex sm:flex-row">
+              <div className="relative col-span-2 grid h-11 w-full grid-cols-2 overflow-hidden rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] p-[5px] sm:col-span-1 sm:w-36">
                 <span
-                  className={`absolute bottom-[5px] top-[5px] rounded-full bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] transition-all duration-200 ease-out ${
+                  className={`absolute bottom-1 top-1 rounded-full bg-[color:var(--gv-lime)] transition-all duration-200 ease-out ${
                     layout === "grid"
-                      ? "left-[5px] right-[calc(50%-1px)]"
-                      : "left-[calc(50%+1px)] right-[5px]"
+                      ? "left-1 right-[calc(50%-1px)]"
+                      : "left-[calc(50%+1px)] right-1"
                   }`}
                   aria-hidden="true"
                 />
-              <button
-                type="button"
-                onClick={() => setLayout("grid")}
-                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
-                  layout === "grid"
-                    ? "text-[#1a140f]"
-                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
-                }`}
-              >
-                <Squares2X2Icon className="h-4 w-4" />
-                {isMobile ? "Cards" : "4x"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setLayout("list")}
-                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
-                  layout === "list"
-                    ? "text-[#1a140f]"
-                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
-                }`}
-              >
-                <Bars3BottomLeftIcon className="h-4 w-4" />
-                {isMobile ? "List" : "1x"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setLayout("grid")}
+                  aria-label="Rasteransicht"
+                  aria-pressed={layout === "grid"}
+                  className={`relative z-10 inline-flex h-[34px] items-center justify-center gap-2 rounded-full text-sm font-semibold ${
+                    layout === "grid"
+                      ? "text-[color:var(--gv-forest)]"
+                      : "text-[color:var(--gv-text-muted)]"
+                  }`}
+                >
+                  <Squares2X2Icon className="h-4 w-4" />
+                  <span className="sm:hidden">2x</span>
+                  <span className="hidden sm:inline">4x</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayout("list")}
+                  aria-label="Einspaltige Ansicht"
+                  aria-pressed={layout === "list"}
+                  className={`relative z-10 inline-flex h-[34px] items-center justify-center gap-2 rounded-full text-sm font-semibold ${
+                    layout === "list"
+                      ? "text-[color:var(--gv-forest)]"
+                      : "text-[color:var(--gv-text-muted)]"
+                  }`}
+                >
+                  <Bars3BottomLeftIcon className="h-4 w-4" />
+                  1x
+                </button>
               </div>
+
               <FilterDrawer
                 filters={filters}
                 setFilters={setFilters}
@@ -478,126 +557,222 @@ export default function ProductsPageClient({ initialData, initialUrlState }: Pro
                 priceMaxBound={priceMaxBound}
                 resultCount={total}
                 onReset={resetFilters}
-                triggerClassName="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-5 text-sm font-semibold text-[#1a140f] shadow-sm transition hover:border-[var(--smk-border-strong)] sm:h-12 sm:w-auto sm:px-6"
-                triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-[#1a140f]"
+                triggerClassName="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-4 text-sm font-semibold text-[color:var(--gv-text)] hover:border-[color:var(--gv-lime)]/40 sm:w-auto sm:min-w-[8rem]"
+                triggerBadgeClassName="rounded-full bg-[color:var(--gv-lime)] px-2.5 py-1 text-sm font-semibold text-[color:var(--gv-forest)]"
               />
-            </div>
-            <div className="mt-2 flex justify-center sm:ml-3 sm:mt-0">
-              <label className="inline-flex h-11 w-44 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-3 text-xs font-semibold text-[#2f241d] shadow-sm sm:h-12 sm:w-auto">
+
+              <label className="inline-flex h-11 w-full items-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-4 text-xs font-semibold text-[color:var(--gv-text-muted)] sm:w-auto sm:min-w-[11rem]">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortMode)}
                   aria-label="Sortierung"
-                  className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-[#1a140f] outline-none sm:w-auto sm:text-center"
+                  className="w-full bg-transparent text-sm font-semibold text-[color:var(--gv-text)] outline-none"
                 >
-                  <option value="featured">{isMobile ? "Bestseller" : "Empfohlen"}</option>
-                  <option value="price_asc">Preis aufsteigend</option>
-                  <option value="price_desc">Preis absteigend</option>
-                  <option value="name_asc">Name A-Z</option>
+                  <option value="featured" className="bg-white text-stone-900">
+                    {isMobile ? "Bestseller" : "Empfohlen"}
+                  </option>
+                  <option value="price_asc" className="bg-white text-stone-900">
+                    Preis aufsteigend
+                  </option>
+                  <option value="price_desc" className="bg-white text-stone-900">
+                    Preis absteigend
+                  </option>
+                  <option value="name_asc" className="bg-white text-stone-900">
+                    Name A-Z
+                  </option>
                 </select>
               </label>
             </div>
           </div>
-        </div>
-      </div>
 
-      {activeChips.length > 0 && (
-        <div className="mb-8 mt-6 flex flex-wrap items-center gap-2">
-          {activeChips.map((chip) => (
-            <button
-              key={chip.key}
-              type="button"
-              onClick={chip.onRemove}
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-3 py-1 text-xs font-semibold text-[var(--smk-text-muted)] transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-text)]"
-            >
-              <span>{chip.label}</span>
-              <span className="text-sm">x</span>
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="text-xs font-semibold text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)]"
-          >
-            Alle Filter löschen
-          </button>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div className="rounded-[24px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)]/70 px-4 py-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                  Schnellwahl
+                </span>
+                {quickPickChips.map((chip) => {
+                  const active = (filters.searchQuery ?? "").trim().toLowerCase() === chip.searchQuery;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          searchQuery: active ? "" : chip.searchQuery,
+                        }))
+                      }
+                      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        active
+                          ? "border-[color:var(--gv-lime)]/40 bg-[color:var(--gv-lime)]/12 text-[color:var(--gv-lime)]"
+                          : "border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text)] hover:border-[color:var(--gv-lime)]/30"
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {activeChips.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                {activeChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={chip.onRemove}
+                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-3 py-2 text-xs font-semibold text-[color:var(--gv-text)] hover:border-[color:var(--gv-lime)]/40"
+                  >
+                    <span>{chip.label}</span>
+                    <span className="text-sm">×</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="text-xs font-semibold text-[color:var(--gv-lime)]"
+                >
+                  Alle zurücksetzen
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {(hasIssueIntent || hasQuietIntent || hasSizeIntent || hasVaultEasterEgg) && (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {hasIssueIntent ? (
+                <div className="rounded-[24px] border border-[color:var(--gv-lime)]/20 bg-[color:var(--gv-lime)]/10 px-4 py-4 text-sm text-[color:var(--gv-text)]">
+                  <p className="font-semibold">Pflanzenproblem?</p>
+                  <p className="mt-1 text-[color:var(--gv-text-muted)]">
+                    Starte die Analyse oder öffne den passenden Ratgeber.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={buildGrowvaultAnalyzerUrl()}
+                      className="rounded-full bg-[color:var(--gv-lime)] px-3 py-1.5 text-xs font-semibold text-[color:var(--gv-forest)]"
+                    >
+                      Pflanzenanalyse starten
+                    </Link>
+                    <Link
+                      href="/symptome/gelbe-blaetter"
+                      className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-3 py-1.5 text-xs font-semibold text-[color:var(--gv-text)]"
+                    >
+                      Zum Ratgeber
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+              {hasQuietIntent ? (
+                <div className="rounded-[24px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-4 py-4 text-sm text-[color:var(--gv-text)]">
+                  <p className="font-semibold">Tipp: Achte auf leise Abluft und passende Filter.</p>
+                </div>
+              ) : null}
+              {hasSizeIntent ? (
+                <div className="rounded-[24px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-4 py-4 text-sm text-[color:var(--gv-text)]">
+                  <p className="font-semibold">
+                    Setup-Größe erkannt: passende Produkte werden leichter vergleichbar.
+                  </p>
+                </div>
+              ) : null}
+              {hasVaultEasterEgg ? (
+                <div className="rounded-[24px] border border-[color:var(--gv-lime)]/25 bg-[color:var(--gv-lime)]/10 px-4 py-4 text-sm text-[color:var(--gv-text)]">
+                  <p className="font-semibold">Geheimes Setup-Signal erkannt.</p>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
-      )}
+      </section>
+
+      {!activeCategoryHandle && searchIntentGuidance && total > 0 ? (
+        <div className="mt-6">
+          <ListingGuidanceSection guidance={searchIntentGuidance} />
+        </div>
+      ) : null}
 
       <div onClick={handleSelectItem}>
-        {layout === "grid" ? (
+        {layout === "grid" || isMobile ? (
           <DisplayProducts
             products={products}
-            cols={isMobile ? 2 : 4}
+            cols={4}
+            mobileCols={layout === "grid" ? 2 : 1}
             showManufacturer
             titleLines={3}
             showGrowboxSize
             hideCartLabel={isMobile && layout === "grid"}
+            prioritizeFirstImage
           />
         ) : (
           <DisplayProductsList
             products={products}
             showManufacturer
             showGrowboxSize
+            prioritizeFirstImage
           />
         )}
       </div>
 
-      {canLoadMore && (
+      {canLoadMore ? (
         <div className="mt-8 flex justify-center">
           <button
             type="button"
             disabled={loadingMore}
             onClick={() => void fetchProducts(products.length, true)}
-            className="smk-button-secondary inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-semibold focus-visible:ring-offset-black disabled:opacity-60"
+            className="inline-flex h-12 items-center justify-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-6 text-sm font-semibold text-[color:var(--gv-text)] hover:border-[color:var(--gv-lime)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)] disabled:opacity-60"
           >
             {loadingMore
               ? "Lädt..."
               : `Mehr laden (${Math.max(total - products.length, 0)} verbleibend)`}
           </button>
         </div>
-      )}
+      ) : null}
 
-      {loading && (
-        <div className="py-8 text-center text-sm font-medium text-[var(--smk-text-muted)]">
+      {loading ? (
+        <div className="py-8 text-center text-sm font-medium text-[color:var(--gv-text-muted)]">
           Produkte werden geladen...
         </div>
-      )}
+      ) : null}
 
-      {!loading && total === 0 && (
-        <div className="py-16 text-center">
-          <p className="mb-2 text-lg text-[var(--smk-text-muted)]">
-            Keine Produkte gefunden
-          </p>
-          <p className="mb-6 text-sm text-[var(--smk-text-dim)]">
-            Passe deine Auswahl an oder starte mit einer kuratierten Seite.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {Boolean(filters.searchQuery?.trim()) && (
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, searchQuery: "" }))}
-                className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold"
-              >
-                Suche löschen
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="smk-button-secondary inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold"
-            >
-              Alle Filter zurücksetzen
-            </button>
-            <Link
-              href="/bestseller"
-              className="smk-button-primary inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold"
-            >
-              Zu den Bestsellern
-            </Link>
-          </div>
+      {!loading && total === 0 ? (
+        <div className="space-y-6">
+          <EmptyState
+            eyebrow="Discovery"
+            title="Nichts im Vault gefunden."
+            description="Versuch es mit LED, Growzelt, Abluft, Bewässerung oder Erde."
+            actions={[
+              {
+                label: "Alle Produkte ansehen",
+                href: "/products",
+                tone: "primary",
+              },
+              {
+                label: "Konfigurator starten",
+                href: buildGrowvaultCustomizerUrl(),
+              },
+              {
+                label: "Pflanzenanalyse starten",
+                href: buildGrowvaultAnalyzerUrl(),
+              },
+              ...(Boolean(filters.searchQuery?.trim())
+                ? [
+                    {
+                      label: "Suche löschen",
+                      onClick: () =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          searchQuery: "",
+                        })),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+
+          <ListingGuidanceSection guidance={noResultsGuidance} />
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

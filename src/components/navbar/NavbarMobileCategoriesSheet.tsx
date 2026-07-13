@@ -2,13 +2,21 @@
 
 import type { MutableRefObject } from "react";
 import Link from "next/link";
-import { getCategoryIcon } from "@/components/navbar/categoryIcons";
+import {
+  FireIcon,
+  Squares2X2Icon,
+} from "@heroicons/react/24/outline";
+import { GrowvaultIcon } from "@/components/icons/GrowvaultIcon";
+import LanguageSwitch from "@/components/LanguageSwitch";
+import { getCategoryIconName } from "@/components/navbar/categoryIcons";
+import type { Language } from "@/lib/language";
 
 type Category = {
   id: string;
   name: string;
   handle: string;
   parentId: string | null;
+  href: string;
   itemCount: number;
   totalItemCount: number;
 };
@@ -16,156 +24,179 @@ type Category = {
 type Props = {
   open: boolean;
   mobileProductsRef: MutableRefObject<HTMLDivElement | null>;
-  activeParentName: string;
-  categoryQuery: string;
-  hasCategoryStack: boolean;
   categoriesStatus: "idle" | "loading" | "error";
-  filteredCategories: Category[];
-  childCountByCategoryId: Map<string, number>;
+  rootCategories: Category[];
   onClose: () => void;
-  onCategoryQueryChange: (value: string) => void;
-  onBack: () => void;
-  onViewAllProducts: () => void;
-  onViewParentCategory: () => void;
-  onSelectCategory: (category: Category, isLeaf: boolean) => void;
+  onOpenAllProducts: () => void;
+  onOpenRootCategory: (category: Category) => void;
+  language: Language;
 };
 
 export default function NavbarMobileCategoriesSheet({
   open,
   mobileProductsRef,
-  activeParentName,
-  categoryQuery,
-  hasCategoryStack,
   categoriesStatus,
-  filteredCategories,
-  childCountByCategoryId,
+  rootCategories,
   onClose,
-  onCategoryQueryChange,
-  onBack,
-  onViewAllProducts,
-  onViewParentCategory,
-  onSelectCategory,
+  onOpenAllProducts,
+  onOpenRootCategory,
+  language,
 }: Props) {
   if (!open) return null;
+
+  const copy =
+    language === "en"
+      ? {
+          closeProducts: "Close products",
+          products: "Products",
+          headline: "Smokeify Products",
+          close: "Close",
+          assortment: "Catalog",
+          allProducts: "All products",
+          loading: "Loading categories...",
+          loadError: "Could not load categories.",
+          noCategories: "No categories found.",
+          mainCategory: "Main category",
+          sections: "Sections",
+          productsSuffix: "products",
+          active: "Active",
+          viewAll: "View all",
+          noSubcategories: "There are currently no subcategories in this section.",
+        }
+      : {
+          closeProducts: "Produkte schließen",
+          products: "Produkte",
+          headline: "Smokeify Produkte",
+          close: "Schließen",
+          assortment: "Sortiment",
+          allProducts: "Alle Produkte",
+          loading: "Kategorien werden geladen...",
+          loadError: "Kategorien konnten nicht geladen werden.",
+          noCategories: "Keine Kategorien gefunden.",
+          mainCategory: "Hauptkategorie",
+          sections: "Bereiche",
+          productsSuffix: "Produkte",
+          active: "Aktiv",
+          viewAll: "Alle ansehen",
+          noSubcategories:
+            "Für diesen Bereich gibt es aktuell keine Unterkategorien.",
+        };
 
   return (
     <div className="fixed inset-0 z-50 sm:hidden">
       <button
         type="button"
-        aria-label="Produkte schließen"
+        aria-label={copy.closeProducts}
         onClick={onClose}
-        className="webshop-overlay-fade absolute inset-0 bg-black/68 backdrop-blur-[2px]"
+        className="webshop-overlay-fade absolute inset-0 bg-[color:var(--gv-text)]/45 backdrop-blur-[3px]"
       />
-      <div
-        ref={mobileProductsRef}
-        className="absolute inset-0 bg-black/65 p-4 shadow-2xl backdrop-blur-sm"
-      >
-        <div className="webshop-mobile-sheet-in mx-auto flex h-full max-w-md flex-col gap-3 rounded-[30px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(27,23,20,0.98),rgba(14,14,13,0.99))] px-4 py-5 text-[var(--smk-text)] shadow-2xl shadow-black/40 backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-[var(--smk-border)] px-1 pb-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--smk-text-dim)]">
-                Kategorien
-              </p>
-              <p className="mt-1 text-xl font-semibold text-[var(--smk-text)]">
-                {activeParentName}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-3xl text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-              aria-label="Schließen"
-            >
-              ×
-            </button>
-          </div>
-          <div className="relative">
-            <input
-              type="search"
-              value={categoryQuery}
-              onChange={(event) => onCategoryQueryChange(event.target.value)}
-              placeholder="Kategorien suchen ..."
-              className="smk-input h-11 w-full rounded-2xl px-4 text-sm placeholder:text-[var(--smk-text-dim)]"
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs font-semibold text-[var(--smk-text-dim)]">
-            <div className="flex flex-1 items-center gap-2">
-              {hasCategoryStack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-1.5 text-sm font-semibold text-[var(--smk-text)] transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                >
-                  ← Zurück
-                </button>
-              )}
-              <Link
-                href="/products"
-                onClick={onViewAllProducts}
-                className={`rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-1.5 text-sm font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-                  hasCategoryStack ? "ml-auto" : ""
-                }`}
+      <div ref={mobileProductsRef} className="absolute inset-0 p-3">
+        <div
+          className="pretty-scrollbar webshop-mobile-sheet-in mx-auto max-h-[calc(100dvh-1.5rem)] max-w-md touch-pan-y overflow-y-auto overscroll-contain rounded-[26px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] text-[color:var(--gv-text)] shadow-[var(--gv-shadow-lg)]"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="border-b border-[color:var(--gv-border)] bg-[linear-gradient(135deg,var(--gv-lime-glow),transparent_42%),var(--gv-dark)] px-4 pb-3 pt-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="gv-chip">{copy.products}</span>
+                <h2 className="mt-2 font-[family:var(--font-syne)] text-[1.75rem] font-bold tracking-[-0.07em] text-[color:var(--gv-text)]">
+                  {copy.headline}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-lg text-[color:var(--gv-text)]"
+                aria-label={copy.close}
               >
-                Alle Produkte anzeigen
-              </Link>
+                ×
+              </button>
             </div>
-            <span aria-hidden="true" />
-          </div>
-          <div className="no-scrollbar flex-1 overflow-y-auto pb-4">
-            <div className="space-y-3">
-              {categoriesStatus === "loading" && (
-                <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-sm text-[var(--smk-text-muted)]">
-                  Lädt Kategorien...
-                </div>
-              )}
-              {categoriesStatus === "error" && (
-                <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[rgba(120,30,30,0.18)] px-3 py-2 text-sm text-[var(--smk-error)]">
-                  Kategorien konnten nicht geladen werden.
-                </div>
-              )}
-              {categoriesStatus === "idle" && filteredCategories.length === 0 && (
-                <div className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-sm text-[var(--smk-text-muted)]">
-                  Keine Kategorien gefunden.
-                </div>
-              )}
-              {categoriesStatus === "idle" && hasCategoryStack && (
-                <button
-                  type="button"
-                  onClick={onViewParentCategory}
-                  className="flex w-full items-center justify-between rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            <div className="mt-2.5 space-y-2">
+              <div className="rounded-[16px] border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)]/72 p-1.5">
+                <LanguageSwitch language={language} compact />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/products"
+                  onClick={onOpenAllProducts}
+                  className="group inline-flex min-h-[82px] w-full touch-pan-y items-center justify-between gap-2 rounded-[16px] border border-transparent bg-[linear-gradient(135deg,var(--gv-lime),var(--gv-lime-dim))] px-3 py-2.5 text-[color:var(--gv-forest)] shadow-[0_14px_28px_var(--gv-lime-glow)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_34px_var(--gv-lime-glow)]"
                 >
-                  <span>Alle {activeParentName}</span>
-                  <span className="text-sm text-[var(--smk-text-dim)]">→</span>
-                </button>
-              )}
-              {categoriesStatus === "idle" &&
-                filteredCategories.map((category) => {
-                  const CategoryIcon = getCategoryIcon(category.name);
-                  const childCount = childCountByCategoryId.get(category.id) ?? 0;
-                  const isLeaf = childCount === 0;
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => onSelectCategory(category, isLeaf)}
-                      className="flex w-full items-center justify-between rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-left text-base font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:bg-[rgba(255,255,255,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                    >
-                      <span className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-accent)] shadow-sm">
-                          <CategoryIcon className="h-5 w-5" />
-                        </span>
-                        <span>{category.name}</span>
-                      </span>
-                      <span className="flex items-center gap-2 text-sm text-[var(--smk-text-dim)]">
-                        <span className="rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] px-2.5 py-0.5 text-xs font-semibold text-[var(--smk-text-muted)]">
-                          {category.totalItemCount}
-                        </span>
-                        {!isLeaf && "›"}
-                      </span>
-                    </button>
-                  );
-                })}
+                  <span className="min-w-0 text-left">
+                    <span className="block text-[9px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-forest)]/70">
+                      {copy.assortment}
+                    </span>
+                    <span className="mt-1 block text-[1rem] font-semibold leading-tight">
+                      {copy.allProducts}
+                    </span>
+                  </span>
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--gv-forest)]/12 bg-[color:var(--gv-forest)]/8 transition-transform group-hover:translate-x-0.5">
+                    <Squares2X2Icon className="h-3.5 w-3.5" />
+                  </span>
+                </Link>
+                <Link
+                  href="/bestseller"
+                  onClick={onClose}
+                  className="group inline-flex min-h-[82px] w-full touch-pan-y items-center justify-between gap-2 rounded-[16px] border border-[color:var(--gv-lime)]/24 bg-[linear-gradient(135deg,var(--gv-lime-glow),transparent_55%),color-mix(in_srgb,var(--gv-surface)_90%,transparent)] px-3 py-2.5 text-[color:var(--gv-text)] shadow-[var(--gv-shadow)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/42 hover:bg-[color:var(--gv-lime)]/10 hover:shadow-[var(--gv-shadow-lg)]"
+                >
+                  <span className="min-w-0 text-left">
+                    <span className="block text-[1rem] font-semibold leading-tight">
+                      Bestseller
+                    </span>
+                  </span>
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-dark)] text-[color:var(--gv-lime)] transition-all group-hover:translate-x-0.5 group-hover:border-[color:var(--gv-lime)]/34">
+                    <FireIcon className="h-3.5 w-3.5" />
+                  </span>
+                </Link>
+              </div>
             </div>
+          </div>
+
+          <div className="px-4 py-3 pb-5">
+            {categoriesStatus === "loading" ? (
+              <div className="gv-glass rounded-[24px] px-4 py-4 text-sm text-[color:var(--gv-text-muted)]">
+                {copy.loading}
+              </div>
+            ) : null}
+
+            {categoriesStatus === "error" ? (
+              <div className="rounded-[24px] border border-[color:var(--gv-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-4 text-sm text-[color:var(--gv-error)]">
+                {copy.loadError}
+              </div>
+            ) : null}
+
+            {categoriesStatus === "idle" ? (
+              <div className="space-y-4">
+                <section className="space-y-2.5">
+                  <p className="font-[family:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-[color:var(--gv-text-muted)]">
+                    {copy.sections}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {rootCategories.map((category) => {
+                      const categoryIconName = getCategoryIconName(category.name);
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => onOpenRootCategory(category)}
+                          className="group gv-glass flex min-h-[158px] touch-pan-y flex-col justify-between rounded-[22px] border px-3.5 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/40 hover:bg-[color:var(--gv-lime)]/10 hover:shadow-[0_22px_38px_rgba(0,0,0,0.22)]"
+                        >
+                          <span className="grid h-12 w-12 place-items-center rounded-[18px] border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-surface)] text-[color:var(--gv-lime)] transition-all duration-200 group-hover:scale-105 group-hover:border-[color:var(--gv-lime)]/34 group-hover:bg-[color:var(--gv-lime)]/10">
+                            <GrowvaultIcon name={categoryIconName} size={22} />
+                          </span>
+                          <span className="mt-4 block text-[1rem] font-semibold leading-snug text-[color:var(--gv-text)]">
+                            {category.name}
+                          </span>
+                          <span className="mt-2.5 inline-flex w-fit rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-2.5 py-1 text-xs font-semibold text-[color:var(--gv-text-muted)] transition-colors duration-200 group-hover:border-[color:var(--gv-lime)]/20 group-hover:text-[color:var(--gv-lime)]">
+                            {category.totalItemCount} {copy.productsSuffix}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

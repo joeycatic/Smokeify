@@ -490,6 +490,7 @@ export default function SeoProductsClient({
             titleLines={3}
             showGrowboxSize
             hideCartLabel={isMobile && layout === "grid"}
+            prioritizeFirstImage
           />
         ) : (
           <DisplayProductsList

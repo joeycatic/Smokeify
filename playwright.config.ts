@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3900";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3900";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -11,7 +11,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npx next dev -p 3900 --hostname 127.0.0.1",
+    command: "npx next dev -p 3900 --hostname localhost",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     stdout: "pipe",

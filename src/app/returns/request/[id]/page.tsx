@@ -72,7 +72,7 @@ export default async function RefundRequestPage({
 
   return (
     <PageLayout commerce>
-      <div className="relative mx-auto max-w-6xl px-6 py-10 text-slate-100">
+      <div className="legacy-light-page relative mx-auto max-w-6xl px-6 py-10 text-[color:var(--gv-text)]">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_80%_18%,rgba(245,158,11,0.12),transparent_26%),radial-gradient(circle_at_12%_88%,rgba(15,23,42,0.46),transparent_52%)]" />
         <div className="rounded-[36px] border border-white/10 bg-[#07111b]/92 p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
           <div className="max-w-3xl">
@@ -82,12 +82,12 @@ export default async function RefundRequestPage({
             >
               {brand.brandName}
             </p>
-            <h1 className="mt-3 text-[clamp(2rem,4vw,3.4rem)] font-semibold tracking-tight text-white">
-              Refund request
+            <h1 className="mt-3 font-[family:var(--font-syne)] text-[clamp(2rem,4vw,3.4rem)] font-semibold tracking-tight text-white">
+              Rückerstattung anfragen
             </h1>
             <p className="mt-4 text-sm leading-6 text-slate-300">
-              Submit your request directly on {brand.brandName}. This secure page is linked to the
-              order referenced in the email you received.
+              Reiche deine Anfrage direkt bei {brand.brandName} ein. Diese sichere Seite ist mit
+              der Bestellung aus deiner E-Mail verknüpft.
             </p>
           </div>
 

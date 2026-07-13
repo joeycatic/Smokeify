@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
 import { seoPages } from "@/lib/seoPages";
-import { blogPosts } from "@/lib/blog";
 import { prisma } from "@/lib/prisma";
 
 const GOOGLE_FEED_EXCLUDED_CATEGORY_HANDLES = new Set([
@@ -77,7 +76,7 @@ const isNoindexProduct = (product: {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const products = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", storefronts: { has: "MAIN" } },
     select: {
       handle: true,
       updatedAt: true,
@@ -98,23 +97,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: toUrl(`/products/${product.handle}`),
       lastModified: product.updatedAt,
     }));
-  const blogUrls = blogPosts.map((post) => ({
-    url: toUrl(`/blog/${post.slug}`),
-    lastModified: new Date(post.publishedAt),
-  }));
+  const activeCategoryHandles = new Set(
+    products.flatMap((product) => [
+      product.mainCategory?.handle ?? "",
+      product.mainCategory?.parent?.handle ?? "",
+      ...product.categories.map((entry) => entry.category.handle),
+      ...product.categories.map((entry) => entry.category.parent?.handle ?? ""),
+    ]).filter(Boolean),
+  );
 
   return [
     { url: toUrl("/"), lastModified: now },
     { url: toUrl("/products"), lastModified: now },
-    { url: toUrl("/customizer"), lastModified: now },
-    { url: toUrl("/pflanzen-analyse"), lastModified: now },
-    { url: toUrl("/pflanzen-analyse/faelle"), lastModified: now },
-    { url: toUrl("/blog"), lastModified: now },
     { url: toUrl("/bestseller"), lastModified: now },
     { url: toUrl("/neuheiten"), lastModified: now },
-    ...blogUrls,
     ...seoPages
       .filter((page) => !isNoindexSeoPage(page))
+      .filter((page) =>
+        [
+          page.categoryHandle,
+          page.parentHandle,
+          page.subcategoryHandle,
+          ...page.slugParts,
+        ].some((handle) => Boolean(handle && activeCategoryHandles.has(handle))),
+      )
       .map((page) => ({
       url: toUrl(`/${page.slugParts.join("/")}`),
       lastModified: now,

@@ -110,7 +110,7 @@ export default function CheckoutAuthPage() {
   }, [email, password]);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12 text-stone-800">
+    <div className="storefront-auth mx-auto max-w-5xl px-6 py-12 text-stone-800">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold" style={{ color: "#2f3e36" }}>
             Checkout Login

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getProductsByIdsAllowInactive } from "@/lib/catalog";
+import { getProductsByIds } from "@/lib/catalog";
 import PageLayout from "@/components/PageLayout";
 import AccountDashboardClient from "./AccountDashboardClient";
 import {
@@ -162,7 +162,7 @@ export default async function AccountPage() {
       }
     : null;
 
-  const wishlistPreview = await getProductsByIdsAllowInactive(
+  const wishlistPreview = await getProductsByIds(
     wishlistItems.map((item: { productId: string }) => item.productId),
   );
 

@@ -1,20 +1,12 @@
-import type { Metadata } from "next";
-import PageLayout from "@/components/PageLayout";
-import CustomizerClient from "./CustomizerClient";
+import { redirect } from "next/navigation";
+import {
+  buildGrowvaultCustomizerUrl,
+  serializeForwardedSearchParams,
+} from "@/lib/growvaultPublicStorefront";
 
-export const metadata: Metadata = {
-  title: "Smokeify Konfigurator | Grow-Setup zusammenstellen",
-  description:
-    "Stelle dein Smokeify Grow-Setup aus Growbox, Licht, Abluft und Zubehör lokal zusammen.",
-  alternates: {
-    canonical: "/customizer",
-  },
-};
-
-export default function CustomizerPage() {
-  return (
-    <PageLayout commerce>
-      <CustomizerClient />
-    </PageLayout>
-  );
+export default async function CustomizerRedirect({ searchParams }: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = serializeForwardedSearchParams((await searchParams) ?? {});
+  redirect(buildGrowvaultCustomizerUrl(query));
 }

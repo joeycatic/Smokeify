@@ -1,6 +1,12 @@
-import { permanentRedirect } from "next/navigation";
-import { PLANT_ANALYZER_PATH } from "@/lib/plantAnalyzerPaths";
+import { redirect } from "next/navigation";
+import {
+  buildGrowvaultAnalyzerUrl,
+  serializeForwardedSearchParams,
+} from "@/lib/growvaultPublicStorefront";
 
-export default function PlantAnalyzerAliasPage() {
-  permanentRedirect(PLANT_ANALYZER_PATH);
+export default async function PlantAnalyzerAliasRedirect({ searchParams }: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = serializeForwardedSearchParams((await searchParams) ?? {});
+  redirect(buildGrowvaultAnalyzerUrl(query));
 }

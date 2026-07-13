@@ -95,8 +95,8 @@ export default function PasswordResetClient({
     <div
       className={
         isGrowVariant
-          ? "mx-auto max-w-3xl py-8 text-[#edf2ed] sm:py-10"
-          : "mx-auto max-w-md px-6 py-12 text-stone-800"
+          ? "storefront-auth mx-auto max-w-3xl py-8 text-[#edf2ed] sm:py-10"
+          : "storefront-auth mx-auto max-w-md px-6 py-12 text-stone-800"
       }
     >
       <div className={isGrowVariant ? "mx-auto max-w-[40rem]" : undefined}>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   adminPathSupportsStorefrontScope,
+  buildStorefrontCategoryWhere,
+  buildStorefrontProductWhere,
   getDefaultStorefrontAssignmentValue,
   getStorefrontConfig,
   getStorefrontConfigs,
@@ -56,5 +58,18 @@ describe("storefront admin scope routing", () => {
     expect(getDefaultStorefrontAssignmentValue(null)).toBe("MAIN,GROW");
     expect(getDefaultStorefrontAssignmentValue("MAIN")).toBe("MAIN");
     expect(getDefaultStorefrontAssignmentValue("GROW")).toBe("GROW");
+  });
+
+  it("requires active MAIN assignments for Smokeify products and categories", () => {
+    expect(buildStorefrontProductWhere("MAIN", { id: { in: ["main-product"] } })).toEqual({
+      AND: [
+        { status: "ACTIVE" },
+        { id: { in: ["main-product"] } },
+        { storefronts: { has: "MAIN" } },
+      ],
+    });
+    expect(buildStorefrontCategoryWhere("MAIN", { id: "main-category" })).toEqual({
+      AND: [{ id: "main-category" }, { storefronts: { has: "MAIN" } }],
+    });
   });
 });

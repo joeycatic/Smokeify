@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 export default async function BestsellerPage() {
   const [priceCandidates, fallbackProducts] = await Promise.all([
     prisma.product.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", storefronts: { has: "MAIN" } },
       select: {
         id: true,
         variants: {

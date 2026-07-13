@@ -37,7 +37,7 @@ export default function OrderRejectedPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-      <section className="relative overflow-hidden rounded-[34px] border border-[var(--smk-border)] bg-[linear-gradient(180deg,rgba(23,20,18,0.98),rgba(14,12,11,0.98))] p-5 shadow-[var(--smk-shadow)] sm:p-8">
+      <section className="legacy-light-surface relative overflow-hidden rounded-[30px] border border-[var(--smk-border)] bg-white p-5 shadow-[var(--gv-shadow)] sm:p-8">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,143,127,0.16),transparent_32%),radial-gradient(circle_at_88%_14%,rgba(233,188,116,0.12),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.025),transparent_30%)]" />
         <div className="relative">
           <div className="max-w-3xl">

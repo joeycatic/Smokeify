@@ -2,8 +2,10 @@ import "server-only";
 
 import { Prisma, type Storefront } from "@prisma/client";
 import type { Product } from "@/data/types";
-import { getProductsByIds } from "@/lib/catalog";
+import { getProductsByIdsForStorefront } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
+import { buildGrowProductWhere } from "@/lib/growStorefront";
+import { buildStorefrontProductWhere } from "@/lib/storefronts";
 
 export const LANDING_PAGE_SECTION_DEFINITIONS = [
   {
@@ -91,12 +93,6 @@ type LandingPageSectionRow = {
       }
     | null;
 };
-
-const HERO_PRODUCT_HANDLES = [
-  "diamondbox-sl-60",
-  "lux-helios-pro-300-watt-2-8",
-  "ac-infinity-controller-69-pro",
-] as const;
 
 const DEFAULT_STOREFRONT: Storefront = "MAIN";
 
@@ -344,10 +340,14 @@ const getStoredSections = async (storefront: Storefront = DEFAULT_STOREFRONT) =>
   return sections;
 };
 
-const getDefaultSectionProductIds = async () => {
-  const [bestSellerRows, tentProductRows, heroRows] = await Promise.all([
+const getDefaultSectionProductIds = async (storefront: Storefront) => {
+  const scopedWhere = (extra: Prisma.ProductWhereInput) =>
+    storefront === "GROW"
+      ? buildGrowProductWhere(extra)
+      : buildStorefrontProductWhere("MAIN", extra);
+  const [bestSellerRows, tentProductRows] = await Promise.all([
     prisma.product.findMany({
-      where: NON_HEADSHOP_WHERE,
+      where: scopedWhere(NON_HEADSHOP_WHERE),
       orderBy: [
         { bestsellerScore: { sort: "desc", nulls: "last" } },
         { updatedAt: "desc" },
@@ -356,31 +356,28 @@ const getDefaultSectionProductIds = async () => {
       take: 16,
     }),
     prisma.product.findMany({
-      where: {
+      where: scopedWhere({
         AND: [
           NON_HEADSHOP_WHERE,
           {
             categories: {
               some: {
                 OR: [
-                  { category: { handle: "zelte" } },
-                  { category: { parent: { is: { handle: "zelte" } } } },
+                  { category: { handle: "zelte", storefronts: { has: storefront } } },
+                  {
+                    category: {
+                      storefronts: { has: storefront },
+                      parent: { is: { handle: "zelte", storefronts: { has: storefront } } },
+                    },
+                  },
                 ],
               },
             },
           },
         ],
-      },
+      }),
       select: { id: true },
       take: 40,
-    }),
-    prisma.product.findMany({
-      where: {
-        ...NON_HEADSHOP_WHERE,
-        handle: { in: [...HERO_PRODUCT_HANDLES] },
-      },
-      select: { id: true, handle: true },
-      take: HERO_PRODUCT_HANDLES.length,
     }),
   ]);
 
@@ -388,12 +385,10 @@ const getDefaultSectionProductIds = async () => {
     new Set([
       ...bestSellerRows.map((row) => row.id),
       ...tentProductRows.map((row) => row.id),
-      ...heroRows.map((row) => row.id),
     ]),
   );
-  const products = await getProductsByIds(allIds);
+  const products = await getProductsByIdsForStorefront(allIds, storefront);
   const productsById = new Map(products.map((product) => [product.id, product]));
-  const productsByHandle = new Map(products.map((product) => [product.handle, product]));
 
   const bestSellers = bestSellerRows
     .map((row) => productsById.get(row.id))
@@ -415,10 +410,7 @@ const getDefaultSectionProductIds = async () => {
     .slice(0, 4)
     .map((product) => product.id);
 
-  const hero = HERO_PRODUCT_HANDLES.map((handle) => productsByHandle.get(handle) ?? null)
-    .filter((product): product is Product => Boolean(product && product.availableForSale))
-    .slice(0, 3)
-    .map((product) => product.id);
+  const hero = bestSellers.slice(0, 3);
 
   return {
     hero,
@@ -469,14 +461,14 @@ export async function resolveLandingPageProductSections(
 ) {
   const [storedSections, defaults] = await Promise.all([
     getStoredSections(storefront),
-    getDefaultSectionProductIds(),
+    getDefaultSectionProductIds(storefront),
   ]);
 
   const heroIds = resolveSectionProductIds("hero", storedSections, defaults, options);
   const tentDealIds = resolveSectionProductIds("tent-deals", storedSections, defaults, options);
   const bestsellerIds = resolveSectionProductIds("bestsellers", storedSections, defaults, options);
   const allIds = Array.from(new Set([...heroIds, ...tentDealIds, ...bestsellerIds]));
-  const products = await getProductsByIds(allIds);
+  const products = await getProductsByIdsForStorefront(allIds, storefront);
   const productsById = new Map(products.map((product) => [product.id, product]));
 
   return {

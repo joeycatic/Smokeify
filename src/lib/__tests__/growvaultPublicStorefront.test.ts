@@ -8,6 +8,7 @@ import {
   buildGrowvaultAnalyzerUrl,
   buildGrowvaultCustomizerUrl,
   buildGrowvaultPublicUrl,
+  serializeForwardedSearchParams,
 } from "@/lib/growvaultPublicStorefront";
 
 vi.mock("server-only", () => ({}));
@@ -80,6 +81,16 @@ describe("growvaultPublicStorefront", () => {
     expect(buildGrowvaultCustomizerUrl()).toBe(
       "https://www.growvault.de/customizer",
     );
+  });
+
+  it("preserves repeated query values for GrowVault-owned route handoffs", () => {
+    expect(
+      serializeForwardedSearchParams({
+        preset: "compact",
+        product: ["one", "two"],
+        empty: undefined,
+      }),
+    ).toBe("preset=compact&product=one&product=two");
   });
 
   it("accepts the legacy grow app env alias for the analyzer bridge target", async () => {

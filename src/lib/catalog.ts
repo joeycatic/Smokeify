@@ -3,7 +3,12 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
 import type { Product } from "@/data/types";
-import { buildStorefrontProductWhere, storefrontsInclude } from "@/lib/storefronts";
+import {
+  buildStorefrontProductWhere,
+  storefrontsInclude,
+  type StorefrontCode,
+} from "@/lib/storefronts";
+import { buildGrowProductWhere } from "@/lib/growStorefront";
 
 const CURRENCY_CODE = "EUR";
 
@@ -33,10 +38,11 @@ const mapVisibleCategories = (
       } | null;
     };
   }>,
+  storefront: StorefrontCode = MAIN_STOREFRONT,
 ) =>
   categories
     .filter((entry) =>
-      storefrontsInclude(entry.category.storefronts ?? [], MAIN_STOREFRONT),
+      storefrontsInclude(entry.category.storefronts ?? [], storefront),
     )
     .map((entry) => ({
       id: entry.category.id,
@@ -45,7 +51,7 @@ const mapVisibleCategories = (
       parentId: entry.category.parentId ?? null,
       parent:
         entry.category.parent &&
-        storefrontsInclude(entry.category.parent.storefronts ?? [], MAIN_STOREFRONT)
+        storefrontsInclude(entry.category.parent.storefronts ?? [], storefront)
           ? {
               id: entry.category.parent.id,
               handle: entry.category.parent.handle,
@@ -92,7 +98,7 @@ const mapProduct = (product: {
   reviews: Array<{ rating: number }>;
   bestsellerScore?: number | null;
   createdAt?: Date | null;
-}): Product => {
+}, storefront: StorefrontCode = MAIN_STOREFRONT): Product => {
   const sortedImages = [...product.images].sort((a, b) => a.position - b.position);
   const featuredImage = sortedImages[0] ?? null;
   const variants = [...product.variants].sort((a, b) => a.position - b.position);
@@ -156,7 +162,7 @@ const mapProduct = (product: {
       url: image.url,
       altText: image.altText,
     })),
-    categories: mapVisibleCategories(product.categories),
+    categories: mapVisibleCategories(product.categories, storefront),
     collections: product.collections.map((entry) => ({
       id: entry.collection.id,
       handle: entry.collection.handle,
@@ -204,7 +210,7 @@ const getProductsCached = unstable_cache(
       },
     });
 
-    return products.map(mapProduct);
+    return products.map((product) => mapProduct(product));
   },
   ["catalog-products"],
   { revalidate: 30 },
@@ -288,7 +294,7 @@ const fetchAllActiveProducts = async (): Promise<Product[]> => {
 
     if (products.length === 0) break;
 
-    mappedProducts.push(...products.map(mapProduct));
+    mappedProducts.push(...products.map((product) => mapProduct(product)));
     cursorId = products[products.length - 1]?.id ?? null;
   }
 
@@ -368,7 +374,13 @@ async function _fetchProductByHandle(handle: string) {
     },
   });
 
-  if (!product || !storefrontsInclude(product.storefronts, MAIN_STOREFRONT)) return null;
+  if (
+    !product ||
+    product.status !== "ACTIVE" ||
+    !storefrontsInclude(product.storefronts, MAIN_STOREFRONT)
+  ) {
+    return null;
+  }
 
   const images = product.images.map((image) => ({
     url: image.url,
@@ -442,9 +454,15 @@ async function _fetchProductByHandle(handle: string) {
   };
 }
 
-const _fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
+const _fetchProductsByIds = async (
+  ids: string[],
+  storefront: StorefrontCode = MAIN_STOREFRONT,
+): Promise<Product[]> => {
   const products = await prisma.product.findMany({
-    where: buildStorefrontProductWhere(MAIN_STOREFRONT, { id: { in: ids } }),
+    where:
+      storefront === "GROW"
+        ? buildGrowProductWhere({ id: { in: ids } })
+        : buildStorefrontProductWhere(storefront, { id: { in: ids } }),
     include: {
       images: { orderBy: { position: "asc" } },
       variants: {
@@ -467,7 +485,7 @@ const _fetchProductsByIds = async (ids: string[]): Promise<Product[]> => {
       },
     },
   });
-  const mapped = products.map(mapProduct);
+  const mapped = products.map((product) => mapProduct(product, storefront));
   const order = new Map(ids.map((id, index) => [id, index]));
   return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 };
@@ -483,6 +501,22 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
   );
   const results = await cached();
   // Re-sort to match the original caller-supplied order.
+  const order = new Map(ids.map((id, index) => [id, index]));
+  return results.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+export async function getProductsByIdsForStorefront(
+  ids: string[],
+  storefront: StorefrontCode,
+): Promise<Product[]> {
+  if (!ids.length) return [];
+  const sortedIds = [...ids].sort();
+  const cached = unstable_cache(
+    () => _fetchProductsByIds(sortedIds, storefront),
+    ["catalog-products-by-ids", storefront, sortedIds.join(",")],
+    { revalidate: 30 },
+  );
+  const results = await cached();
   const order = new Map(ids.map((id, index) => [id, index]));
   return results.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
@@ -520,7 +554,7 @@ export async function getProductsByIdsAllowInactive(
     },
   });
 
-  const mapped = products.map(mapProduct);
+  const mapped = products.map((product) => mapProduct(product));
   const order = new Map(ids.map((id, index) => [id, index]));
   return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }

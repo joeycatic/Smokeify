@@ -83,7 +83,7 @@ export default function SignInPage() {
   }, [email, password]);
 
   return (
-    <div className="mx-auto max-w-md px-6 py-12 text-stone-800">
+    <div className="storefront-auth mx-auto max-w-md px-6 py-12 text-stone-800">
         <div className="rounded-md border border-black/10 bg-white p-6">
           <div className="text-center">
             <h1

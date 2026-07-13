@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { StarIcon } from "@heroicons/react/24/solid";
+import { Star } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { FractionalStars } from "@/components/ui/StarRating";
 
 type Review = {
   id: string;
@@ -26,6 +27,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
   const [guestName, setGuestName] = useState("");
   const [reviewBody, setReviewBody] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const hasReviews = reviewSummary.count > 0;
 
   const loadReviews = useCallback(async () => {
     setReviewLoading(true);
@@ -113,65 +115,85 @@ export default function ProductReviews({ productId }: { productId: string }) {
   };
 
   return (
-    <section className="smk-panel rounded-[32px] p-6 text-[var(--smk-text)] shadow-[0_24px_70px_rgba(0,0,0,0.26)] sm:p-7">
+    <div className="gv-panel rounded-[32px] p-6 sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <StarIcon className="h-6 w-6 text-[var(--smk-accent)]" />
-            <p className="text-2xl font-semibold tracking-[-0.04em] text-[var(--smk-text)] sm:text-3xl">
-              Bewertungen
-            </p>
+            <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-lime)]/10 text-[color:var(--gv-lime)]">
+              <Star className="h-5 w-5 fill-current" />
+            </div>
+            <div>
+              <p className="font-[family:var(--font-syne)] text-2xl font-bold tracking-[-0.05em] text-[color:var(--gv-text)] sm:text-3xl">
+                Bewertungen
+              </p>
+              <p className="mt-1 text-sm text-[color:var(--gv-text-muted)]">
+                Echte Rückmeldungen aus der Smokeify-Community.
+              </p>
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--smk-text-muted)]">
-            <RatingStars rating={reviewSummary.average} />
-            <span>
-              {reviewSummary.count} Bewertungen ·{" "}
-              {reviewSummary.average.toFixed(1)}
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[color:var(--gv-text-muted)]">
+            <div className="flex items-center gap-2">
+              <RatingStars rating={reviewSummary.average} />
+              {hasReviews ? (
+                <span className="font-medium text-[color:var(--gv-text)]">
+                  {reviewSummary.average.toFixed(1)}
+                </span>
+              ) : (
+                <span className="text-[color:var(--gv-text-muted)]">
+                  Bewertung folgt
+                </span>
+              )}
+            </div>
+            <span className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+              {hasReviews
+                ? `${reviewSummary.count} Bewertung${reviewSummary.count === 1 ? "" : "en"}`
+                : "Produktdaten geprüft"}
             </span>
           </div>
         </div>
       </div>
 
       {reviewError && (
-        <p className="mt-4 rounded-2xl border border-red-500/24 bg-red-500/10 px-4 py-3 text-xs text-red-100">
+        <p className="mt-4 rounded-[18px] border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {reviewError}
         </p>
       )}
       {reviewNotice && (
-        <p className="mt-4 rounded-2xl border border-emerald-400/24 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-100">
+        <p className="mt-4 rounded-[18px] border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-lime)]/10 px-4 py-3 text-sm text-[color:var(--gv-text)]">
           {reviewNotice}
         </p>
       )}
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-6 space-y-4">
         {reviewLoading ? (
-          <div className="flex items-center gap-2 rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--smk-text-muted)]">
+          <div className="gv-glass flex items-center gap-3 rounded-[24px] px-4 py-4 text-sm text-[color:var(--gv-text-muted)]">
             <LoadingSpinner size="sm" />
             <span>Bewertungen werden geladen...</span>
           </div>
         ) : reviews.length === 0 ? (
-          <p className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm text-[var(--smk-text-muted)]">
-            Noch keine Bewertungen.
-          </p>
+          <div className="gv-glass rounded-[24px] px-4 py-4 text-sm text-[color:var(--gv-text-muted)]">
+            Noch keine öffentlichen Bewertungen. Nutze die Produktdaten, Eignungshinweise
+            und den direkten Gast-Checkout für deine Entscheidung.
+          </div>
         ) : (
           reviews.map((review) => (
             <div
               key={review.id}
-              className="rounded-[24px] border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] px-4 py-4 text-sm"
+              className="gv-glass rounded-[24px] px-5 py-4 text-sm"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
                   <RatingStars rating={review.rating} />
-                  <span className="text-xs uppercase tracking-[0.16em] text-[var(--smk-text-muted)]">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
                     {review.userName ?? "Anonym"}
                   </span>
                 </div>
-                <span className="text-xs uppercase tracking-[0.16em] text-[var(--smk-text-muted)]">
+                <span className="text-xs text-[color:var(--gv-text-muted)]">
                   {new Date(review.createdAt).toLocaleDateString("de-DE")}
                 </span>
               </div>
               {review.body && (
-                <p className="mt-3 leading-7 text-[var(--smk-text-muted)]">
+                <p className="mt-3 text-sm leading-7 text-[color:var(--gv-text-muted)]">
                   {review.body}
                 </p>
               )}
@@ -180,73 +202,79 @@ export default function ProductReviews({ productId }: { productId: string }) {
         )}
       </div>
 
-      <div className="smk-surface mt-6 rounded-[28px] p-5 sm:p-6">
-        <p className="smk-kicker">
+      <div className="mt-7 gv-glass rounded-[28px] p-5 sm:p-6">
+        <p className="font-[family:var(--font-jetbrains-mono)] text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--gv-lime)]">
           Bewertung schreiben
         </p>
-        <div className="mt-4 grid gap-4">
-          <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
+        <div className="mt-5 grid gap-4">
+          <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-text-muted)]">
             Name (optional)
             <input
               value={guestName}
               onChange={(event) => setGuestName(event.target.value)}
               placeholder="Dein Name"
               maxLength={64}
-              className="smk-input mt-2 h-11 w-full rounded-2xl px-4 text-sm"
+              className="gv-input mt-2 h-12 w-full rounded-[18px] px-4 text-sm outline-none focus:border-[color:var(--gv-lime)]/40 focus:ring-2 focus:ring-[color:var(--gv-lime)]/10"
             />
           </label>
           <div>
-            <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
+            <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-text-muted)]">
               Sterne
             </label>
             <div
-              className="mt-3 flex flex-wrap items-center gap-2"
+              className="mt-3 flex flex-wrap items-center gap-3"
               onMouseLeave={() => setHoverRating(0)}
             >
-              {[1, 2, 3, 4, 5].map((value) => {
-                const active = (hoverRating || reviewRating) >= value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setReviewRating(value)}
-                    onMouseEnter={() => setHoverRating(value)}
-                    aria-label={`${value} Stern${value !== 1 ? "e" : ""}`}
-                    className="rounded-2xl border border-[var(--smk-border)] bg-[rgba(255,255,255,0.03)] p-1.5 transition hover:-translate-y-0.5 hover:border-[var(--smk-accent)]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className={`h-9 w-9 transition-colors duration-100 ${
-                        active ? "text-[var(--smk-accent)]" : "text-[var(--smk-border-strong)]"
-                      }`}
-                      fill="currentColor"
-                      aria-hidden="true"
+              <div className="flex items-center gap-1.5 rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-3 py-2">
+                {[1, 2, 3, 4, 5].map((value) => {
+                  const active = (hoverRating || reviewRating) >= value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setReviewRating(value)}
+                      onMouseEnter={() => setHoverRating(value)}
+                      aria-label={`${value} Stern${value !== 1 ? "e" : ""}`}
+                      className="rounded-full p-1 transition-transform duration-100 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]"
                     >
-                      <path d="M12 3.5l2.9 5.9 6.5.9-4.7 4.5 1.1 6.4-5.8-3.1-5.8 3.1 1.1-6.4-4.7-4.5 6.5-.9L12 3.5z" />
-                    </svg>
-                  </button>
-                );
-              })}
-              <span className="ml-1 text-sm font-semibold text-[var(--smk-text)]">
-                {["", "Schlecht", "Naja", "Okay", "Gut", "Ausgezeichnet"][hoverRating || reviewRating]}
+                      <Star
+                        className={`h-8 w-8 transition-colors duration-100 ${
+                          active
+                            ? "text-[color:var(--gv-lime)]"
+                            : "text-[color:var(--gv-border)]"
+                        }`}
+                        fill="currentColor"
+                        strokeWidth={1.75}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="rounded-full border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-lime)]/10 px-3 py-1.5 text-sm font-semibold text-[color:var(--gv-lime)]">
+                {
+                  ["", "Schlecht", "Naja", "Okay", "Gut", "Ausgezeichnet"][
+                    hoverRating || reviewRating
+                  ]
+                }
               </span>
             </div>
           </div>
-          <label className="block text-xs font-semibold text-[var(--smk-text-muted)]">
+          <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-text-muted)]">
             Bewertung
             <textarea
               value={reviewBody}
               onChange={(event) => setReviewBody(event.target.value)}
               placeholder="Was hat dir gefallen?"
-              rows={4}
-              className="smk-input mt-2 w-full rounded-[22px] px-4 py-3 text-sm"
+              rows={5}
+              className="gv-input mt-2 w-full rounded-[18px] px-4 py-3 text-sm outline-none focus:border-[color:var(--gv-lime)]/40 focus:ring-2 focus:ring-[color:var(--gv-lime)]/10"
             />
           </label>
           <button
             type="button"
             onClick={submitReview}
             disabled={reviewSubmitting}
-            className="smk-button-primary h-11 rounded-full px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-12 items-center justify-center rounded-full bg-[color:var(--gv-lime)] px-5 text-sm font-semibold text-[color:var(--gv-forest)] shadow-[0_16px_34px_var(--gv-lime-glow)] transition hover:-translate-y-0.5 hover:bg-[color:var(--gv-lime-dim)] disabled:opacity-60"
           >
             {reviewSubmitting
               ? "Speichern..."
@@ -256,30 +284,19 @@ export default function ProductReviews({ productId }: { productId: string }) {
           </button>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
-
-function StarGlyph({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`h-4 w-4 ${filled ? "text-[var(--smk-accent)]" : "text-[var(--smk-border-strong)]"}`}
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M12 3.5l2.9 5.9 6.5.9-4.7 4.5 1.1 6.4-5.8-3.1-5.8 3.1 1.1-6.4-4.7-4.5 6.5-.9L12 3.5z" />
-    </svg>
-  );
-}
-
 function RatingStars({ rating }: { rating: number }) {
-  const rounded = Math.round(rating);
   return (
-    <span className="inline-flex items-center gap-1">
-      {[0, 1, 2, 3, 4].map((idx) => (
-        <StarGlyph key={idx} filled={idx < rounded} />
-      ))}
+    <span role="img" aria-label={`${rating.toFixed(1)} von 5 Sternen`}>
+      <FractionalStars
+        rating={rating}
+        className="gap-1"
+        starClassName="h-4 w-4"
+        filledClassName="text-[color:var(--gv-lime)]"
+        emptyClassName="text-[color:var(--gv-border)]"
+      />
     </span>
   );
 }

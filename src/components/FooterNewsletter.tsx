@@ -13,12 +13,12 @@ export default function FooterNewsletter() {
   );
 
   return (
-    <div className="smk-surface rounded-[28px] p-5">
-      <p className="smk-kicker">
+    <div className="w-full max-w-[500px]">
+      <p className="font-[family:var(--font-jetbrains-mono)] text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--gv-lime)]">
         Newsletter
       </p>
       <form
-        className="mt-3 flex flex-col gap-2 sm:flex-row"
+        className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch"
         onSubmit={async (event) => {
           event.preventDefault();
           const email = newsletterEmail.trim();
@@ -52,7 +52,7 @@ export default function FooterNewsletter() {
         }}
       >
         <input
-          className="smk-input h-11 w-full rounded-full px-4 text-sm"
+          className="gv-input h-[3.25rem] min-h-[3.25rem] w-full min-w-0 flex-1 appearance-none rounded-2xl px-4 text-sm outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15 sm:h-11 sm:min-h-11"
           placeholder="E-Mail"
           value={newsletterEmail}
           onChange={(event) => setNewsletterEmail(event.target.value)}
@@ -63,20 +63,20 @@ export default function FooterNewsletter() {
         <button
           type="submit"
           disabled={newsletterStatus === "loading"}
-          className="smk-button-primary h-11 shrink-0 rounded-full px-5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+          className="gv-pulse h-13 shrink-0 rounded-2xl bg-[color:var(--gv-lime)] px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:min-w-[138px]"
         >
-          {newsletterStatus === "loading" ? "Senden..." : "Join"}
+          {newsletterStatus === "loading" ? "Senden..." : "Eintragen"}
         </button>
       </form>
-      <p className="mt-3 text-xs text-[var(--smk-text-dim)]">
+      <p className="mt-2 text-xs text-[color:var(--gv-text-muted)]">
         Kein Spam. Abmelden jederzeit möglich.
       </p>
       {newsletterMessage && (
         <p
           className={`mt-2 text-xs font-semibold ${
             newsletterStatus === "ok"
-              ? "text-[var(--smk-success)]"
-              : "text-[var(--smk-error)]"
+              ? "text-[color:var(--gv-success)]"
+              : "text-[color:var(--gv-error)]"
           }`}
         >
           {newsletterMessage}

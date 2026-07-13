@@ -13,7 +13,10 @@ export async function GET(
   }
 
   const variants = await prisma.variant.findMany({
-    where: { productId },
+    where: {
+      productId,
+      product: { status: "ACTIVE", storefronts: { has: "MAIN" } },
+    },
     orderBy: { position: "asc" },
     select: {
       id: true,

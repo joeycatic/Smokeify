@@ -17,7 +17,7 @@ type LayoutSectionProps = {
 
 function PageShell({ children }: LayoutSectionProps) {
   return (
-    <main className="smk-shell flex min-h-screen flex-col">
+    <main className="gv-shell flex min-h-screen flex-col">
       {children}
     </main>
   );

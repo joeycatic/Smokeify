@@ -4,7 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowRightIcon,
+  ArrowLeftOnRectangleIcon,
+  UserCircleIcon,
+} from "@heroicons/react/24/outline";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import {
+  RETURN_TO_STORAGE_KEY,
+  VERIFY_EMAIL_STORAGE_KEY,
+} from "@/lib/authStorage";
 
 type Props = {
   mounted: boolean;
@@ -13,20 +22,22 @@ type Props = {
 };
 
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_NOT_VERIFIED: "Bitte verifiziere deine E-Mail, bevor du dich einloggst.",
+  EMAIL_NOT_VERIFIED:
+    "Bitte verifiziere deine E-Mail-Adresse, bevor du dich anmeldest.",
   RATE_LIMIT: "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
   NEW_DEVICE:
-    "Neues Gerät erkannt. Code wurde per E-Mail gesendet. Bitte bestätigen.",
-  CredentialsSignin: "E-Mail oder Passwort ist falsch.",
+    "Neues Gerät erkannt. Ein Code wurde per E-Mail gesendet. Bitte bestätige die Anmeldung.",
+  CredentialsSignin: "E-Mail-Adresse oder Passwort ist falsch.",
   AccessDenied: "Zugriff verweigert. Bitte prüfe deine Berechtigung.",
 };
 
 const getLoginErrorMessage = (code?: string) => {
   if (!code) {
-    return "Login fehlgeschlagen. Bitte prüfe deine Daten.";
+    return "Anmeldung fehlgeschlagen. Bitte prüfe deine Daten.";
   }
   return (
-    LOGIN_ERROR_MESSAGES[code] ?? `Login fehlgeschlagen. Fehlercode: ${code}.`
+    LOGIN_ERROR_MESSAGES[code] ??
+    `Anmeldung fehlgeschlagen. Fehlercode: ${code}.`
   );
 };
 
@@ -65,152 +76,39 @@ export default function NavbarAccountPanel({
     return <div className="h-24" />;
   }
 
+  const statusToneClass =
+    loginStatus === "error"
+      ? "border-[color:var(--gv-error)]/30 bg-[color:var(--gv-error)]/10 text-[color:var(--gv-error)]"
+      : "border-[color:var(--gv-success)]/30 bg-[color:var(--gv-success)]/10 text-[color:var(--gv-success)]";
+  const primaryActionClass =
+    "inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[color:var(--gv-lime)] px-4 text-sm font-semibold text-[color:var(--gv-forest)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[color:var(--gv-muted)] disabled:text-[color:var(--gv-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]";
+  const secondaryActionClass =
+    "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-4 text-sm font-semibold text-[color:var(--gv-text)] transition hover:border-[color:var(--gv-lime)]/30 hover:bg-[color:var(--gv-brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]";
+
   return (
-    <>
-      <div className="mb-4 text-center">
-        <p className="smk-heading text-2xl text-[var(--smk-text)]">
-          Account
-        </p>
-        <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
-          {isAuthenticated
-            ? "Verwalten Sie Ihr Profil oder loggen sich aus."
-            : "Melde dich an oder erstelle ein Konto."}
-        </p>
-      </div>
-      {!isAuthenticated && (
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setLoginStatus("idle");
-            setLoginMessage(null);
-            setLogoutStatus("idle");
-            setLoginLoading(true);
-            const form = event.currentTarget as HTMLFormElement;
-            const formData = new FormData(form);
-            const email = String(formData.get("email") ?? "");
-            const password = String(formData.get("password") ?? "");
-            let res: Awaited<ReturnType<typeof signIn>> | undefined | null =
-              null;
-            try {
-              res = await signIn("credentials", {
-                email,
-                password,
-                redirect: false,
-              });
-              if (res?.ok) {
-                setLoginStatus("ok");
-                setLoginMessage("Erfolgreich angemeldet.");
-                setLogoutStatus("idle");
-                return;
-              }
-              if (res?.error === "NEW_DEVICE") {
-                sessionStorage.setItem("smokeify_verify_email", email);
-                sessionStorage.setItem("smokeify_return_to", returnTo);
-                router.push(
-                  `/auth/verify?email=${encodeURIComponent(
-                    email,
-                  )}&returnTo=${encodeURIComponent(returnTo)}`,
-                );
-                return;
-              }
-              if (res?.error) {
-                try {
-                  const rateRes = await fetch("/api/auth/rate-limit", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ identifier: email }),
-                  });
-                  if (rateRes.ok) {
-                    const data = (await rateRes.json()) as {
-                      limited?: boolean;
-                    };
-                    if (data.limited) {
-                      setLoginStatus("error");
-                      setLoginMessage(
-                        "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
-                      );
-                      return;
-                    }
-                  }
-                } catch {
-                  // Ignore rate-limit status failures.
-                }
-                setLoginStatus("error");
-                setLoginMessage(getLoginErrorMessage(res.error));
-                return;
-              }
-              setLoginStatus("error");
-              setLoginMessage(getLoginErrorMessage(res?.error ?? undefined));
-            } catch {
-              setLoginStatus("error");
-              setLoginMessage(
-                "Login fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.",
-              );
-            } finally {
-              setLoginLoading(false);
-            }
-          }}
-          className="space-y-2"
-        >
-          <input
-            name="email"
-            type="text"
-            required
-            aria-label="E-Mail oder Benutzername"
-            placeholder="E-Mail oder Benutzername"
-            className="smk-input w-full rounded-2xl px-3 py-2 text-sm focus-visible:ring-offset-black"
-          />
-          <input
-            name="password"
-            type="password"
-            required
-            aria-label="Passwort"
-            placeholder="Passwort"
-            className="smk-input w-full rounded-2xl px-3 py-2 text-sm focus-visible:ring-offset-black"
-          />
-          <div className="flex justify-between">
-            <Link
-              href="/auth/verify"
-              className="text-xs font-semibold text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-            >
-              Account verifizieren
-            </Link>
-            <Link
-              href="/auth/reset"
-              className="text-xs font-semibold text-[var(--smk-text-dim)] transition hover:text-[var(--smk-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-            >
-              Passwort vergessen?
-            </Link>
+    <div className="rounded-2xl border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] p-4 shadow-[var(--gv-shadow-lg)]">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-[color:var(--gv-border)] bg-[color:var(--gv-brand-soft)] text-[color:var(--gv-lime)]">
+            <UserCircleIcon className="h-5 w-5" />
           </div>
-          <button
-            type="submit"
-            disabled={loginLoading}
-            className="smk-button-primary h-10 w-full cursor-pointer rounded-full px-4 text-sm font-semibold focus-visible:ring-offset-black disabled:opacity-60"
-          >
-            {loginLoading ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <LoadingSpinner
-                  size="sm"
-                  className="border-white/40 border-t-white"
-                />
-                Bitte warten...
-              </span>
-            ) : (
-              "Login"
-            )}
-          </button>
-        </form>
-      )}
-      <div className="mt-2 flex items-center gap-3">
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-[color:var(--gv-text)]">
+              Konto
+            </p>
+            <p className="mt-0.5 text-sm leading-5 text-[color:var(--gv-text-muted)]">
+              {isAuthenticated
+                ? "Du bist angemeldet."
+                : "Einloggen oder neues Konto erstellen."}
+            </p>
+          </div>
+        </div>
+
         {isAuthenticated ? (
-          <>
-            <Link
-              href="/account"
-              className="smk-button-secondary inline-flex flex-1 items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold focus-visible:ring-offset-black"
-            >
-              Anzeigen
+          <div className="space-y-2">
+            <Link href="/account" className={primaryActionClass}>
+              Account öffnen
+              <ArrowRightIcon className="h-4 w-4" />
             </Link>
             <button
               type="button"
@@ -219,41 +117,165 @@ export default function NavbarAccountPanel({
                 setLoginStatus("idle");
                 setLogoutStatus("ok");
               }}
-              className="smk-button-secondary inline-flex flex-1 cursor-pointer items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold focus-visible:ring-offset-black"
+              className={`${secondaryActionClass} text-[color:var(--gv-error)] hover:border-[color:var(--gv-error)]/30 hover:text-[color:var(--gv-error)]`}
             >
-              Ausloggen
+              Abmelden
+              <ArrowLeftOnRectangleIcon className="h-4 w-4" />
             </button>
-          </>
+          </div>
         ) : (
-          <Link
-            href={`/auth/register?returnTo=${encodeURIComponent(returnTo)}`}
-            className="smk-button-primary inline-flex h-10 w-full items-center justify-center rounded-full px-4 text-sm font-semibold focus-visible:ring-offset-black"
-          >
-            Registrieren
-          </Link>
+          <>
+            <form
+              onSubmit={async (event) => {
+                event.preventDefault();
+                setLoginStatus("idle");
+                setLoginMessage(null);
+                setLogoutStatus("idle");
+                setLoginLoading(true);
+                const form = event.currentTarget as HTMLFormElement;
+                const formData = new FormData(form);
+                const email = String(formData.get("email") ?? "");
+                const password = String(formData.get("password") ?? "");
+                let res: Awaited<ReturnType<typeof signIn>> | undefined | null =
+                  null;
+                try {
+                  res = await signIn("credentials", {
+                    email,
+                    password,
+                    redirect: false,
+                  });
+                  if (res?.ok) {
+                    setLoginStatus("ok");
+                    setLoginMessage("Erfolgreich angemeldet.");
+                    setLogoutStatus("idle");
+                    return;
+                  }
+                  if (res?.error === "NEW_DEVICE") {
+                    sessionStorage.setItem(VERIFY_EMAIL_STORAGE_KEY, email);
+                    sessionStorage.setItem(RETURN_TO_STORAGE_KEY, returnTo);
+                    router.push(
+                      `/auth/verify?email=${encodeURIComponent(
+                        email,
+                      )}&returnTo=${encodeURIComponent(returnTo)}`,
+                    );
+                    return;
+                  }
+                  if (res?.error) {
+                    try {
+                      const rateRes = await fetch("/api/auth/rate-limit", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ identifier: email }),
+                      });
+                      if (rateRes.ok) {
+                        const data = (await rateRes.json()) as {
+                          limited?: boolean;
+                        };
+                        if (data.limited) {
+                          setLoginStatus("error");
+                          setLoginMessage(
+                            "Zu viele Versuche. Bitte in 10 Minuten erneut versuchen.",
+                          );
+                          return;
+                        }
+                      }
+                    } catch {
+                      // Ignore rate-limit status failures.
+                    }
+                    setLoginStatus("error");
+                    setLoginMessage(getLoginErrorMessage(res.error));
+                    return;
+                  }
+                  setLoginStatus("error");
+                  setLoginMessage(getLoginErrorMessage(res?.error ?? undefined));
+                } catch {
+                  setLoginStatus("error");
+                  setLoginMessage(
+                    "Anmeldung fehlgeschlagen. Bitte prüfe deine Verbindung und versuche es erneut.",
+                  );
+                } finally {
+                  setLoginLoading(false);
+                }
+              }}
+              className="space-y-3"
+            >
+              <input
+                name="email"
+                type="text"
+                required
+                aria-label="E-Mail-Adresse oder Benutzername"
+                placeholder="E-Mail oder Benutzername"
+                className="gv-input h-11 w-full rounded-lg px-3 text-sm outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
+              />
+              <input
+                name="password"
+                type="password"
+                required
+                aria-label="Passwort"
+                placeholder="Passwort"
+                className="gv-input h-11 w-full rounded-lg px-3 text-sm outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
+              />
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className={primaryActionClass}
+              >
+                {loginLoading ? (
+                  <>
+                    <LoadingSpinner
+                      size="sm"
+                      className="border-[color:var(--gv-forest)]/25 border-t-[color:var(--gv-forest)]"
+                    />
+                    Bitte warten...
+                  </>
+                ) : (
+                  <>
+                    Einloggen
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <Link
+              href={`/auth/register?returnTo=${encodeURIComponent(returnTo)}`}
+              className={secondaryActionClass}
+            >
+              Konto erstellen
+            </Link>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--gv-border)] pt-3 text-xs font-medium">
+              <Link
+                href="/auth/verify"
+                className="text-[color:var(--gv-text-muted)] hover:text-[color:var(--gv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]"
+              >
+                Konto verifizieren
+              </Link>
+              <Link
+                href="/auth/reset"
+                className="text-[color:var(--gv-text-muted)] hover:text-[color:var(--gv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]"
+              >
+                Passwort vergessen?
+              </Link>
+            </div>
+          </>
         )}
-      </div>
-      {!isAuthenticated &&
-        (logoutStatus === "ok" ||
+
+        {(logoutStatus === "ok" ||
           loginStatus === "ok" ||
           loginStatus === "error") && (
           <p
-            className={`mt-2 text-xs ${
-              logoutStatus === "ok" || loginStatus === "error"
-                ? "text-[var(--smk-error)]"
-                : "text-[var(--smk-success)]"
-            }`}
+            aria-live="polite"
+            className={`rounded-[18px] border px-3 py-2 text-xs font-medium ${statusToneClass}`}
           >
             {logoutStatus === "ok"
               ? "Erfolgreich abgemeldet."
-              : (loginMessage ?? "Login fehlgeschlagen.")}
+              : (loginMessage ?? "Anmeldung fehlgeschlagen.")}
           </p>
         )}
-      {isAuthenticated && loginStatus === "ok" && (
-        <p className="mt-2 text-xs text-[var(--smk-success)]">
-          Erfolgreich angemeldet.
-        </p>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
