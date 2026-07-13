@@ -29,7 +29,6 @@ import RecentlyViewedStrip from "@/components/RecentlyViewedStrip";
 import CheckoutAuthModal from "@/components/CheckoutAuthModal";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import { formatRedeemRateLabel } from "@/lib/loyalty";
-import { NEWSLETTER_OFFER_DISCOUNT_CENTS } from "@/lib/newsletterOffer";
 import { buildCheckoutStartUrl } from "@/lib/checkoutStart";
 import { SITE_NAME } from "@/lib/siteConfig";
 import {
@@ -105,6 +104,16 @@ const formatCartOptions = (
     .join(" · ");
 };
 
+type DiscountPreview = {
+  valid: boolean;
+  code: string;
+  discountCents: number;
+  subtotalCents: number;
+  shippingCents: number;
+  totalCents: number;
+  message: string;
+};
+
 export default function CartPage() {
   const { cart, loading, updateLine, removeLines, error } = useCart();
   const router = useRouter();
@@ -116,6 +125,13 @@ export default function CartPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
   const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
+  const [discountPreview, setDiscountPreview] = useState<DiscountPreview | null>(
+    null,
+  );
+  const [discountStatus, setDiscountStatus] = useState<
+    "idle" | "loading" | "valid" | "error"
+  >("idle");
+  const [discountMessage, setDiscountMessage] = useState("");
   const [loyaltyPointsBalance, setLoyaltyPointsBalance] = useState(0);
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [orderConfirmStatus, setOrderConfirmStatus] = useState<
@@ -134,13 +150,74 @@ export default function CartPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const canCheckout = checkoutStatus !== "loading";
   const normalizedDiscountCode = discountCode.trim();
-  const activeDiscountCode = appliedDiscountCode || normalizedDiscountCode;
+  const activeDiscountCode =
+    discountPreview?.valid && appliedDiscountCode ? appliedDiscountCode : "";
+  const cartDiscountContext = cart
+    ? cart.lines
+        .map(
+          (line) =>
+            `${line.id}:${line.quantity}:${line.merchandise.price.amount}`,
+        )
+        .sort()
+        .join("|")
+    : "";
 
-  const applyDiscountCode = () => {
-    setAppliedDiscountCode(normalizedDiscountCode);
+  const clearDiscountPreview = (message = "") => {
+    setAppliedDiscountCode("");
+    setDiscountPreview(null);
+    setDiscountStatus(message ? "error" : "idle");
+    setDiscountMessage(message);
+  };
+
+  const applyDiscountCode = async () => {
+    if (!normalizedDiscountCode) {
+      clearDiscountPreview("");
+      return;
+    }
+    setDiscountStatus("loading");
+    setDiscountMessage("");
     setCheckoutError("");
-    if (normalizedDiscountCode) {
+
+    try {
+      const response = await fetch("/api/checkout/discount-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          country,
+          discountCode: normalizedDiscountCode,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as Partial<
+        DiscountPreview
+      > & {
+        error?: string;
+      };
+      if (!response.ok || !data.valid || !data.code) {
+        clearDiscountPreview(
+          data.message ??
+            data.error ??
+            "Rabattcode konnte nicht angewendet werden.",
+        );
+        return;
+      }
+
+      const preview: DiscountPreview = {
+        valid: true,
+        code: data.code,
+        discountCents: Math.max(0, Math.floor(Number(data.discountCents ?? 0))),
+        subtotalCents: Math.max(0, Math.floor(Number(data.subtotalCents ?? 0))),
+        shippingCents: Math.max(0, Math.floor(Number(data.shippingCents ?? 0))),
+        totalCents: Math.max(0, Math.floor(Number(data.totalCents ?? 0))),
+        message: data.message ?? "Rabattcode wurde geprüft und angewendet.",
+      };
+      setDiscountCode(preview.code);
+      setAppliedDiscountCode(preview.code);
+      setDiscountPreview(preview);
+      setDiscountStatus("valid");
+      setDiscountMessage(preview.message);
       setUseLoyaltyPoints(false);
+    } catch {
+      clearDiscountPreview("Rabattcode konnte gerade nicht geprüft werden.");
     }
   };
 
@@ -216,6 +293,14 @@ export default function CartPage() {
       items: toCartItems(cart),
     });
   }, [cart, country]);
+
+  useEffect(() => {
+    if (!appliedDiscountCode) return;
+    clearDiscountPreview(
+      "Warenkorb oder Lieferland geändert. Bitte Rabattcode erneut prüfen.",
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartDiscountContext, country]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -358,11 +443,8 @@ export default function CartPage() {
   const freeShippingActive = subtotal >= FREE_SHIPPING_THRESHOLD_EUR;
   const shippingEstimate = freeShippingActive ? 0 : getShippingAmount(country);
   const appliedDiscountAmount =
-    activeDiscountCode && !useLoyaltyPoints
-      ? Math.min(
-          subtotal + shippingEstimate,
-          NEWSLETTER_OFFER_DISCOUNT_CENTS / 100,
-        )
+    activeDiscountCode && !useLoyaltyPoints && discountPreview?.valid
+      ? discountPreview.discountCents / 100
       : 0;
   const redeemablePoints = Math.min(
     loyaltyPointsBalance,
@@ -687,17 +769,18 @@ export default function CartPage() {
                 <input
                   type="text"
                   value={discountCode}
+                  disabled={discountStatus === "loading"}
                   onChange={(event) => {
                     if (useLoyaltyPoints) {
                       setUseLoyaltyPoints(false);
                     }
-                    setAppliedDiscountCode("");
+                    clearDiscountPreview("");
                     setDiscountCode(event.target.value);
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      applyDiscountCode();
+                      void applyDiscountCode();
                     }
                   }}
                   placeholder="Code eingeben"
@@ -705,17 +788,25 @@ export default function CartPage() {
                 />
                 <button
                   type="button"
-                  onClick={applyDiscountCode}
-                  disabled={!normalizedDiscountCode}
+                  onClick={() => void applyDiscountCode()}
+                  disabled={!normalizedDiscountCode || discountStatus === "loading"}
                   className="smk-button-primary inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-offset-black"
                 >
-                  Anwenden
+                  {discountStatus === "loading" ? "Prüfen…" : "Anwenden"}
                 </button>
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                {appliedDiscountCode && (
+              <div className="mt-2 flex items-center gap-2" aria-live="polite">
+                {discountStatus === "valid" && appliedDiscountCode ? (
                   <span className="text-xs font-semibold text-[var(--smk-success)]">
-                    Code angewendet: {appliedDiscountCode}
+                    Code geprüft: {appliedDiscountCode}
+                  </span>
+                ) : discountMessage ? (
+                  <span className="text-xs font-semibold text-[var(--smk-error)]">
+                    {discountMessage}
+                  </span>
+                ) : (
+                  <span className="text-xs text-[var(--smk-text-muted)]">
+                    Rabatt wird erst nach Serverprüfung angezeigt.
                   </span>
                 )}
               </div>
@@ -726,8 +817,12 @@ export default function CartPage() {
                   type="checkbox"
                   checked={useLoyaltyPoints}
                   onChange={(event) => {
-                    if (event.target.checked && discountCode.trim()) {
+                    if (
+                      event.target.checked &&
+                      (discountCode.trim() || appliedDiscountCode)
+                    ) {
                       setDiscountCode("");
+                      clearDiscountPreview("");
                     }
                     setUseLoyaltyPoints(event.target.checked);
                   }}

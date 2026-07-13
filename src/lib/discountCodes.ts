@@ -83,10 +83,12 @@ export const calculateDiscountCents = (
 
 export const findRedeemableDiscountCode = async ({
   code,
+  customerEmail,
   currency,
   subtotalCents,
 }: {
   code: string;
+  customerEmail?: string | null;
   currency: string;
   subtotalCents: number;
 }) => {
@@ -104,6 +106,24 @@ export const findRedeemableDiscountCode = async ({
   if (
     typeof discount.maxRedemptions === "number" &&
     discount.timesRedeemed >= discount.maxRedemptions
+  ) {
+    return null;
+  }
+
+  const metadata =
+    discount.metadata &&
+    typeof discount.metadata === "object" &&
+    !Array.isArray(discount.metadata)
+      ? (discount.metadata as Record<string, unknown>)
+      : null;
+  const restrictedEmail =
+    typeof metadata?.email === "string"
+      ? metadata.email.trim().toLowerCase()
+      : null;
+  if (
+    restrictedEmail &&
+    customerEmail &&
+    restrictedEmail !== customerEmail.trim().toLowerCase()
   ) {
     return null;
   }

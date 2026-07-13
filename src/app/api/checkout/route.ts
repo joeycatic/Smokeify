@@ -485,6 +485,7 @@ export async function POST(req: Request) {
   if (rawDiscountCode) {
     const promotionCode = await findRedeemableDiscountCode({
       code: rawDiscountCode,
+      customerEmail: checkoutEmail,
       currency: CURRENCY_CODE,
       subtotalCents,
     });
