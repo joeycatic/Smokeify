@@ -1,13 +1,9 @@
 import { createHash } from "crypto";
-import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requestSecurity";
-import {
-  releaseLoyaltyHoldForPaymentOrder,
-  releaseReservedInventoryForItems,
-} from "@/lib/paymentCheckoutReservations";
+import { cancelPendingCheckoutPaymentDraft } from "@/lib/paymentCheckoutReservations";
 
 export const runtime = "nodejs";
 
@@ -32,28 +28,29 @@ const jsonNoStore = (body: unknown, init?: number | ResponseInit) => {
 const hashCheckoutEditorToken = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
-const verifyDraft = async (paymentOrderCode: string, editToken: string) => {
-  const draft = await prisma.checkoutPaymentDraft.findUnique({
+const loadDraft = (paymentOrderCode: string) =>
+  prisma.checkoutPaymentDraft.findUnique({
     where: { paymentOrderCode },
+    select: {
+      id: true,
+      amountDiscount: true,
+      amountShipping: true,
+      amountSubtotal: true,
+      amountTotal: true,
+      currency: true,
+      editTokenHash: true,
+      items: true,
+      paymentOrderCode: true,
+      paymentStatus: true,
+      status: true,
+    },
   });
+
+const verifyDraft = async (paymentOrderCode: string, editToken: string) => {
+  const draft = await loadDraft(paymentOrderCode);
   if (!draft?.editTokenHash) return null;
   if (draft.editTokenHash !== hashCheckoutEditorToken(editToken)) return null;
   return draft;
-};
-
-const readDraftItemsForRelease = (value: Prisma.JsonValue) => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) {
-        return { quantity: 0, variantId: null };
-      }
-      return {
-        quantity: typeof item.quantity === "number" ? item.quantity : 0,
-        variantId: typeof item.variantId === "string" ? item.variantId : null,
-      };
-    })
-    .filter((item) => item.variantId && item.quantity > 0);
 };
 
 export async function GET(req: Request) {
@@ -129,23 +126,15 @@ export async function DELETE(req: Request) {
     return jsonNoStore({ error: "Sessiondaten fehlen." }, { status: 400 });
   }
 
-  const draft = await verifyDraft(paymentOrderCode, editToken);
+  const draft = await loadDraft(paymentOrderCode);
   if (!draft) {
+    return jsonNoStore({ ok: true });
+  }
+  if (draft.editTokenHash !== hashCheckoutEditorToken(editToken)) {
     return jsonNoStore({ error: "Ungültige Session." }, 403);
   }
 
-  if (draft.status !== "paid") {
-    await prisma.checkoutPaymentDraft.update({
-      where: { paymentOrderCode },
-      data: { paymentStatus: "cancelled", status: "cancelled" },
-    });
-    await releaseReservedInventoryForItems(
-      readDraftItemsForRelease(draft.items),
-      paymentOrderCode,
-      { logMissingReservation: false },
-    );
-    await releaseLoyaltyHoldForPaymentOrder(paymentOrderCode);
-  }
+  await cancelPendingCheckoutPaymentDraft(draft);
 
   return jsonNoStore({ ok: true });
 }

@@ -39,6 +39,7 @@ import {
   getVivaSourceCode,
 } from "@/lib/viva";
 import { findRedeemableDiscountCode } from "@/lib/discountCodes";
+import { expireStaleCheckoutPaymentDrafts } from "@/lib/paymentCheckoutReservations";
 
 export const runtime = "nodejs";
 
@@ -315,6 +316,8 @@ export async function POST(req: Request) {
       { status: 429 },
     );
   }
+
+  await expireStaleCheckoutPaymentDrafts();
 
   const authSession = await getServerSession(authOptions);
   const body = await req.json().catch(() => ({}));
