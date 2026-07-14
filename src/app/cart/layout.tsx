@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import PageLayout from "@/components/PageLayout";
 
 export const metadata: Metadata = {
   robots: {
@@ -17,5 +16,5 @@ export default function CartLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <PageLayout commerce>{children}</PageLayout>;
+  return children;
 }

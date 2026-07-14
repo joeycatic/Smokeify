@@ -295,7 +295,7 @@ export default async function SeoCategoryPage({ params }: PageProps) {
 
   return (
     <PageLayout commerce>
-      <main className="mx-auto w-full max-w-7xl px-4 pb-8 pt-4 sm:px-6">
+      <main className="w-full pb-8 pt-4">
         <nav
           aria-label="Breadcrumb"
           className="mb-2 flex flex-wrap items-center gap-2 text-xs text-stone-500"

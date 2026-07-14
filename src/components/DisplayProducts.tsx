@@ -6,7 +6,6 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { ArrowTopRightOnSquareIcon, EyeIcon } from "@heroicons/react/24/outline";
 import ProductCardActions from "@/components/ProductCardActions";
-import CompareProductButton from "@/components/CompareProductButton";
 import Badge from "@/components/ui/Badge";
 import StarRating from "@/components/ui/StarRating";
 import type { Product } from "@/data/types";
@@ -278,9 +277,8 @@ export default function DisplayProducts({
                       {formatPrice(p.priceRange?.minVariantPrice)}
                     </span>
                   </div>
-                  <div className="mt-4 flex w-full items-center">
                   <div
-                    className={`grid w-full items-center ${
+                    className={`mt-4 grid w-full items-center ${
                       compactMobileGrid
                         ? "grid-cols-2 gap-1 sm:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] sm:gap-2"
                         : "grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-2"
@@ -347,10 +345,6 @@ export default function DisplayProducts({
                       </Link>
                     </div>
                   </div>
-                  <div className="mt-2 flex justify-end">
-                    <CompareProductButton productId={p.id} />
-                  </div>
-                </div>
                 </div>
               </div>
           </article>
@@ -479,7 +473,6 @@ export function DisplayProductsList({
                   </div>
                 </div>
                 <div className="flex w-full flex-wrap items-center justify-start gap-3">
-                  <CompareProductButton productId={p.id} />
                   <ProductCardActions
                     productId={p.id}
                     variantId={p.defaultVariantId ?? null}

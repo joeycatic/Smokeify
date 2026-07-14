@@ -8,9 +8,15 @@ describe("Smokeify storefront parity contracts", () => {
   it("uses MAIN landing-page merchandising and catalog-driven fallbacks", () => {
     const homepage = source("src/app/page.tsx");
     const landingConfig = source("src/lib/landingPageConfig.ts");
+    const tentProducts = source("src/lib/growTentHotspotProducts.ts");
+    const hero = source("src/components/landing/HeroSection.tsx");
 
     expect(homepage).toContain('resolveLandingPageProductSections("MAIN"');
     expect(homepage).toContain("getNavbarCategories()");
+    expect(homepage).toContain("getGrowTentHotspotProducts()");
+    expect(hero).toContain("GrowTentViewerLoader");
+    expect(tentProducts).toContain('buildStorefrontProductWhere("MAIN"');
+    expect(tentProducts).not.toContain("diamondbox-sl-60");
     expect(landingConfig).toContain("getProductsByIdsForStorefront(allIds, storefront)");
     expect(landingConfig).not.toContain("diamondbox-sl-60");
     expect(landingConfig).not.toContain("lux-helios-pro-300-watt-2-8");

@@ -10,6 +10,7 @@ import {
 } from "@/components/landing/data/landingPageData";
 import type { Product } from "@/data/types";
 import { requireAdmin } from "@/lib/adminCatalog";
+import { getGrowTentHotspotProducts } from "@/lib/growTentHotspotProducts";
 import { resolveLandingPageProductSections } from "@/lib/landingPageConfig";
 import { getNavbarCategories } from "@/lib/navbarCategories";
 import { SITE_NAME, buildAbsoluteUrl } from "@/lib/siteConfig";
@@ -59,11 +60,12 @@ export default async function StorePage({
     (Array.isArray(previewValue) ? previewValue[0] : previewValue) === "draft";
   const canPreviewDraft = previewRequested && Boolean(await requireAdmin());
 
-  const [homepageProducts, navbarCategories] = await Promise.all([
+  const [homepageProducts, navbarCategories, growTentProducts] = await Promise.all([
     resolveLandingPageProductSections("MAIN", {
       previewDraft: canPreviewDraft,
     }),
     getNavbarCategories(),
+    getGrowTentHotspotProducts(),
   ]);
 
   const showcasedProducts = pickUniqueProducts(
@@ -83,15 +85,6 @@ export default async function StorePage({
     4,
     new Set(showcasedProducts.map((product) => product.id)),
   );
-  const heroProducts = pickUniqueProducts(
-    [
-      homepageProducts.heroProducts,
-      homepageProducts.tentProducts,
-      homepageProducts.bestSellerProducts,
-    ],
-    3,
-  );
-
   const categories: CategoryCard[] = navbarCategories
     .filter((category) => !category.parentId && category.totalItemCount > 0)
     .sort((left, right) => right.totalItemCount - left.totalItemCount)
@@ -132,7 +125,7 @@ export default async function StorePage({
             Smokeify-Homepage.
           </div>
         ) : null}
-        <HeroSection products={heroProducts} />
+        <HeroSection growTentProducts={growTentProducts} />
         <CategoryGrid categories={categories} />
         <SocialProofBar proof={socialProof} />
         <LegacyStorefrontSections

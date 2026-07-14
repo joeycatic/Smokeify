@@ -3,6 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 test.describe.configure({ mode: "serial" });
 test.setTimeout(360_000);
 
+const initializedPages = new WeakSet<Page>();
+
 async function dismissCookieBanner(page: Page) {
   const necessaryOnly = page.getByRole("button", { name: "Nur notwendige" });
   const visible = await necessaryOnly
@@ -24,12 +26,15 @@ async function firstCatalogProductHref(page: Page) {
 }
 
 async function gotoStorefront(page: Page, path: string) {
-  await page.addInitScript(() => {
-    window.sessionStorage.setItem(
-      "smokeify-newsletter-offer-dismissed-v1",
-      "e2e",
-    );
-  });
+  if (!initializedPages.has(page)) {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem(
+        "smokeify-newsletter-offer-dismissed-v1",
+        "e2e",
+      );
+    });
+    initializedPages.add(page);
+  }
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await dismissCookieBanner(page);
 }
@@ -55,6 +60,8 @@ test("homepage renders primary storefront entry points", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: /Pflanzenfoto analysieren/i }).first(),
   ).toBeVisible();
+  await expect(page.locator(".gv-tent-canvas")).toBeVisible();
+  await expect(page.getByText(/Ziehen zum Drehen/)).toBeVisible();
 });
 
 test("products page renders a catalog state", async ({ page }) => {
@@ -184,8 +191,23 @@ test("configured product can reach cart and checkout start when stock is availab
   await gotoStorefront(page, "/cart");
   await expect(page.getByRole("button", { name: "Zur Kasse" })).toBeVisible();
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await gotoStorefront(page, "/checkout/start?country=DE");
   await expect(
-    page.getByRole("heading", { name: "Lieferdaten bestätigen" }),
+    page.getByRole("heading", { name: "Wohin dürfen wir liefern?" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Checkout-Fortschritt" }),
+  ).toBeVisible();
+  const mobileSummary = page.locator(
+    'button[aria-controls="checkout-order-summary-mobile"]',
+  );
+  await expect(mobileSummary).toBeVisible();
+  await mobileSummary.click();
+  await expect(page.locator("#checkout-order-summary-mobile")).toBeVisible();
+  await expectNoPageOverflow(page);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(mobileSummary).toBeHidden();
+  await expectNoPageOverflow(page);
 });

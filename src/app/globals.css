@@ -191,6 +191,11 @@ textarea {
   contain-intrinsic-size: 720px;
 }
 
+/* OrbitControls must not capture vertical page scrolling on touch devices. */
+.gv-tent-canvas canvas {
+  touch-action: pan-y !important;
+}
+
 .gv-glass,
 .smk-surface {
   border: 1px solid var(--gv-border);

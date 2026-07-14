@@ -5,6 +5,7 @@ import { getProductByHandle } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import { getProductRecommendations } from "@/lib/recommendations";
 import ProductDetailClient from "./ProductDetailClient";
+import ProductContentSections from "./ProductContentSections";
 import ProductImageCarousel from "./ProductImageCarousel";
 import RecommendedProductsCarousel from "./RecommendedProductsCarousel";
 import ProductReviews from "./ProductReviews";
@@ -15,7 +16,6 @@ import {
   buildProductSeoDescription,
   buildProductSeoTitle,
 } from "@/lib/productSeo";
-import { InformationCircleIcon, PlusIcon } from "@heroicons/react/24/outline";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
@@ -236,68 +236,53 @@ export default async function ProductDetailPage({
     }),
     offers,
   };
+  const breadcrumbItems = [
+    { name: "Startseite", path: "/" },
+    { name: "Produkte", path: "/products" },
+    { name: product.title, path: canonicalPath },
+  ];
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Startseite",
-        item: siteUrl,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Produkte",
-        item: `${siteUrl}/products`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: product.title,
-        item: canonicalUrl,
-      },
-    ],
+    itemListElement: breadcrumbItems.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${siteUrl}${item.path === "/" ? "" : item.path}`,
+    })),
   };
   const hasDiscount = product.variants.some((variant) => variant.compareAt);
   return (
     <PageLayout commerce>
-      <main className="mx-auto w-full max-w-7xl px-0 py-6 text-[color:var(--gv-text)] sm:px-2">
-        <div className="rounded-[32px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] p-2 shadow-[var(--gv-shadow-lg)] sm:p-4">
-          <div className="grid grid-cols-1 gap-6 lg:items-start lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="space-y-6">
-              <div className="relative rounded-[24px] border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] p-2 shadow-sm">
+      <main className="-mx-4 -mt-10 w-[calc(100%+2rem)] pb-6 pt-0 sm:mx-auto sm:mt-0 sm:w-full sm:max-w-7xl sm:px-2 sm:py-6">
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-3 flex flex-wrap items-center gap-2 px-4 text-xs text-[color:var(--gv-text-muted)] sm:px-4"
+        >
+          {breadcrumbItems.map((item, index) => (
+            <span key={item.path} className="flex items-center gap-2">
+              {index < breadcrumbItems.length - 1 ? (
+                <a href={item.path} className="hover:text-[color:var(--gv-text)]">
+                  {item.name}
+                </a>
+              ) : (
+                <span className="text-[color:var(--gv-text)]">{item.name}</span>
+              )}
+              {index < breadcrumbItems.length - 1 ? <span>/</span> : null}
+            </span>
+          ))}
+        </nav>
+        <div className="overflow-hidden border-y border-[color:var(--gv-border)] bg-[radial-gradient(120%_120%_at_50%_0%,var(--gv-lime-glow)_0%,var(--gv-surface)_34%,var(--gv-dark)_100%)] shadow-[var(--gv-shadow-lg)] sm:overflow-visible sm:rounded-[32px] sm:border sm:p-4">
+          <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.08fr)_minmax(390px,0.92fr)] lg:items-start lg:gap-5">
+            <div className="lg:sticky lg:top-24">
+              <div className="relative bg-[color:var(--gv-dark)]/92 shadow-[var(--gv-shadow)] sm:rounded-[24px] sm:border sm:border-[color:var(--gv-border)] sm:p-2">
                 <ProductImageCarousel images={images} alt={product.title} />
-                {hasDiscount && (
-                  <span className="absolute left-6 top-6 rounded-full bg-[color:var(--gv-clay)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow">
+                {hasDiscount ? (
+                  <span className="absolute left-4 top-4 rounded-full bg-[color:var(--gv-lime)] px-3 py-1 font-[family:var(--font-jetbrains-mono)] text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-forest)] shadow sm:left-6 sm:top-6">
                     Sale
                   </span>
-                )}
+                ) : null}
               </div>
-              {product.description && (
-                <div className="hidden rounded-[24px] border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] shadow-sm sm:block">
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black [&::-webkit-details-marker]:hidden">
-                      <span className="flex items-center gap-2 text-sm font-semibold text-[var(--smk-text)]">
-                        <InformationCircleIcon className="h-5 w-5 text-[var(--smk-text-muted)]" />
-                        Produktbeschreibung
-                      </span>
-                      <PlusIcon className="h-5 w-5 text-[var(--smk-text-muted)] transition-transform duration-300 group-open:rotate-45" />
-                    </summary>
-                    <div className="grid grid-rows-[0fr] transition-all duration-500 ease-out group-open:grid-rows-[1fr]">
-                      <div className="overflow-hidden px-5 pb-5">
-                        <div
-                          className="product-description product-description-compact text-xxs leading-6 text-[var(--smk-text-muted)]"
-                          dangerouslySetInnerHTML={{
-                            __html: product.description,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </details>
-                </div>
-              )}
             </div>
 
             <ProductDetailClient
@@ -324,6 +309,18 @@ export default async function ProductDetailPage({
             />
           </div>
         </div>
+
+        <ProductContentSections
+          product={{
+            title: product.title,
+            descriptionHtml: product.description ?? "",
+            technicalDetailsHtml: product.technicalDetails ?? "",
+            shortDescription: product.shortDescription ?? null,
+            manufacturer: product.manufacturer ?? null,
+            growboxSize: product.growboxSize ?? null,
+            categories: product.categories ?? [],
+          }}
+        />
 
         {recommendedCarouselItems.length > 0 && (
           <RecommendedProductsCarousel items={recommendedCarouselItems} />

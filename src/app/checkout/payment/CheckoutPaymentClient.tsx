@@ -1,9 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, LockKeyhole, ShieldCheck } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import CheckoutProgress from "@/app/checkout/start/components/CheckoutProgress";
+import OrderSummary from "@/app/checkout/start/components/OrderSummary";
 import {
   clearCheckoutPaymentStateHash,
   clearCheckoutPaymentState,
@@ -35,7 +38,7 @@ type CheckoutSessionSummaryResponse = {
 function VivaComLogo({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-2.5 text-[var(--smk-text)] ${className}`}
+      className={`inline-flex items-center gap-2.5 text-[color:var(--gv-text)] ${className}`}
       aria-label="viva.com"
     >
       <svg aria-hidden="true" viewBox="0 0 64 40" className="h-8 w-[52px] shrink-0" fill="none">
@@ -73,6 +76,12 @@ const formatMoney = (cents: number, currency = "EUR") =>
     currency,
     minimumFractionDigits: 2,
   }).format(cents / 100);
+
+const checkoutPrimaryButtonClassName =
+  "inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-[color:var(--gv-lime)] px-4 text-sm font-semibold text-[color:var(--gv-forest)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60";
+
+const checkoutSecondaryButtonClassName =
+  "inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-4 text-sm font-semibold text-[color:var(--gv-text)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/24 hover:bg-[color:var(--gv-lime)]/10";
 
 export default function CheckoutPaymentClient() {
   const router = useRouter();
@@ -250,16 +259,30 @@ export default function CheckoutPaymentClient() {
 
   if (loadState === "error") {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <section className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
-          <div className="rounded-2xl border border-[var(--smk-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm text-[var(--smk-error)]">
-            {pageError ?? "Checkout-Session konnte nicht geladen werden."}
-          </div>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={() => router.push("/checkout/start")} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
-              Zur Adresse zurück
+      <div className="mx-auto flex min-h-[65vh] max-w-xl items-center px-4 py-12 text-center">
+        <section className="gv-checkout-surface w-full rounded-[26px] px-6 py-8 sm:px-8">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-[18px] bg-amber-100 text-amber-800">
+            <LockKeyhole className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <h1 className="mt-4 text-xl font-bold text-[color:var(--gv-text)]">
+            Checkout nicht gefunden
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--gv-text-muted)]">
+            {pageError ?? "Starte den Checkout bitte erneut aus deinem Warenkorb."}
+          </p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => router.push("/checkout/start")}
+              className={checkoutPrimaryButtonClassName}
+            >
+              Lieferdaten öffnen
             </button>
-            <button type="button" onClick={() => router.push("/cart")} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
+            <button
+              type="button"
+              onClick={() => router.push("/cart")}
+              className={checkoutSecondaryButtonClassName}
+            >
               Zum Warenkorb
             </button>
           </div>
@@ -270,98 +293,120 @@ export default function CheckoutPaymentClient() {
 
   if (!paymentState || !summary || loadState === "loading") {
     return (
-      <div className="mx-auto flex min-h-[55vh] w-full max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
-        <LoadingSpinner size="md" className="border-white/15 border-t-[var(--smk-accent)]" />
-        <p className="mt-4 text-sm text-[var(--smk-text-muted)]">Zahlungsseite wird vorbereitet...</p>
+      <div className="mx-auto flex min-h-[55vh] w-full max-w-xl items-center px-4 py-12 text-center">
+        <div className="gv-checkout-surface w-full rounded-[26px] px-6 py-8 sm:px-8">
+          <LoadingSpinner
+            size="md"
+            className="mx-auto border-[color:var(--gv-lime)]/25 border-t-[color:var(--gv-lime)]"
+          />
+          <p className="mt-4 text-sm text-[color:var(--gv-text-muted)]">
+            Zahlungsseite wird vorbereitet…
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">
-            Checkout
-          </p>
-          <h1 className="smk-heading mt-2 text-3xl text-[var(--smk-text)] sm:text-4xl">
-            Zahlung abschließen
-          </h1>
-        </div>
-        <button type="button" onClick={() => router.push("/checkout/start")} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
-          Adresse ändern
-        </button>
-      </div>
+    <div className="mx-auto w-full max-w-[1200px] px-3 py-4 sm:px-6 sm:py-7 lg:px-8">
+      <section className="gv-checkout-surface rounded-[22px] px-3 py-4 sm:px-5">
+        <CheckoutProgress
+          currentStep="payment"
+          onStepClick={(step) => {
+            if (step === "cart") router.push("/cart");
+            if (step === "address") router.push("/checkout/start");
+          }}
+        />
 
-      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
-          <div className="mb-6 flex items-center justify-between gap-4 border-b border-[var(--smk-border)] pb-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
-                Zahlungsanbieter
-              </p>
-              <VivaComLogo className="mt-2" />
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            {!autoRedirected ? (
-              <LoadingSpinner size="md" className="mt-1 border-white/15 border-t-[var(--smk-accent)]" />
-            ) : null}
-            <div>
-              <h2 className="text-xl font-semibold text-[var(--smk-text)]">
-                {autoRedirected ? "Zahlung fortsetzen" : "Weiter zu Viva Smart Checkout"}
-              </h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--smk-text-muted)]">
-                {autoRedirected
-                  ? "Du bist vom Viva Checkout zurückgekehrt. Du kannst die Zahlung erneut öffnen, deine Lieferdaten prüfen oder den Checkout abbrechen."
-                  : "Du wirst zur sicheren Viva-Zahlungsseite weitergeleitet. Dort kannst du mit den für Smokeify aktivierten Zahlungsarten bezahlen."}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-3">
-            <a
-              href={paymentState.checkoutUrl}
-              className="smk-button-primary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold"
-              onClick={() => {
-                redirectStarted.current = true;
-                markAutoRedirected(paymentState.orderCode);
-              }}
-            >
-              Jetzt bezahlen
-            </a>
-            <button type="button" onClick={startVivaRedirect} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
-              Weiterleitung erneut starten
-            </button>
-            <button type="button" onClick={() => router.push("/checkout/start")} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
-              Lieferdaten prüfen
-            </button>
-            <button type="button" onClick={() => void cancelDraft()} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">
-              Abbrechen
-            </button>
-          </div>
-        </section>
-
-        <aside className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Bestellübersicht</p>
-          <div className="mt-4 space-y-3">
-            {summary.items.map((item) => (
-              <div key={`${item.variantId}-${item.name}`} className="flex items-center gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] p-3">
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white">{item.imageUrl ? <Image src={item.imageUrl} alt={item.name} fill sizes="64px" className="object-cover" /> : null}</div>
-                <div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm font-semibold text-[var(--smk-text)]">{item.name}</p><p className="mt-1 text-xs text-[var(--smk-text-muted)]">Menge {item.quantity}</p></div>
-                <p className="text-sm font-semibold text-[var(--smk-text)]">{formatMoney(item.lineTotalCents, summary.currency)}</p>
+        <div className="mt-4 grid gap-3 sm:mt-5 lg:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)] lg:items-start lg:gap-5">
+          <div className="order-2 min-w-0 rounded-[24px] bg-[linear-gradient(145deg,#edf6ef_0%,#ffffff_62%)] p-5 ring-1 ring-emerald-900/10 sm:p-7 lg:order-1">
+            <div className="flex items-center justify-between gap-4 border-b border-emerald-950/8 pb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+                  Sicher bezahlen mit
+                </p>
+                <VivaComLogo className="mt-1.5" />
               </div>
-            ))}
+              <span className="grid h-11 w-11 place-items-center rounded-[16px] bg-emerald-100 text-emerald-800">
+                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+              </span>
+            </div>
+
+            <div className="mt-5 flex items-start gap-4">
+              {!autoRedirected ? (
+                <LoadingSpinner
+                  size="md"
+                  className="mt-1 border-[color:var(--gv-lime)]/30 border-t-[color:var(--gv-lime)]"
+                />
+              ) : null}
+              <div>
+                <h1 className="font-[family:var(--font-syne)] text-2xl font-bold tracking-[-0.04em] text-[color:var(--gv-text)]">
+                  {autoRedirected ? "Zahlung erneut öffnen" : "Bereit für die Zahlung"}
+                </h1>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--gv-text-muted)]">
+                  {autoRedirected
+                    ? "Du bist zurück bei Smokeify. Deine Bestellung ist erst bezahlt, wenn Viva die Zahlung bestätigt."
+                    : "Wir öffnen gleich Viva Smart Checkout. Dort wählst du deine Zahlungsart und bestätigst den Betrag."}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-end justify-between gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-emerald-900/8">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--gv-text-muted)]">
+                  Zu zahlen
+                </p>
+                <p className="mt-1 font-[family:var(--font-syne)] text-2xl font-bold">
+                  {formatMoney(summary.totalCents, summary.currency)}
+                </p>
+              </div>
+              <PaymentMethodLogos
+                className="justify-end gap-1.5"
+                pillClassName="h-7 border-emerald-950/8 bg-white px-2"
+                logoClassName="h-3.5"
+              />
+            </div>
+
+            {autoRedirected ? (
+              <div
+                className="mt-4 rounded-[16px] bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+                role="status"
+              >
+                Noch nicht bezahlt. Öffne Viva erneut oder bearbeite deine Lieferdaten.
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                className={checkoutPrimaryButtonClassName}
+                onClick={startVivaRedirect}
+              >
+                {autoRedirected ? "Zahlung erneut öffnen" : "Jetzt sicher bezahlen"}
+              </button>
+              <button
+                type="button"
+                className={checkoutSecondaryButtonClassName}
+                onClick={() => router.push("/checkout/start")}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Lieferdaten bearbeiten
+              </button>
+              <button
+                type="button"
+                className="min-h-11 text-sm font-semibold text-[color:var(--gv-text-muted)] underline-offset-4 hover:text-[color:var(--gv-error)] hover:underline sm:col-span-2"
+                onClick={() => void cancelDraft()}
+              >
+                Checkout abbrechen und zum Warenkorb
+              </button>
+            </div>
           </div>
-          <div className="mt-6 space-y-3 rounded-[24px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] p-4">
-            <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Zwischensumme</span><span>{formatMoney(summary.subtotalCents, summary.currency)}</span></div>
-            {(summary.discountCents ?? 0) > 0 ? <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Rabatt</span><span>-{formatMoney(summary.discountCents ?? 0, summary.currency)}</span></div> : null}
-            <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Versand</span><span>{formatMoney(summary.shippingCents, summary.currency)}</span></div>
-            <div className="flex items-center justify-between text-base font-semibold text-[var(--smk-text)]"><span>Gesamt</span><span>{formatMoney(summary.totalCents, summary.currency)}</span></div>
-          </div>
-        </aside>
-      </div>
+
+          <aside className="order-1 lg:order-2 lg:sticky lg:top-5">
+            <OrderSummary {...summary} />
+          </aside>
+        </div>
+      </section>
     </div>
   );
 }

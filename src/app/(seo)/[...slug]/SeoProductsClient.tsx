@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import {
   Bars3BottomLeftIcon,
+  MagnifyingGlassIcon,
   Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 import type { Product, ProductFilters } from "@/data/types";
@@ -243,7 +244,7 @@ export default function SeoProductsClient({
     if (filters.searchQuery?.trim()) {
       chips.push({
         key: "search",
-        label: `Search: ${filters.searchQuery.trim()}`,
+        label: `Suche: ${filters.searchQuery.trim()}`,
         onRemove: () =>
           setFilters((prev) => ({
             ...prev,
@@ -330,31 +331,40 @@ export default function SeoProductsClient({
   }, [filters.searchQuery]);
 
   return (
-    <div className="w-full text-[var(--smk-text)]">
-      <div className="mt-0 overflow-hidden rounded-[40px] border border-[var(--smk-border)] bg-[radial-gradient(circle_at_top_left,rgba(233,188,116,0.12),transparent_22%),radial-gradient(circle_at_82%_18%,rgba(217,119,69,0.1),transparent_24%),linear-gradient(135deg,rgba(18,16,14,0.99)_0%,rgba(28,24,21,0.98)_42%,rgba(11,10,9,1)_100%)] px-6 py-10 text-[var(--smk-text)] shadow-[0_18px_48px_rgba(0,0,0,0.28)] sm:px-10">
-        <div className="relative text-center">
-          <div className="absolute left-0 top-0 h-24 w-24 rounded-full bg-[rgba(233,188,116,0.1)] blur-2xl" />
-          <div className="absolute bottom-0 right-0 h-28 w-28 rounded-full bg-[rgba(217,119,69,0.1)] blur-2xl" />
-          <div className="relative">
-            <p className="smk-kicker">Kategorie</p>
-            <h1 className="smk-heading mt-4 text-4xl text-[var(--smk-text)] sm:text-5xl">{title}</h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm text-[var(--smk-text-muted)] sm:text-base">{subtitle}</p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-              <span className="smk-chip">{sortedProducts.length} Produkte</span>
+    <div className="w-full text-[color:var(--gv-text)]">
+      <div className="gv-panel mt-0 rounded-[28px] px-4 py-4 sm:px-7 sm:py-6">
+        <div className="flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="gv-chip">Produkte</span>
+              <span className="font-[family:var(--font-jetbrains-mono)] text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--gv-lime)] lg:hidden">
+                {sortedProducts.length} Treffer
+              </span>
             </div>
+            <h1 className="font-[family:var(--font-syne)] text-2xl font-bold tracking-[-0.04em] text-[color:var(--gv-text)] sm:text-4xl">
+              {title}
+            </h1>
+            <p className="max-w-3xl text-sm leading-6 text-[color:var(--gv-text-muted)]">
+              {subtitle}
+            </p>
+          </div>
+          <div className="hidden text-right lg:block">
+            <p className="font-[family:var(--font-jetbrains-mono)] text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--gv-lime)]">
+              {sortedProducts.length} Treffer
+            </p>
           </div>
         </div>
 
         {sizeLinks && sizeLinks.length > 0 && (
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2 sm:mt-6">
             {sizeLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                className={`inline-flex rounded-full border px-4 py-2 text-xs font-semibold transition ${
                   link.active
-                    ? "bg-[linear-gradient(135deg,#f1c684_0%,#d97745_100%)] text-[#1a140f]"
-                    : "border border-[var(--smk-border)] bg-[rgba(255,255,255,0.05)] text-[var(--smk-text-muted)] hover:bg-[rgba(255,255,255,0.08)]"
+                    ? "border-[color:var(--gv-lime)]/45 bg-[color:var(--gv-lime)]/12 text-[color:var(--gv-text)]"
+                    : "border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text-muted)] hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-lime)]/8 hover:text-[color:var(--gv-text)]"
                 }`}
               >
                 {link.label}
@@ -363,95 +373,102 @@ export default function SeoProductsClient({
           </div>
         )}
 
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-md">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--smk-text-dim)]">
-              <svg
+        <div className="mt-4 flex flex-col gap-3 sm:mt-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="w-full xl:max-w-2xl">
+            <div className="relative">
+              <MagnifyingGlassIcon
                 aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <line x1="20" y1="20" x2="16.5" y2="16.5" />
-              </svg>
-            </span>
-            <input
-              type="search"
-              value={filters.searchQuery ?? ""}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
-              }
-              placeholder={`${title} durchsuchen...`}
-              className="smk-input h-12 w-full rounded-2xl pl-12 pr-4 text-sm shadow-[0_12px_30px_rgba(8,18,14,0.15)]"
-            />
-          </div>
-          <div className="mx-auto w-full max-w-[23rem] sm:mx-0 sm:max-w-none sm:flex sm:w-auto sm:items-center">
-            <div className="flex justify-center gap-2 sm:flex sm:items-center sm:justify-center sm:gap-3">
-              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] p-[6px] shadow-sm sm:h-12 sm:w-40">
-              <span
-                className={`absolute top-[5px] bottom-[5px] rounded-full bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] transition-all duration-200 ease-out ${
-                  layout === "grid"
-                    ? "left-[5px] right-[calc(50%-1px)]"
-                    : "left-[calc(50%+1px)] right-[5px]"
-                }`}
-                aria-hidden="true"
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[color:var(--gv-text-muted)]"
               />
-              <button
-                type="button"
-                onClick={() => setLayout("grid")}
-                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
-                  layout === "grid"
-                    ? "text-[#1a140f]"
-                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
-                }`}
-              >
-                <Squares2X2Icon className="h-4 w-4" />
-                {isMobile ? "Cards" : "4x"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setLayout("list")}
-                className={`relative z-10 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full pb-0.5 text-sm font-semibold transition ${
-                  layout === "list"
-                    ? "text-[#1a140f]"
-                    : "text-[#2f241d] hover:bg-[#3a2e26]/10"
-                }`}
-              >
-                <Bars3BottomLeftIcon className="h-4 w-4" />
-                {isMobile ? "List" : "1x"}
-              </button>
+              <input
+                type="search"
+                value={filters.searchQuery ?? ""}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchQuery: e.target.value,
+                  }))
+                }
+                placeholder={`${title} durchsuchen...`}
+                className="gv-input h-11 w-full rounded-full pl-12 pr-4 text-sm shadow-[0_12px_32px_rgba(0,0,0,0.24)] outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
+              />
             </div>
-            <FilterDrawer
-              filters={filters}
-              setFilters={setFilters}
-              availableCategories={availableCategories}
-              availableManufacturers={availableManufacturers}
-              priceMinBound={priceMinBound}
-              priceMaxBound={priceMaxBound}
-              resultCount={sortedProducts.length}
-              onReset={resetFilters}
-              triggerClassName="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-5 text-sm font-semibold text-[#1a140f] shadow-sm transition hover:border-[var(--smk-border-strong)] sm:h-12 sm:w-auto sm:px-6"
-              triggerBadgeClassName="rounded-full bg-black/10 px-2.5 py-1 text-sm font-semibold text-[#1a140f]"
-            />
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            <div className="flex justify-center gap-2 sm:gap-3">
+              <div className="relative grid h-11 w-36 grid-cols-2 overflow-hidden rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] p-[5px] shadow-[0_12px_24px_rgba(0,0,0,0.18)]">
+                <span
+                  className={`absolute bottom-1 top-1 rounded-full bg-[color:var(--gv-lime)] transition-all duration-200 ease-out ${
+                    layout === "grid"
+                      ? "left-1 right-[calc(50%-1px)]"
+                      : "left-[calc(50%+1px)] right-1"
+                  }`}
+                  aria-hidden="true"
+                />
+                <button
+                  type="button"
+                  onClick={() => setLayout("grid")}
+                  aria-label="Rasteransicht"
+                  aria-pressed={layout === "grid"}
+                  className={`relative z-10 inline-flex h-[34px] w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${
+                    layout === "grid"
+                      ? "text-white"
+                      : "text-[color:var(--gv-text-muted)] hover:text-[color:var(--gv-text)]"
+                  }`}
+                >
+                  <Squares2X2Icon className="h-4 w-4" />
+                  <span className="sm:hidden">2x</span>
+                  <span className="hidden sm:inline">4x</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayout("list")}
+                  aria-label="Einspaltige Ansicht"
+                  aria-pressed={layout === "list"}
+                  className={`relative z-10 inline-flex h-[34px] w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${
+                    layout === "list"
+                      ? "text-white"
+                      : "text-[color:var(--gv-text-muted)] hover:text-[color:var(--gv-text)]"
+                  }`}
+                >
+                  <Bars3BottomLeftIcon className="h-4 w-4" />
+                  1x
+                </button>
+              </div>
+              <FilterDrawer
+                filters={filters}
+                setFilters={setFilters}
+                availableCategories={availableCategories}
+                availableManufacturers={availableManufacturers}
+                priceMinBound={priceMinBound}
+                priceMaxBound={priceMaxBound}
+                resultCount={sortedProducts.length}
+                onReset={resetFilters}
+                triggerClassName="inline-flex h-11 min-w-[8rem] items-center justify-center gap-2 rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-5 text-sm font-semibold text-[color:var(--gv-text)] shadow-[0_12px_24px_rgba(0,0,0,0.18)] transition hover:border-[color:var(--gv-lime)]/35 sm:w-auto"
+                triggerBadgeClassName="rounded-full bg-[color:var(--gv-lime)] px-2.5 py-1 text-sm font-semibold text-white"
+              />
             </div>
-            <div className="mt-2 flex justify-center sm:ml-3 sm:mt-0">
-              <label className="inline-flex h-11 w-44 items-center rounded-full border border-[var(--smk-border)] bg-[rgba(255,255,255,0.94)] px-3 text-xs font-semibold text-[#2f241d] shadow-sm sm:h-12 sm:w-auto">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortMode)}
-                aria-label="Sortierung"
-                className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-[#1a140f] outline-none sm:w-auto sm:text-center"
-              >
-                <option value="featured">{isMobile ? "Bestseller" : "Empfohlen"}</option>
-                <option value="price_asc">Preis aufsteigend</option>
-                <option value="price_desc">Preis absteigend</option>
-                <option value="name_asc">Name A-Z</option>
-              </select>
+            <div className="flex justify-center">
+              <label className="inline-flex h-11 w-44 items-center rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-3 text-xs font-semibold text-[color:var(--gv-text-muted)] shadow-[0_12px_24px_rgba(0,0,0,0.18)] sm:w-auto">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortMode)}
+                  aria-label="Sortierung"
+                  className="w-full bg-transparent pr-3 text-center text-sm font-semibold text-[color:var(--gv-text)] outline-none sm:w-auto sm:text-center"
+                >
+                  <option value="featured" className="bg-white text-stone-900">
+                    {isMobile ? "Bestseller" : "Empfohlen"}
+                  </option>
+                  <option value="price_asc" className="bg-white text-stone-900">
+                    Preis aufsteigend
+                  </option>
+                  <option value="price_desc" className="bg-white text-stone-900">
+                    Preis absteigend
+                  </option>
+                  <option value="name_asc" className="bg-white text-stone-900">
+                    Name A-Z
+                  </option>
+                </select>
               </label>
             </div>
           </div>
@@ -482,10 +499,11 @@ export default function SeoProductsClient({
       )}
 
       <div onClick={handleSelectItem}>
-        {layout === "grid" ? (
+        {layout === "grid" || isMobile ? (
           <DisplayProducts
             products={visibleProducts}
-            cols={isMobile ? 2 : 4}
+            cols={4}
+            mobileCols={layout === "grid" ? 2 : 1}
             showManufacturer
             titleLines={3}
             showGrowboxSize

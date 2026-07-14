@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import CompareProductButton from "@/components/CompareProductButton";
 import EmptyState from "@/components/common/EmptyState";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ProductCardActions from "@/components/ProductCardActions";
@@ -129,16 +128,13 @@ export default function CompareProductsClient() {
       {!loading && products.length ? (
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {products.map((product) => (
-            <article key={product.id} className="gv-glass rounded-[28px] p-4">
+            <article key={product.id} className="gv-glass flex h-full flex-col rounded-[28px] p-4">
               <div className="relative aspect-square overflow-hidden rounded-[22px] bg-white">
                 {product.featuredImage?.url ? <Image src={product.featuredImage.url} alt={product.featuredImage.altText ?? product.title} fill sizes="(max-width: 768px) 100vw, 25vw" unoptimized={shouldBypassImageOptimization(product.featuredImage.url)} className="object-contain" /> : null}
               </div>
-              <div className="mt-4 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--gv-text-muted)]">{product.manufacturer ?? "Smokeify"}</p>
-                  <h2 className="mt-2 text-xl font-semibold">{product.title}</h2>
-                </div>
-                <CompareProductButton productId={product.id} compact />
+              <div className="mt-4 min-w-0">
+                <p className="text-xs uppercase tracking-[0.16em] text-[color:var(--gv-text-muted)]">{product.manufacturer ?? "Smokeify"}</p>
+                <h2 className="mt-2 text-xl font-semibold">{product.title}</h2>
               </div>
               <dl className="mt-4 space-y-2 text-sm">
                 {[
@@ -148,7 +144,7 @@ export default function CompareProductsClient() {
                   ["Bewertung", product.reviewSummary?.count ? `${product.reviewSummary.average.toFixed(1)} / 5` : "Noch keine"],
                 ].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 rounded-[18px] border border-[color:var(--gv-border)] bg-white px-4 py-3"><dt className="text-[color:var(--gv-text-muted)]">{label}</dt><dd className="text-right font-semibold">{value}</dd></div>)}
               </dl>
-              <div className="mt-4 space-y-3">
+              <div className="mt-auto space-y-3 pt-4 [&>button]:w-full">
                 <Link href={`/products/${product.handle}`} className="smk-button-secondary inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-semibold">Produkt ansehen</Link>
                 <ProductCardActions productId={product.id} variantId={product.defaultVariantId} available={product.availableForSale} showWishlist={false} itemTitle={product.title} itemImageUrl={product.featuredImage?.url} itemImageAlt={product.featuredImage?.altText ?? product.title} itemPrice={product.priceRange?.minVariantPrice} itemQuantity={1} itemHandle={product.handle} />
               </div>

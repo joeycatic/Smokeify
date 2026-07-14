@@ -1,9 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Home, Inbox } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import PaymentMethodLogos from "@/components/PaymentMethodLogos";
+import CheckoutProgress from "@/app/checkout/start/components/CheckoutProgress";
+import OrderSummary from "@/app/checkout/start/components/OrderSummary";
 import {
   buildCheckoutPaymentStateHash,
   clearCheckoutPaymentState,
@@ -66,6 +69,39 @@ const formatMoney = (cents: number, currency = "EUR") =>
     currency,
     minimumFractionDigits: 2,
   }).format(cents / 100);
+
+const checkoutInputClassName =
+  "gv-input h-12 w-full rounded-[18px] px-4 text-sm outline-none focus:border-[color:var(--gv-lime)]/35 focus:bg-[color:var(--gv-lime)]/8 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15";
+
+const checkoutPrimaryButtonClassName =
+  "inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-[color:var(--gv-lime)] px-4 text-sm font-semibold text-[color:var(--gv-forest)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60";
+
+const checkoutSecondaryButtonClassName =
+  "inline-flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-4 text-sm font-semibold text-[color:var(--gv-text)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/24 hover:bg-[color:var(--gv-lime)]/10";
+
+function CheckoutSectionHeading({
+  number,
+  title,
+  detail,
+}: {
+  number: string;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="mb-4 flex items-center gap-3">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[11px] bg-emerald-100 text-xs font-bold text-emerald-800">
+        {number}
+      </span>
+      <div>
+        <h2 className="text-sm font-bold text-[color:var(--gv-text)]">{title}</h2>
+        <p className="text-xs leading-5 text-[color:var(--gv-text-muted)]">
+          {detail}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const normalizeCountry = (value?: string | null): ShippingCountry | null => {
   const normalized = value?.trim().toUpperCase();
@@ -350,10 +386,15 @@ export default function CheckoutStartClient({
 
   if (loadStatus === "loading") {
     return (
-      <div className="mx-auto flex min-h-[50vh] w-full max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
-        <div className="w-full rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-8 shadow-[var(--gv-shadow-lg)]">
-          <LoadingSpinner size="md" className="border-[color:var(--gv-border)] border-t-[var(--smk-accent)]" />
-          <p className="mt-4 text-sm font-medium text-[var(--smk-text-muted)]">Checkout wird vorbereitet...</p>
+      <div className="mx-auto flex min-h-[55vh] w-full max-w-xl items-center px-4 py-12 text-center">
+        <div className="gv-checkout-surface w-full rounded-[26px] px-6 py-8 sm:px-8">
+          <LoadingSpinner
+            size="md"
+            className="mx-auto border-[color:var(--gv-lime)]/25 border-t-[color:var(--gv-lime)]"
+          />
+          <p className="mt-4 text-sm font-medium text-[color:var(--gv-text-muted)]">
+            Checkout wird vorbereitet…
+          </p>
         </div>
       </div>
     );
@@ -361,11 +402,17 @@ export default function CheckoutStartClient({
 
   if (loadStatus === "error") {
     return (
-      <div className="mx-auto flex min-h-[50vh] w-full max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
-        <div className="w-full rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-8 shadow-[var(--gv-shadow-lg)]">
-          <p className="smk-heading text-2xl text-[var(--smk-text)]">Checkout fehlgeschlagen</p>
-          <p className="mt-2 text-sm text-[var(--smk-text-muted)]">{loadError}</p>
-          <button type="button" onClick={() => router.push("/cart")} className="smk-button-primary mt-5 rounded-full px-5 py-2.5 text-sm font-semibold">
+      <div className="mx-auto flex min-h-[55vh] w-full max-w-xl items-center px-4 py-12 text-center">
+        <div className="gv-checkout-surface w-full rounded-[26px] px-6 py-8 sm:px-8">
+          <p className="font-[family:var(--font-syne)] text-2xl font-bold tracking-[-0.04em] text-[color:var(--gv-text)]">
+            Checkout fehlgeschlagen
+          </p>
+          <p className="mt-2 text-sm text-[color:var(--gv-text-muted)]">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => router.push("/cart")}
+            className={`${checkoutPrimaryButtonClassName} mt-5`}
+          >
             Zum Warenkorb
           </button>
         </div>
@@ -374,81 +421,381 @@ export default function CheckoutStartClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--smk-text-dim)]">Checkout</p>
-        <h1 className="smk-heading mt-2 text-3xl text-[var(--smk-text)] sm:text-4xl">Lieferdaten bestätigen</h1>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--smk-text-muted)]">
-          Nach der Adressprüfung geht es zu Viva Smart Checkout.
-        </p>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2"><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">E-Mail</label><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-            <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Vorname</label><input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-            <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Nachname</label><input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-          </div>
-          <div className="mt-6">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Lieferart</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={() => setShippingAddressType("STREET")} className={`rounded-[24px] border px-4 py-4 text-left transition ${shippingAddressType === "STREET" ? "border-[var(--smk-border-strong)] bg-[color:var(--gv-lime)]/10 text-[var(--smk-text)]" : "border-[var(--smk-border)] bg-[color:var(--gv-surface)] text-[var(--smk-text-muted)]"}`}><p className="font-semibold">Straßenadresse</p><p className="mt-1 text-sm">Klassische Lieferung mit Straße und Hausnummer.</p></button>
-              <button type="button" onClick={() => { setShippingAddressType("PACKSTATION"); setCountry("DE"); }} className={`rounded-[24px] border px-4 py-4 text-left transition ${shippingAddressType === "PACKSTATION" ? "border-[var(--smk-border-strong)] bg-[color:var(--gv-lime)]/10 text-[var(--smk-text)]" : "border-[var(--smk-border)] bg-[color:var(--gv-surface)] text-[var(--smk-text-muted)]"}`}><p className="font-semibold">DHL Packstation</p><p className="mt-1 text-sm">Packstation + Postnummer innerhalb Deutschlands.</p></button>
+    <div className="mx-auto w-full max-w-[1200px] px-3 py-4 sm:px-6 sm:py-7 lg:px-8">
+      <section className="gv-checkout-surface rounded-[22px] px-3 py-4 sm:px-5">
+        <CheckoutProgress
+          currentStep="address"
+          onStepClick={(step) => {
+            if (step === "cart") router.push("/cart");
+          }}
+        />
+
+        <div className="mt-4 grid gap-3 sm:mt-5 lg:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)] lg:items-start lg:gap-5">
+          <form
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSubmit();
+            }}
+            className="gv-checkout-surface order-2 min-w-0 rounded-[26px] p-4 sm:p-6 lg:order-1"
+          >
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+                Schritt 2 · Lieferdaten
+              </p>
+              <h1 className="mt-1.5 font-[family:var(--font-syne)] text-2xl font-bold tracking-[-0.04em] text-[color:var(--gv-text)] sm:text-3xl">
+                Wohin dürfen wir liefern?
+              </h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--gv-text-muted)]">
+                Ohne Konto bestellen. Deine Zahlungsdaten gibst du erst sicher bei Viva ein.
+              </p>
             </div>
-          </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {shippingAddressType === "PACKSTATION" ? (
-              <>
-                <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Packstation</label><input type="text" value={packstationNumber} onChange={(event) => setPackstationNumber(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-                <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Postnummer</label><input type="text" value={postNumber} onChange={(event) => setPostNumber(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-              </>
-            ) : (
-              <>
-                <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Straße</label><input type="text" value={street} onChange={(event) => setStreet(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-                <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Hausnummer</label><input type="text" value={houseNumber} onChange={(event) => setHouseNumber(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-              </>
-            )}
-            <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Postleitzahl</label><input type="text" value={postalCode} onChange={(event) => setPostalCode(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-            <div><label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Stadt</label><input type="text" value={city} onChange={(event) => setCity(event.target.value)} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]" /></div>
-            <div className="sm:col-span-2">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Land</label>
-              <select value={country} onChange={(event) => setCountry(event.target.value as ShippingCountry)} disabled={shippingAddressType === "PACKSTATION"} className="smk-input h-11 w-full rounded-2xl px-4 text-sm focus-visible:ring-offset-[color:var(--gv-forest)] disabled:opacity-70">
-                {Object.entries(SHIPPING_COUNTRY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
+
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-y border-emerald-950/8 py-3 text-[11px] font-semibold text-[color:var(--gv-text-muted)]">
+              <span>✓ Gast-Checkout</span>
+              <span>✓ Sicher bezahlen mit Viva</span>
+              <span>✓ SSL verschlüsselt</span>
             </div>
-          </div>
-          <div className="mt-6 space-y-3">
-            <label className="flex items-start gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] px-4 py-3 text-sm text-[var(--smk-text)]"><input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} className="mt-1 h-4 w-4" /><span>Ich akzeptiere die <a href="/pages/agb" target="_blank" rel="noreferrer" className="underline">AGB</a>.</span></label>
-            <label className="flex items-start gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] px-4 py-3 text-sm text-[var(--smk-text)]"><input type="checkbox" checked={acceptPrivacy} onChange={(event) => setAcceptPrivacy(event.target.checked)} className="mt-1 h-4 w-4" /><span>Ich habe die <a href="/pages/privacy" target="_blank" rel="noreferrer" className="underline">Datenschutzerklärung</a> gelesen.</span></label>
-            <label className="flex items-start gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] px-4 py-3 text-sm text-[var(--smk-text)]"><input type="checkbox" checked={checkoutRecoveryConsent} onChange={(event) => setCheckoutRecoveryConsent(event.target.checked)} className="mt-1 h-4 w-4" /><span>Ich möchte Erinnerungen per E-Mail erhalten, falls ich den Checkout nicht abschließe.</span></label>
-          </div>
-          {submitError ? <div className="mt-5 rounded-[22px] border border-[var(--smk-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm text-[var(--smk-error)]">{submitError}</div> : null}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={() => void handleSubmit()} disabled={submitStatus === "loading" || items.length === 0} className="smk-button-primary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60">{submitStatus === "loading" ? "Zahlungsseite wird vorbereitet..." : "Weiter zur Zahlung"}</button>
-            <button type="button" onClick={() => router.push("/cart")} className="smk-button-secondary inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold">Zurück zum Warenkorb</button>
-          </div>
-        </section>
-        <aside className="rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">Bestellübersicht</p>
-          <div className="mt-4 space-y-3">
-            {items.length === 0 ? <p className="text-sm text-[var(--smk-text-muted)]">Dein Warenkorb ist leer.</p> : items.map((item) => (
-              <div key={`${item.variantId}-${item.name}`} className="flex items-center gap-3 rounded-[22px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] p-3">
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white">{item.imageUrl ? <Image src={item.imageUrl} alt={item.name} fill sizes="64px" className="object-cover" /> : null}</div>
-                <div className="min-w-0 flex-1"><p className="line-clamp-2 text-sm font-semibold text-[var(--smk-text)]">{item.name}</p><p className="mt-1 text-xs text-[var(--smk-text-muted)]">Menge {item.quantity}</p></div>
-                <p className="text-sm font-semibold text-[var(--smk-text)]">{formatMoney(item.lineTotalCents, currency)}</p>
+
+            <section className="py-5">
+              <CheckoutSectionHeading
+                number="01"
+                title="Kontakt"
+                detail="Für Beleg und Versandbenachrichtigung."
+              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-2 sm:col-span-2">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                    E-Mail <span className="text-[color:var(--gv-lime)]">*</span>
+                  </span>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="name@beispiel.de"
+                    className={checkoutInputClassName}
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                    Vorname <span className="text-[color:var(--gv-lime)]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    autoComplete="given-name"
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
+                    className={checkoutInputClassName}
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                    Nachname <span className="text-[color:var(--gv-lime)]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    autoComplete="family-name"
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
+                    className={checkoutInputClassName}
+                  />
+                </label>
               </div>
-            ))}
-          </div>
-          <div className="mt-6 space-y-3 rounded-[24px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] p-4">
-            <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Zwischensumme</span><span>{formatMoney(subtotalCents, currency)}</span></div>
-            {discountCents > 0 ? <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Rabatt</span><span>-{formatMoney(discountCents, currency)}</span></div> : null}
-            <div className="flex items-center justify-between text-sm text-[var(--smk-text-muted)]"><span>Versand</span><span>{shippingLabel}</span></div>
-            <div className="flex items-center justify-between text-base font-semibold text-[var(--smk-text)]"><span>Gesamt</span><span>{formatMoney(totalCents, currency)}</span></div>
-          </div>
-          {initialDiscountCode ? <div className="mt-4 rounded-[22px] border border-[var(--smk-border)] bg-[color:var(--gv-surface)] px-4 py-3 text-sm text-[var(--smk-text-muted)]">Rabattcode aktiv: <span className="font-semibold text-[var(--smk-text)]">{initialDiscountCode}</span></div> : null}
-          {initialUseLoyaltyPoints && loyaltyPointsBalance > 0 ? <div className="mt-4 rounded-[22px] border border-[color:var(--gv-success)]/30 bg-[color:var(--gv-success)]/10 px-4 py-3 text-sm text-[color:var(--gv-success)]">Smokeify Punkte werden im Checkout eingelöst.</div> : null}
-        </aside>
-      </div>
+            </section>
+
+            <section className="border-t border-emerald-950/8 py-5">
+              <CheckoutSectionHeading
+                number="02"
+                title="Lieferart"
+                detail="Wähle Hausadresse oder DHL Packstation."
+              />
+              <div className="grid grid-cols-2 gap-2 rounded-[18px] bg-emerald-50 p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShippingAddressType("STREET")}
+                  aria-pressed={shippingAddressType === "STREET"}
+                  className={`flex min-h-12 items-center justify-center gap-2 rounded-[14px] border px-2 text-center text-xs font-bold transition sm:text-sm ${
+                    shippingAddressType === "STREET"
+                      ? "border-emerald-700/25 bg-white text-emerald-900 shadow-sm"
+                      : "border-transparent bg-transparent text-[color:var(--gv-text-muted)] hover:bg-white/70"
+                  }`}
+                >
+                  <Home className="h-4 w-4" aria-hidden="true" />
+                  <span>Hausadresse</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShippingAddressType("PACKSTATION");
+                    setCountry("DE");
+                  }}
+                  aria-pressed={shippingAddressType === "PACKSTATION"}
+                  className={`flex min-h-12 items-center justify-center gap-2 rounded-[14px] border px-2 text-center text-xs font-bold transition sm:text-sm ${
+                    shippingAddressType === "PACKSTATION"
+                      ? "border-emerald-700/25 bg-white text-emerald-900 shadow-sm"
+                      : "border-transparent bg-transparent text-[color:var(--gv-text-muted)] hover:bg-white/70"
+                  }`}
+                >
+                  <Inbox className="h-4 w-4" aria-hidden="true" />
+                  <span>DHL Packstation</span>
+                </button>
+              </div>
+            </section>
+
+            <section className="border-t border-emerald-950/8 py-5">
+              <CheckoutSectionHeading
+                number="03"
+                title="Zustelladresse"
+                detail="Wir prüfen alle Pflichtfelder vor der Zahlung."
+              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                {shippingAddressType === "PACKSTATION" ? (
+                  <>
+                    <label className="space-y-2">
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                        Packstation Nr. <span className="text-[color:var(--gv-lime)]">*</span>
+                      </span>
+                      <input
+                        type="text"
+                        value={packstationNumber}
+                        onChange={(event) => setPackstationNumber(event.target.value)}
+                        placeholder="123"
+                        className={checkoutInputClassName}
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                        Postnummer <span className="text-[color:var(--gv-lime)]">*</span>
+                      </span>
+                      <input
+                        type="text"
+                        value={postNumber}
+                        onChange={(event) => setPostNumber(event.target.value)}
+                        className={checkoutInputClassName}
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <label className="space-y-2">
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                        Straße <span className="text-[color:var(--gv-lime)]">*</span>
+                      </span>
+                      <input
+                        type="text"
+                        autoComplete="address-line1"
+                        value={street}
+                        onChange={(event) => setStreet(event.target.value)}
+                        className={checkoutInputClassName}
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                        Hausnummer <span className="text-[color:var(--gv-lime)]">*</span>
+                      </span>
+                      <input
+                        type="text"
+                        value={houseNumber}
+                        onChange={(event) => setHouseNumber(event.target.value)}
+                        className={checkoutInputClassName}
+                      />
+                    </label>
+                  </>
+                )}
+                <label className="space-y-2">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                    Postleitzahl <span className="text-[color:var(--gv-lime)]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    value={postalCode}
+                    onChange={(event) => setPostalCode(event.target.value)}
+                    className={checkoutInputClassName}
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                    Stadt <span className="text-[color:var(--gv-lime)]">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    autoComplete="address-level2"
+                    value={city}
+                    onChange={(event) => setCity(event.target.value)}
+                    className={checkoutInputClassName}
+                  />
+                </label>
+                <label className="space-y-2 sm:col-span-2">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
+                    Land <span className="text-[color:var(--gv-lime)]">*</span>
+                  </span>
+                  <select
+                    value={country}
+                    onChange={(event) => setCountry(event.target.value as ShippingCountry)}
+                    disabled={shippingAddressType === "PACKSTATION"}
+                    className={`${checkoutInputClassName} appearance-none disabled:opacity-70`}
+                  >
+                    {Object.entries(SHIPPING_COUNTRY_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <div className="gv-checkout-inset rounded-[18px] px-3 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
+              <p className="text-xs leading-5 text-[color:var(--gv-text-muted)]">
+                <strong className="text-[color:var(--gv-text)]">{shippingLabel}</strong>
+                {" · Lieferung in 2–5 Werktage"}
+              </p>
+              <PaymentMethodLogos
+                className="mt-2 justify-start gap-1.5 sm:mt-0 sm:justify-end"
+                pillClassName="h-7 border-emerald-950/8 bg-white px-2"
+                logoClassName="h-3.5"
+              />
+            </div>
+
+            {initialDiscountCode ||
+            (initialUseLoyaltyPoints && loyaltyPointsBalance > 0) ? (
+              <div className="mt-4 rounded-[22px] border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)]/72 px-4 py-3 text-sm text-[color:var(--gv-text-muted)]">
+                {initialDiscountCode ? (
+                  <p>
+                    Rabattcode wird übernommen:{" "}
+                    <span className="font-semibold text-[color:var(--gv-text)]">
+                      {initialDiscountCode}
+                    </span>
+                  </p>
+                ) : null}
+                {initialUseLoyaltyPoints && loyaltyPointsBalance > 0 ? (
+                  <p className={initialDiscountCode ? "mt-1.5" : undefined}>
+                    Smokeify Punkte werden im Gesamtbetrag berücksichtigt.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <fieldset className="mt-5 space-y-2.5 border-t border-emerald-950/8 pt-5">
+              <legend className="text-xs font-bold text-[color:var(--gv-text)]">
+                Rechtliches
+              </legend>
+              <label className="mt-3 flex items-start gap-3 rounded-[16px] bg-[#f5f8f5] px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(event) => setAcceptTerms(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[color:var(--gv-border)] text-[color:var(--gv-lime)] focus:ring-[color:var(--gv-lime)]/30"
+                />
+                <span className="text-sm leading-6 text-[color:var(--gv-text)]">
+                  Ich akzeptiere die{" "}
+                  <a
+                    href="/pages/agb"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2"
+                  >
+                    AGB
+                  </a>
+                  .
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-[16px] bg-[#f5f8f5] px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={acceptPrivacy}
+                  onChange={(event) => setAcceptPrivacy(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[color:var(--gv-border)] text-[color:var(--gv-lime)] focus:ring-[color:var(--gv-lime)]/30"
+                />
+                <span className="text-sm leading-6 text-[color:var(--gv-text)]">
+                  Ich habe die{" "}
+                  <a
+                    href="/pages/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2"
+                  >
+                    Datenschutzerklärung
+                  </a>{" "}
+                  gelesen.
+                </span>
+              </label>
+            </fieldset>
+
+            <label className="mt-3 flex items-start gap-3 rounded-[16px] border border-emerald-950/8 bg-[#f8faf8] px-3 py-3">
+              <input
+                type="checkbox"
+                checked={checkoutRecoveryConsent}
+                onChange={(event) => setCheckoutRecoveryConsent(event.target.checked)}
+                aria-label="Newsletter und Checkout-Erinnerungen"
+                className="mt-1 h-4 w-4 rounded border-[color:var(--gv-border)] text-[color:var(--gv-lime)] focus:ring-[color:var(--gv-lime)]/30"
+              />
+              <span className="text-sm leading-6 text-[color:var(--gv-text)]">
+                <span className="block font-semibold">
+                  Newsletter &amp; Checkout-Erinnerungen
+                </span>
+                <span className="block text-[color:var(--gv-text-muted)]">
+                  Ja, ich möchte Smokeify-Updates, Angebote und eine Erinnerung an meinen
+                  offenen Checkout per E-Mail erhalten. Abmeldung jederzeit.
+                </span>
+              </span>
+            </label>
+
+            {submitError ? (
+              <div
+                className="mt-4 rounded-[18px] border border-[color:var(--gv-error)]/28 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm leading-6 text-[color:var(--gv-error)]"
+                aria-live="assertive"
+              >
+                {submitError}
+              </div>
+            ) : null}
+
+            <div className="gv-checkout-sticky-action sticky bottom-0 z-20 -mx-4 mt-4 flex flex-col gap-2 border-t border-emerald-950/8 bg-white/94 px-4 pt-3 backdrop-blur sm:static sm:mx-0 sm:mt-5 sm:flex-row sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0">
+              <button
+                type="submit"
+                disabled={submitStatus === "loading" || items.length === 0}
+                className={`${checkoutPrimaryButtonClassName} min-w-[220px] justify-center shadow-[0_10px_24px_rgba(31,95,63,0.18)]`}
+              >
+                {submitStatus === "loading" ? (
+                  <>
+                    <LoadingSpinner
+                      size="sm"
+                      className="border-white/30 border-t-white"
+                    />
+                    Zahlungsseite wird vorbereitet…
+                  </>
+                ) : (
+                  <>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    Weiter zur Zahlung <span aria-hidden="true">· {formatMoney(totalCents, currency)}</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/cart")}
+                className={`${checkoutSecondaryButtonClassName} hidden justify-center sm:inline-flex sm:max-w-[210px]`}
+              >
+                Zurück zum Warenkorb
+              </button>
+            </div>
+          </form>
+
+          <aside className="order-1 lg:order-2 lg:sticky lg:top-5">
+            <OrderSummary
+              currency={currency}
+              discountCents={discountCents}
+              items={items}
+              shippingCents={shippingCents}
+              subtotalCents={subtotalCents}
+              totalCents={totalCents}
+            />
+          </aside>
+        </div>
+      </section>
     </div>
   );
 }

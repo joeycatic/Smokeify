@@ -1,13 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import {
-  CheckCircleIcon,
-  LockClosedIcon,
-  SparklesIcon,
   TrashIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
@@ -396,8 +394,11 @@ export default function CartPageClient() {
   if (loading) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-4xl items-center justify-center px-6 py-10 text-center">
-        <div className="smk-surface flex items-center gap-3 rounded-[24px] px-5 py-4 text-[var(--smk-text-muted)]">
-          <LoadingSpinner size="md" />
+        <div className="gv-glass flex items-center gap-3 rounded-[24px] px-5 py-4 text-[color:var(--gv-text-muted)]">
+          <LoadingSpinner
+            size="md"
+            className="border-[color:var(--gv-border)] border-t-[color:var(--gv-lime)]"
+          />
           <span>Warenkorb wird geladen...</span>
         </div>
       </div>
@@ -406,9 +407,9 @@ export default function CartPageClient() {
 
   if (!cart || cart.lines.length === 0) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-10 text-[var(--smk-text)]">
+      <div className="mx-auto max-w-4xl px-6 py-10 text-[color:var(--gv-text)]">
         {error && (
-          <div className="mb-4 rounded-[24px] border border-[var(--smk-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm text-[var(--smk-error)]">
+          <div className="mb-4 rounded-[20px] border border-[color:var(--gv-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm text-[color:var(--gv-error)]">
             <div>{error}</div>
           </div>
         )}
@@ -416,7 +417,6 @@ export default function CartPageClient() {
           eyebrow="Smokeify"
           title="Noch nichts im Setup."
           description="Starte mit einem kuratierten Setup oder entdecke passende Produkte für Zelt, Licht, Luft und Bewässerung."
-          icon={<SparklesIcon className="h-6 w-6" />}
           actions={[
             {
               label: "Setup konfigurieren",
@@ -465,52 +465,55 @@ export default function CartPageClient() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-10">
       {error && (
-        <div className="mb-6 rounded-[24px] border border-[var(--smk-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm text-[var(--smk-error)]">
+        <div className="mb-6 rounded-[20px] border border-[color:var(--gv-error)]/30 bg-[color:var(--gv-error)]/10 px-4 py-3 text-sm text-[color:var(--gv-error)]">
           <div>{error}</div>
         </div>
       )}
 
       <div className="mb-5 flex items-center justify-between sm:mb-8">
         <div>
-          <p className="font-[family:var(--font-jetbrains-mono)] text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--smk-accent-2)]">
+          <p className="font-[family:var(--font-jetbrains-mono)] text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--gv-lime)]">
             Kasse
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h1 className="smk-heading text-3xl text-[var(--smk-text)] sm:text-4xl">
+            <h1 className="font-[family:var(--font-syne)] text-3xl font-bold tracking-[-0.05em] text-[color:var(--gv-text)] sm:text-4xl">
               Warenkorb
             </h1>
             {cart.lines.length >= 3 ? (
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--smk-accent)]/20 bg-[var(--smk-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--smk-accent)]">
-                <span className="h-2 w-2 rounded-full bg-[var(--smk-accent-2)]" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-lime)]/25 bg-[color:var(--gv-lime)]/10 px-3 py-1 text-xs font-semibold text-[color:var(--gv-lime)]">
+                <span
+                  aria-hidden="true"
+                  className="h-2.5 w-2.5 rotate-[-20deg] rounded-[999px_999px_999px_0] bg-[color:var(--gv-lime)]"
+                />
                 Setup wächst.
               </span>
             ) : null}
           </div>
           {cartMilestoneCopy ? (
-            <p className="mt-2 text-sm text-[var(--smk-text-muted)]">
+            <p className="mt-2 text-sm text-[color:var(--gv-text-muted)]">
               {cartMilestoneCopy}
             </p>
           ) : null}
         </div>
-        <span className="rounded-full border border-[var(--smk-border)] bg-[color:var(--gv-surface)] px-3 py-1 text-xs font-semibold text-[var(--smk-text)] shadow-sm sm:px-3.5 sm:py-1.5 sm:text-sm">
+        <span className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] px-3 py-1 text-xs font-semibold text-[color:var(--gv-text)] shadow-[var(--gv-shadow)] sm:px-3.5 sm:py-1.5 sm:text-sm">
           {cart.lines.length} Artikel
         </span>
       </div>
 
       <div
-        className={`mb-5 rounded-[28px] px-4 py-4 shadow-[var(--gv-shadow)] sm:mb-6 ${
+        className={`mb-5 rounded-[28px] px-3 py-4 shadow-[var(--gv-shadow)] sm:mb-6 sm:px-4 ${
           freeShippingActive
-            ? "border border-[var(--smk-success)]/25 bg-[color:var(--gv-success)]/10"
-            : "border border-[var(--smk-border)] bg-[color:var(--gv-dark)]"
+            ? "border border-[color:var(--gv-success)]/30 bg-[color:var(--gv-success)]/10"
+            : "border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)]"
         }`}
       >
         <div
           className={`flex items-center gap-2 text-xs font-semibold sm:text-sm ${
             freeShippingActive
-              ? "text-[var(--smk-success)]"
-              : "text-[var(--smk-text)]"
+              ? "text-[color:var(--gv-success)]"
+              : "text-[color:var(--gv-text)]"
           }`}
         >
           <TruckIcon className="h-4 w-4 shrink-0" />
@@ -526,140 +529,160 @@ export default function CartPageClient() {
         </div>
       </div>
 
-      <div className="grid gap-4 text-[var(--smk-text)] sm:gap-6">
+      <div className="grid gap-4 text-[color:var(--gv-text)] sm:gap-6">
         {cart.lines.map((line) => {
           const productUrl = `/products/${line.merchandise.product.handle}`;
           const isRemovingLine = pendingRemovalLineIds.includes(line.id);
           return (
-            <div
+            <article
               key={line.id}
-              role="link"
-              tabIndex={0}
               aria-busy={isRemovingLine}
-              onClick={() => router.push(productUrl)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  router.push(productUrl);
-                }
-              }}
-              className={`flex cursor-pointer flex-col gap-4 rounded-[32px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-4 shadow-[var(--gv-shadow)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)] ${
+              className={`group relative grid grid-cols-[76px_minmax(0,1fr)] gap-3 overflow-hidden rounded-[22px] border border-emerald-950/10 bg-white p-3 shadow-[0_12px_32px_rgba(28,66,44,0.07)] transition sm:grid-cols-[88px_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4 sm:p-4 ${
                 isRemovingLine
                   ? "pointer-events-none opacity-65"
-                  : "hover:border-[var(--smk-border-strong)] hover:bg-[color:var(--gv-brand-soft)]"
+                  : "hover:-translate-y-0.5 hover:border-emerald-800/20 hover:shadow-[0_18px_40px_rgba(28,66,44,0.11)]"
               }`}
             >
-              <div className="flex items-center gap-4">
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-[linear-gradient(180deg,#91d4a8,#1f5f3f)]"
+              />
+              <Link
+                href={productUrl}
+                className="relative block h-[76px] w-[76px] overflow-hidden rounded-[17px] bg-[#f1f6f2] ring-1 ring-emerald-950/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 sm:h-[88px] sm:w-[88px]"
+                aria-label={line.merchandise.product.title}
+              >
                 {line.merchandise.image?.url ? (
-                  <div className="smk-white-well flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl">
-                    <Image
-                      src={line.merchandise.image.url}
-                      alt={
-                        line.merchandise.image.altText ??
-                        line.merchandise.product.title
-                      }
-                      className="h-full w-full object-contain p-2"
-                      width={80}
-                      height={80}
-                      sizes="80px"
-                    />
-                  </div>
+                  <Image
+                    src={line.merchandise.image.url}
+                    alt={
+                      line.merchandise.image.altText ??
+                      line.merchandise.product.title
+                    }
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                    width={88}
+                    height={88}
+                    sizes="(max-width: 639px) 76px, 88px"
+                  />
                 ) : (
-                  <div className="smk-white-well h-20 w-20 rounded-3xl" />
+                  <span className="grid h-full place-items-center text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-800/55">
+                    SMK
+                  </span>
                 )}
-                <div className="min-w-0 flex-1">
-                  {line.merchandise.product.manufacturer && (
-                    <p className="text-xs uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
-                      {line.merchandise.product.manufacturer}
-                    </p>
-                  )}
-                  <p className="text-base font-semibold text-[var(--smk-text)]">
-                    {line.merchandise.product.title}
+              </Link>
+
+              <Link
+                href={productUrl}
+                className="min-w-0 self-start rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 sm:self-center"
+              >
+                {line.merchandise.product.manufacturer && (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+                    {line.merchandise.product.manufacturer}
                   </p>
-                  {line.merchandise.options &&
-                    line.merchandise.options.length > 0 && (
-                      <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
-                        {formatCartOptions(line.merchandise.options)}
-                      </p>
-                    )}
-                  {line.merchandise.shortDescription && (
-                    <p className="mt-1 hidden text-sm text-[var(--smk-text-muted)] lg:block">
-                      {line.merchandise.shortDescription}
+                )}
+                <h2 className="mt-0.5 line-clamp-2 text-sm font-bold leading-5 text-[color:var(--gv-text)] transition group-hover:text-emerald-800 sm:text-base">
+                  {line.merchandise.product.title}
+                </h2>
+                {line.merchandise.options &&
+                  line.merchandise.options.length > 0 && (
+                    <p className="mt-1 line-clamp-1 text-xs text-[color:var(--gv-text-muted)]">
+                      {formatCartOptions(line.merchandise.options)}
                     </p>
                   )}
-                </div>
-              </div>
+                {line.merchandise.shortDescription && (
+                  <p className="mt-1 hidden line-clamp-1 text-xs text-[color:var(--gv-text-muted)] xl:block">
+                    {line.merchandise.shortDescription}
+                  </p>
+                )}
+              </Link>
 
-              <div className="h-px w-full bg-[var(--smk-border)]" />
-
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      aria-label="Menge verringern"
-                      disabled={isRemovingLine}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (line.quantity <= 1) {
-                          void handleRemoveLine(line.id);
-                        } else {
-                          void updateLine(line.id, line.quantity - 1);
-                        }
-                      }}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[color:var(--gv-surface)] text-sm font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-accent)] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]"
-                    >
-                      -
-                    </button>
-                    <span className="min-w-7 text-center text-sm font-semibold text-[var(--smk-text)]">
-                      {line.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="Menge erhöhen"
-                      disabled={isRemovingLine}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void updateLine(line.id, line.quantity + 1);
-                      }}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--smk-border)] bg-[color:var(--gv-surface)] text-sm font-semibold text-[var(--smk-text)] shadow-sm transition hover:border-[var(--smk-border-strong)] hover:text-[var(--smk-accent)] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]"
-                    >
-                      +
-                    </button>
-                  </div>
+              <div className="col-span-2 flex items-center justify-between border-t border-emerald-950/8 pt-3 sm:col-span-1 sm:border-0 sm:pt-0">
+                <div className="flex items-center rounded-full bg-emerald-50 p-1 ring-1 ring-emerald-900/10">
                   <button
                     type="button"
+                    aria-label="Menge verringern"
                     disabled={isRemovingLine}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void handleRemoveLine(line.id);
+                    onClick={() => {
+                      if (line.quantity <= 1) {
+                        void handleRemoveLine(line.id);
+                      } else {
+                        void updateLine(line.id, line.quantity - 1);
+                      }
                     }}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--smk-error)]/30 bg-[var(--smk-error)]/10 text-[var(--smk-error)] shadow-sm transition hover:border-[var(--smk-error)]/45 hover:bg-[var(--smk-error)]/15 disabled:cursor-wait disabled:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-error)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]"
-                    aria-label={isRemovingLine ? "Wird entfernt" : "Entfernen"}
+                    className="grid h-9 w-9 place-items-center rounded-full bg-white text-base font-bold text-emerald-900 shadow-sm hover:bg-emerald-700 hover:text-white disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
                   >
-                    {isRemovingLine ? (
-                      <LoadingSpinner
-                        size="sm"
-                        className="border-[var(--smk-error)]/25 border-t-[var(--smk-error)]"
-                      />
-                    ) : (
-                      <TrashIcon className="h-4 w-4" />
-                    )}
+                    -
+                  </button>
+                  <span
+                    data-testid="cart-line-quantity"
+                    className="min-w-8 text-center text-sm font-bold text-emerald-950"
+                  >
+                    {line.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Menge erhöhen"
+                    disabled={isRemovingLine}
+                    onClick={() => {
+                      void updateLine(line.id, line.quantity + 1);
+                    }}
+                    className="grid h-9 w-9 place-items-center rounded-full bg-white text-base font-bold text-emerald-900 shadow-sm hover:bg-emerald-700 hover:text-white disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                  >
+                    +
                   </button>
                 </div>
-                <div className="pl-1 text-left">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[var(--smk-text-dim)]">
-                    Preis
-                  </p>
-                  <p className="text-base font-semibold text-[var(--smk-accent-2)]">
-                    {formatPrice(
-                      line.merchandise.price.amount,
-                      line.merchandise.price.currencyCode,
-                    )}
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  disabled={isRemovingLine}
+                  onClick={() => {
+                    void handleRemoveLine(line.id);
+                  }}
+                  className="ml-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold text-[color:var(--gv-text-muted)] hover:bg-red-50 hover:text-[color:var(--gv-error)] disabled:cursor-wait disabled:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-error)]/40 sm:hidden"
+                  aria-label={isRemovingLine ? "Wird entfernt" : "Entfernen"}
+                >
+                  {isRemovingLine ? (
+                    <LoadingSpinner
+                      size="sm"
+                      className="border-[color:var(--gv-error)]/25 border-t-[color:var(--gv-error)]"
+                    />
+                  ) : (
+                    <>
+                      <TrashIcon className="h-4 w-4" />
+                      <span>Entfernen</span>
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
+
+              <div className="col-span-2 flex items-center justify-between sm:col-span-1 sm:flex-col sm:items-end sm:gap-2">
+                <p
+                  data-testid="cart-line-price"
+                  className="text-lg font-bold tracking-[-0.03em] text-[color:var(--gv-text)]"
+                >
+                  {formatPrice(
+                    line.merchandise.price.amount,
+                    line.merchandise.price.currencyCode,
+                  )}
+                </p>
+                <button
+                  type="button"
+                  disabled={isRemovingLine}
+                  onClick={() => void handleRemoveLine(line.id)}
+                  className="hidden min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-semibold text-[color:var(--gv-text-muted)] hover:bg-red-50 hover:text-[color:var(--gv-error)] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-error)]/40 sm:inline-flex"
+                  aria-label={isRemovingLine ? "Wird entfernt" : "Entfernen"}
+                >
+                  {isRemovingLine ? (
+                    <LoadingSpinner
+                      size="sm"
+                      className="border-[color:var(--gv-error)]/25 border-t-[color:var(--gv-error)]"
+                    />
+                  ) : (
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  )}
+                  <span>{isRemovingLine ? "Wird entfernt" : "Entfernen"}</span>
+                </button>
+              </div>
+            </article>
           );
         })}
       </div>
@@ -672,18 +695,18 @@ export default function CartPageClient() {
         className="mt-8"
       />
 
-      <div className="my-8 h-px w-full bg-[var(--smk-border)]" />
+      <div className="my-5 h-px w-full bg-[color:var(--gv-border)] sm:my-8" />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1.2fr]">
-        <div className="order-2 rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow)] lg:order-1">
-          <p className="text-xs font-semibold tracking-[0.22em] text-[var(--smk-accent-2)]">
+        <div className="order-2 rounded-[28px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] p-4 shadow-[var(--gv-shadow)] sm:p-6 lg:order-1">
+          <p className="text-xs font-semibold tracking-[0.22em] text-[color:var(--gv-lime)]">
             Versandkosten
           </p>
-          <p className="mt-2 text-sm text-[var(--smk-text-muted)]">
+          <p className="mt-2 text-sm text-[color:var(--gv-text-muted)]">
             {CART_SHIPPING_EXPLANATION}
           </p>
           <div className="mt-4">
-            <label className="block text-xs font-semibold text-[var(--smk-text-dim)]">
+            <label className="block text-xs font-semibold text-[color:var(--gv-text-muted)]">
               Zielland
             </label>
             <select
@@ -692,7 +715,7 @@ export default function CartPageClient() {
                 setCountryTouched(true);
                 setCountry(event.target.value as ShippingCountry);
               }}
-              className="smk-input mt-2 w-full rounded-2xl px-3 py-2 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]"
+              className="gv-input mt-2 w-full rounded-[18px] px-3 py-2 text-sm outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
             >
               <option value="DE">Deutschland</option>
               <option value="AT">Österreich</option>
@@ -702,43 +725,59 @@ export default function CartPageClient() {
               <option value="US">USA</option>
               <option value="OTHER">Andere</option>
             </select>
-            <p className="mt-2 text-xs text-[var(--smk-text-muted)]">
+            <p className="mt-2 text-xs text-[color:var(--gv-text-muted)]">
               Ausgewählt: {SHIPPING_COUNTRY_LABELS[country]}
             </p>
+            <div className="mt-4 rounded-[20px] border border-[color:var(--gv-lime)]/18 bg-[color:var(--gv-lime)]/10 px-3 py-3">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-semibold text-[color:var(--gv-text)]">
+                  Versand für {SHIPPING_COUNTRY_LABELS[country]}
+                </span>
+                <span className="font-[family:var(--font-jetbrains-mono)] font-semibold text-[color:var(--gv-lime)]">
+                  {freeShippingActive
+                    ? formatPrice(0, currencyCode)
+                    : formatPrice(shippingEstimate, currencyCode)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-[color:var(--gv-text-muted)]">
+                Der Betrag bleibt vor der Zahlung sichtbar. Du kannst ohne Konto
+                fortfahren.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="order-1 rounded-[30px] border border-[var(--smk-border)] bg-[color:var(--gv-dark)] p-6 shadow-[var(--gv-shadow-lg)] lg:order-2">
+        <div className="order-1 rounded-[28px] border border-[color:var(--gv-border)] bg-[linear-gradient(135deg,var(--gv-lime-glow),transparent_42%),var(--gv-dark)] p-4 shadow-[var(--gv-shadow-lg)] sm:p-6 lg:order-2">
           <div className="space-y-4 text-left sm:text-right">
             <div>
-              <p className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]">
+              <p className="font-[family:var(--font-jetbrains-mono)] text-[14px] uppercase tracking-[0.08em] text-[color:var(--gv-text-muted)]">
                 Zwischensumme
               </p>
-              <p className="text-xl font-semibold text-[var(--smk-text)]">
+              <p className="text-xl font-semibold text-[color:var(--gv-text)]">
                 {formatPrice(subtotal, currencyCode)}
               </p>
               {!meetsMinOrder && (
-                <p className="mt-1 text-xs font-semibold text-[var(--smk-error)]">
+                <p className="mt-1 text-xs font-semibold text-[color:var(--gv-error)]">
                   Mindestbestellwert{" "}
                   {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
                 </p>
               )}
             </div>
             <div>
-              <p className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]">
+              <p className="font-[family:var(--font-jetbrains-mono)] text-[14px] uppercase tracking-[0.08em] text-[color:var(--gv-text-muted)]">
                 Versand
               </p>
-              <p className="text-base font-semibold text-[var(--smk-text)]">
+              <p className="text-base font-semibold text-[color:var(--gv-text)]">
                 {freeShippingActive
                   ? formatPrice(0, currencyCode)
                   : formatPrice(shippingEstimate, currencyCode)}
               </p>
               {freeShippingActive ? (
-                <p className="mt-1 text-xs font-semibold text-[var(--smk-success)]">
+                <p className="mt-1 text-xs font-semibold text-[color:var(--gv-success)]">
                   {getFreeShippingActiveMessage("de")}
                 </p>
               ) : (
-                <p className="mt-1 text-xs text-[var(--smk-text-muted)]">
+                <p className="mt-1 text-xs text-[color:var(--gv-text-muted)]">
                   Ab {formatPrice(FREE_SHIPPING_THRESHOLD_EUR, currencyCode)}{" "}
                   versandkostenfrei (noch{" "}
                   {formatPrice(
@@ -750,21 +789,24 @@ export default function CartPageClient() {
               )}
             </div>
             <div>
-              <p className="font-mono text-[14px] uppercase tracking-[0.08em] text-[var(--smk-text-dim)]">
+              <p className="font-[family:var(--font-jetbrains-mono)] text-[14px] uppercase tracking-[0.08em] text-[color:var(--gv-text-muted)]">
                 Gesamt vor Checkout
               </p>
-              <p className="text-2xl font-semibold text-[var(--smk-accent-2)]">
+              <p
+                data-testid="cart-summary-total"
+                className="text-2xl font-semibold text-[color:var(--gv-lime)]"
+              >
                 {formatPrice(totalAfterDiscounts, currencyCode)}
               </p>
             </div>
-            <p className="text-xs text-[var(--smk-text-muted)]">
+            <p className="text-xs text-[color:var(--gv-text-muted)]">
               {CART_CHECKOUT_EXPLANATION}
             </p>
             <div className="text-left">
-              <label className="block text-xs font-semibold text-[var(--smk-text-dim)]">
+              <label className="block text-xs font-semibold text-[color:var(--gv-text-muted)]">
                 Rabattcode
               </label>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                   type="text"
                   value={discountCode}
@@ -783,35 +825,35 @@ export default function CartPageClient() {
                     }
                   }}
                   placeholder="Code eingeben"
-                  className="smk-input h-10 min-w-0 flex-1 rounded-full px-3 text-sm focus-visible:ring-offset-[color:var(--gv-forest)]"
+                  className="gv-input h-[3.25rem] min-h-[3.25rem] min-w-0 flex-1 appearance-none rounded-[20px] px-4 text-base [line-height:1.1] outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15 sm:h-10 sm:min-h-10 sm:rounded-[18px] sm:px-3 sm:text-sm"
                 />
                 <button
                   type="button"
                   onClick={() => void applyDiscountCode()}
                   disabled={!normalizedDiscountCode || discountStatus === "loading"}
-                  className="smk-button-primary inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-offset-[color:var(--gv-forest)]"
+                  className="inline-flex w-full shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-lime)] px-6 py-3 text-sm font-semibold text-white shadow-[var(--gv-shadow)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--gv-shadow-lg)] disabled:cursor-not-allowed disabled:bg-[color:var(--gv-muted)] disabled:text-[color:var(--gv-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)] sm:h-10 sm:w-auto sm:px-4 sm:py-0 sm:text-sm sm:shadow-none"
                 >
                   {discountStatus === "loading" ? "Prüfen…" : "Anwenden"}
                 </button>
               </div>
               <div className="mt-2 flex items-center gap-2" aria-live="polite">
                 {discountStatus === "valid" && appliedDiscountCode ? (
-                  <span className="text-xs font-semibold text-[var(--smk-success)]">
+                  <span className="text-xs font-semibold text-[color:var(--gv-success)]">
                     Code geprüft: {appliedDiscountCode}
                   </span>
                 ) : discountMessage ? (
-                  <span className="text-xs font-semibold text-[var(--smk-error)]">
+                  <span className="text-xs font-semibold text-[color:var(--gv-error)]">
                     {discountMessage}
                   </span>
                 ) : (
-                  <span className="text-xs text-[var(--smk-text-muted)]">
+                  <span className="text-xs text-[color:var(--gv-text-muted)]">
                     Rabatt wird erst nach Serverprüfung angezeigt.
                   </span>
                 )}
               </div>
             </div>
             {isAuthenticated && loyaltyPointsBalance > 0 && (
-              <label className="flex items-start gap-3 rounded-[20px] border border-[var(--smk-accent)]/16 bg-[color:var(--gv-lime)]/8 px-3 py-3 text-left text-sm text-[var(--smk-text)]">
+              <label className="flex items-start gap-3 rounded-[20px] border border-[color:var(--gv-success)]/30 bg-[color:var(--gv-success)]/10 px-3 py-3 text-left text-sm text-[color:var(--gv-text)]">
                 <input
                   type="checkbox"
                   checked={useLoyaltyPoints}
@@ -825,13 +867,13 @@ export default function CartPageClient() {
                     }
                     setUseLoyaltyPoints(event.target.checked);
                   }}
-                  className="mt-0.5 h-4 w-4 rounded border-[var(--smk-accent)]/30 bg-[var(--smk-panel)] text-[var(--smk-accent)] focus:ring-[var(--smk-accent)]"
+                  className="mt-0.5 h-4 w-4 rounded border-[color:var(--gv-success)]/40 bg-[color:var(--gv-dark)] text-[color:var(--gv-lime)] focus:ring-[color:var(--gv-lime)]"
                 />
                 <span>
                   <span className="block font-semibold">
                     {redeemablePoints} {loyaltyProgramLabel} einlösen
                   </span>
-                  <span className="block text-xs text-[var(--smk-text-muted)]">
+                  <span className="block text-xs text-[color:var(--gv-text-muted)]">
                     {loyaltyProgramLabel} funktionieren wie Shop-Guthaben.{" "}
                     {redeemablePoints} Punkte entsprechen aktuell{" "}
                     {formatPrice(loyaltyDiscount, currencyCode)} Rabatt.{" "}
@@ -841,49 +883,39 @@ export default function CartPageClient() {
               </label>
             )}
             {checkoutError && (
-              <p className="text-xs font-semibold text-[var(--smk-error)]">
+              <p className="text-xs font-semibold text-[color:var(--gv-error)]">
                 {checkoutError}
               </p>
             )}
             {checkoutBlocked && (
-              <p className="text-xs font-semibold text-[var(--smk-error)]">
+              <p className="text-xs font-semibold text-[color:var(--gv-error)]">
                 Mindestbestellwert{" "}
                 {formatPrice(MIN_ORDER_TOTAL_EUR, currencyCode)}.
               </p>
             )}
             {appliedDiscountAmount > 0 && (
-              <div className="flex items-center justify-between text-sm font-semibold text-[var(--smk-error)]">
+              <div className="flex items-center justify-between text-sm font-semibold text-[color:var(--gv-error)]">
                 <span>Rabattcode</span>
                 <span>-{formatPrice(appliedDiscountAmount, currencyCode)}</span>
               </div>
             )}
             {useLoyaltyPoints && loyaltyDiscount > 0 && (
-              <div className="flex items-center justify-between text-sm text-[var(--smk-success)]">
+              <div className="flex items-center justify-between text-sm text-[color:var(--gv-success)]">
                 <span>{loyaltyProgramLabel}</span>
                 <span>-{formatPrice(loyaltyDiscount, currencyCode)}</span>
               </div>
             )}
             {!isAuthenticated ? (
-              <p className="text-xs leading-5 text-[var(--smk-text-muted)]">
-                Du kannst als Gast fortfahren. Anmelden lohnt sich für
-                Bestellverlauf, Punkte und schnellere Reorders.
+              <p className="text-xs leading-5 text-[color:var(--gv-text-muted)]">
+                Gast-Checkout startet direkt. Ein Konto kannst du später für
+                Bestellverlauf, Punkte und schnellere Reorders nutzen.
               </p>
             ) : null}
-            <div className="smk-checkout-focus grid gap-2 rounded-[22px] border border-[rgba(233,188,116,0.16)] bg-[color:var(--gv-lime)]/7 px-3 py-3 text-xs text-[var(--smk-text-muted)]">
-              <div className="flex items-center gap-2">
-                <LockClosedIcon className="h-4 w-4 text-[var(--smk-accent-2)]" />
-                <span>Checkout prüft Preis, Bestand und Rabatte serverseitig.</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircleIcon className="h-4 w-4 text-[var(--smk-success)]" />
-                <span>Warenkorb wird beim Weitergehen erneut synchronisiert.</span>
-              </div>
-            </div>
             <button
               type="button"
               onClick={startCheckout}
               disabled={!canCheckout || checkoutBlocked}
-              className="smk-button-primary inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-offset-[color:var(--gv-forest)]"
+              className="inline-flex w-full items-center justify-center rounded-full bg-[color:var(--gv-lime)] px-6 py-3 text-sm font-semibold text-white shadow-[var(--gv-shadow)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--gv-shadow-lg)] disabled:cursor-not-allowed disabled:bg-[color:var(--gv-muted)] disabled:text-[color:var(--gv-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-forest)]"
             >
               {checkoutStatus === "loading"
                 ? "Weiterleitung..."
@@ -891,7 +923,7 @@ export default function CartPageClient() {
             </button>
             <PaymentMethodLogos
               className="justify-center gap-[2px] sm:gap-2"
-              pillClassName="h-7 border-[var(--smk-border)] bg-[color:var(--gv-surface)] px-2 sm:h-8 sm:px-3"
+              pillClassName="h-7 border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-2 sm:h-8 sm:px-3"
               logoClassName="h-4 sm:h-5"
             />
           </div>
