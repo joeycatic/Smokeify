@@ -52,4 +52,14 @@ describe("Smokeify storefront parity contracts", () => {
       expect(route).toContain("serializeForwardedSearchParams");
     }
   });
+
+  it("keeps the recently viewed strip on the light storefront theme", () => {
+    const recentlyViewed = source("src/components/RecentlyViewedStrip.tsx");
+
+    expect(recentlyViewed).toContain("var(--gv-dark)");
+    expect(recentlyViewed).toContain("Verlauf");
+    expect(recentlyViewed).toContain("bg-white");
+    expect(recentlyViewed).not.toContain("rgba(27,23,20");
+    expect(recentlyViewed).not.toContain("rgba(14,14,13");
+  });
 });
