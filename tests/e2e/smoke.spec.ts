@@ -3,8 +3,6 @@ import { expect, test, type Page } from "@playwright/test";
 test.describe.configure({ mode: "serial" });
 test.setTimeout(360_000);
 
-const initializedPages = new WeakSet<Page>();
-
 async function dismissCookieBanner(page: Page) {
   const necessaryOnly = page.getByRole("button", { name: "Nur notwendige" });
   const visible = await necessaryOnly
@@ -26,20 +24,12 @@ async function firstCatalogProductHref(page: Page) {
 }
 
 async function gotoStorefront(page: Page, path: string) {
-  if (!initializedPages.has(page)) {
-    await page.addInitScript(() => {
-      window.sessionStorage.setItem(
-        "smokeify-newsletter-offer-dismissed-v1",
-        "e2e",
-      );
-    });
-    initializedPages.add(page);
-  }
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await dismissCookieBanner(page);
 }
 
 async function expectNoPageOverflow(page: Page) {
+  const viewport = page.viewportSize();
   await expect
     .poll(() =>
       page.evaluate(
@@ -47,6 +37,10 @@ async function expectNoPageOverflow(page: Page) {
           document.documentElement.scrollWidth -
           document.documentElement.clientWidth,
       ),
+      {
+        message: `Expected ${page.url()} to fit within ${viewport?.width ?? "unknown"}px`,
+        timeout: 15_000,
+      },
     )
     .toBeLessThanOrEqual(1);
 }
@@ -70,7 +64,7 @@ test("products page renders a catalog state", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: /Der Smokeify Katalog|Unsere Produkte/i }),
   ).toBeVisible();
-  await expect(page.getByPlaceholder("Produkte suchen...").last()).toBeVisible();
+  await expect(page.locator("#catalog-product-search")).toBeVisible();
 
   const productHref = await firstCatalogProductHref(page);
   if (productHref) {
@@ -78,6 +72,36 @@ test("products page renders a catalog state", async ({ page }) => {
   } else {
     await expect(page.getByText("Keine Produkte gefunden")).toBeVisible();
   }
+});
+
+test("navbar search submits to the complete result set", async ({ page }) => {
+  await gotoStorefront(page, "/products");
+  const productHref = await firstCatalogProductHref(page);
+  if (!productHref) {
+    test.skip(true, "No active MAIN product is available for search coverage.");
+    return;
+  }
+  const query = productHref.split("/").filter(Boolean).at(-1);
+  if (!query) {
+    test.skip(true, "The first active MAIN product has no searchable handle.");
+    return;
+  }
+
+  await gotoStorefront(page, "/");
+  const searchInput = page.locator('input[name="searchQuery"]:visible').first();
+  const searchResponse = page.waitForResponse(
+    (response) => response.url().includes("/api/search") && response.status() === 200,
+  );
+  await searchInput.fill(query);
+  await searchResponse;
+  await searchInput.press("Enter");
+
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("searchQuery"))
+    .toBe(query);
+  await expect(
+    page.getByRole("heading", { name: `Ergebnisse für „${query}“` }),
+  ).toBeVisible();
 });
 
 test("storefront templates do not overflow at mobile, tablet, or desktop widths", async ({

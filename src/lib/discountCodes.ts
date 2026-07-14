@@ -185,29 +185,3 @@ export const recordDiscountRedemption = async (code: string | null | undefined) 
     },
   });
 };
-
-export const upsertNewsletterOfferDiscountCode = async ({
-  amountOffCents,
-  code,
-  email,
-  expiresAt,
-}: {
-  amountOffCents: number;
-  code: string;
-  email: string;
-  expiresAt?: Date | null;
-}) =>
-  prisma.discountCode.upsert({
-    where: { code: normalizeDiscountCode(code) },
-    create: {
-      active: true,
-      amountOffCents,
-      code: normalizeDiscountCode(code),
-      currency: "EUR",
-      expiresAt: expiresAt ?? undefined,
-      maxRedemptions: 1,
-      metadata: { campaign: "newsletter-offer-popup", email },
-      source: "newsletter_offer",
-    },
-    update: {},
-  });

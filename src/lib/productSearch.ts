@@ -19,8 +19,51 @@ const MAX_QUERY_TOKENS = 6;
 const MAX_GROUP_TERMS = 8;
 const MAX_FUZZY_TERMS = 3;
 
+const SEARCH_STOP_WORDS = new Set([
+  "aber",
+  "auf",
+  "bitte",
+  "brauche",
+  "das",
+  "dem",
+  "den",
+  "der",
+  "die",
+  "ein",
+  "eine",
+  "einen",
+  "einer",
+  "finde",
+  "fuer",
+  "ich",
+  "im",
+  "in",
+  "mein",
+  "meine",
+  "mit",
+  "moechte",
+  "oder",
+  "suche",
+  "suchen",
+  "und",
+  "von",
+  "will",
+  "zu",
+  "zum",
+  "zur",
+]);
+
 const DEFAULT_SEARCH_SYNONYMS: ProductSearchSynonymMap = {
+  "bio bizz": ["biobizz"],
+  biobizz: ["bio bizz", "bio-bizz"],
+  "bio-bizz": ["biobizz", "bio bizz"],
+  ph: ["ph wert", "phwert", "p h"],
+  phwert: ["ph", "ph wert"],
+  "ph wert": ["ph", "phwert"],
+  vbx: ["hydroponic research", "vbx clean"],
+  shine: ["shine bloom", "hydroponic research"],
   growbox: ["growzelt", "pflanzenzelt", "zelt", "tent", "box"],
+  box: ["growbox", "growzelt", "pflanzenzelt", "zelt", "tent"],
   growzelt: ["growbox", "pflanzenzelt", "zelt", "tent"],
   pflanzenzelt: ["growbox", "growzelt", "zelt", "tent"],
   zelt: ["growbox", "growzelt", "pflanzenzelt", "tent"],
@@ -230,10 +273,20 @@ export const buildProductSearchTermGroups = (
   options?: { synonyms?: ProductSearchSynonymMap },
 ) => {
   const synonymMap = buildSynonymMap(options?.synonyms);
-  const tokens = normalizeProductSearchText(query)
+  const dimensionSafeQuery = query.replace(/(\d)\s*[x×]\s*(\d)/gi, "$1x$2");
+  const normalizedQuery = normalizeProductSearchText(dimensionSafeQuery);
+  const rawTokens = normalizedQuery
     .split(" ")
     .map((token) => token.trim())
-    .filter((token) => token.length >= 2)
+    .filter(Boolean);
+  const allowSingleCharacterToken =
+    rawTokens.length === 1 && rawTokens[0]?.length === 1;
+  const tokens = rawTokens
+    .filter(
+      (token) =>
+        !SEARCH_STOP_WORDS.has(token) &&
+        (token.length >= 2 || allowSingleCharacterToken),
+    )
     .slice(0, MAX_QUERY_TOKENS);
 
   if (tokens.length === 0) return [];
@@ -245,7 +298,10 @@ export const buildProductSearchTermGroups = (
       const group = new Set<string>();
       const addTerm = (value: string) => {
         const normalized = normalizeProductSearchText(value);
-        if (normalized.length >= 2) {
+        if (
+          normalized.length >= 2 ||
+          (allowSingleCharacterToken && normalized.length === 1)
+        ) {
           group.add(normalized);
         }
 
@@ -257,7 +313,11 @@ export const buildProductSearchTermGroups = (
 
       addTerm(token);
 
-      for (const synonym of synonymMap[token] ?? []) {
+      const synonymTerms = [
+        ...(synonymMap[token] ?? []),
+        ...(synonymMap[normalizedQuery] ?? []),
+      ];
+      for (const synonym of synonymTerms) {
         addTerm(synonym);
       }
 
@@ -274,6 +334,27 @@ export const buildProductSearchTermGroups = (
       return Array.from(group).slice(0, MAX_GROUP_TERMS);
     })
     .filter((group) => group.length > 0);
+};
+
+export const matchesProductSearch = (
+  document: ProductSearchDocument,
+  query: string,
+  options?: { synonyms?: ProductSearchSynonymMap },
+) => {
+  const normalizedQuery = normalizeProductSearchText(query);
+  if (!normalizedQuery) return true;
+
+  const groups = buildProductSearchTermGroups(query, options);
+  if (groups.length === 0) return true;
+
+  const searchIndex = buildSearchIndex(document);
+  if (matchesPreparedField(searchIndex.all, normalizedQuery)) {
+    return true;
+  }
+
+  return groups.every((group) =>
+    group.some((term) => matchesPreparedField(searchIndex.all, term)),
+  );
 };
 
 export const getProductSearchScore = (

@@ -7,6 +7,7 @@ import {
   Bars3BottomLeftIcon,
   MagnifyingGlassIcon,
   Squares2X2Icon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import type { Product, ProductFilters } from "@/data/types";
 import DisplayProducts, { DisplayProductsList } from "@/components/DisplayProducts";
@@ -415,6 +416,11 @@ export default function ProductsPageClient({
     normalizedSearchQuery.includes("60x60") || normalizedSearchQuery.includes("80x80");
   const hasVaultEasterEgg =
     normalizedSearchQuery === "vault" || normalizedSearchQuery === "geheim";
+  const visibleSearchQuery = (filters.searchQuery ?? "").trim();
+  const visibleHeaderChip = visibleSearchQuery ? "Produktfinder" : headerChip;
+  const visibleHeaderTitle = visibleSearchQuery
+    ? `Ergebnisse für „${visibleSearchQuery}“`
+    : headerTitle;
 
   const handleSelectItem = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement | null;
@@ -448,14 +454,14 @@ export default function ProductsPageClient({
 
   return (
     <div className="w-full text-[color:var(--gv-text)]">
-      <section className="gv-panel mt-3 rounded-[28px] px-4 py-4 sm:px-7 sm:py-6">
+      <section className="gv-panel relative mt-3 overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,var(--gv-lime-glow),transparent_38%),var(--gv-dark)] px-4 py-4 sm:px-7 sm:py-6">
           <div className="space-y-5">
             <div className="space-y-2">
-              <span className="gv-chip">{headerChip}</span>
+              <span className="gv-chip">{visibleHeaderChip}</span>
               <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                 <h1 className="font-[family:var(--font-syne)] text-3xl font-bold tracking-[-0.04em] sm:text-4xl">
-                  {headerTitle}
+                  {visibleHeaderTitle}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--gv-text-muted)]">
                   {headerDescription}
@@ -471,24 +477,60 @@ export default function ProductsPageClient({
             </div>
 
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-            <div>
+            <div className="rounded-[26px] border border-[color:var(--gv-lime)]/16 bg-[color:var(--gv-dark)]/88 p-3 shadow-[0_16px_42px_rgba(20,26,22,0.08)] sm:p-4">
+              <label
+                htmlFor="catalog-product-search"
+                className="mb-2 block font-[family:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--gv-lime)]"
+              >
+                Produkt, Marke, Größe oder Einsatzbereich
+              </label>
               <div className="relative">
-                <MagnifyingGlassIcon
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[color:var(--gv-text-muted)]"
+                <span className="pointer-events-none absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-[16px] bg-[color:var(--gv-brand-soft)] text-[color:var(--gv-lime)] sm:left-2.5">
+                  <MagnifyingGlassIcon aria-hidden="true" className="h-5 w-5" />
+                </span>
+                <input
+                  id="catalog-product-search"
+                  type="search"
+                  value={filters.searchQuery ?? ""}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
+                  }
+                  placeholder="Was brauchst du für dein Setup?"
+                  aria-describedby="catalog-search-status"
+                  className="gv-input h-14 w-full rounded-[20px] pl-14 pr-12 text-base font-medium outline-none transition focus:border-[color:var(--gv-lime)]/60 focus:ring-4 focus:ring-[color:var(--gv-lime)]/10 sm:h-16 sm:pl-16 sm:text-lg"
                 />
-              <input
-                type="search"
-                value={filters.searchQuery ?? ""}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
-                }
-                placeholder="Produkte suchen..."
-                className="gv-input h-11 w-full rounded-[20px] pl-12 pr-4 text-sm outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
-              />
+                {visibleSearchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, searchQuery: "" }))
+                    }
+                    aria-label="Suche löschen"
+                    className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-[color:var(--gv-text-muted)] transition hover:bg-[color:var(--gv-surface)] hover:text-[color:var(--gv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/35 sm:right-3"
+                  >
+                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--gv-text-muted)]">
-                <span>Versuch:</span>
+              <div
+                id="catalog-search-status"
+                className="mt-2 flex min-h-5 items-center gap-2 text-xs text-[color:var(--gv-text-muted)]"
+                role="status"
+                aria-live="polite"
+              >
+                {loading ? (
+                  <>
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-[color:var(--gv-lime)]" />
+                    Suche wird aktualisiert…
+                  </>
+                ) : visibleSearchQuery ? (
+                  <>{total} passende Produkte gefunden</>
+                ) : (
+                  <>Durchsuche den Smokeify Katalog mit verständlichen Begriffen.</>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[color:var(--gv-text-muted)]">
+                <span className="font-semibold uppercase tracking-[0.12em]">Beliebt</span>
                 {SEARCH_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}
@@ -499,11 +541,37 @@ export default function ProductsPageClient({
                         searchQuery: suggestion,
                       }))
                     }
-                    className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] px-3 py-1.5 font-semibold text-[color:var(--gv-text)] transition-colors duration-200 hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-lime)]/8"
+                    className="rounded-full border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)]/55 px-3 py-1.5 font-semibold text-[color:var(--gv-text)] transition hover:-translate-y-0.5 hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-brand-soft)]"
                   >
                     {suggestion}
                   </button>
                 ))}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--gv-text-muted)]">
+                <span className="font-semibold uppercase tracking-[0.12em]">Nach Bedarf</span>
+                {quickPickChips.map((chip) => {
+                  const active = normalizedSearchQuery === chip.searchQuery;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      title={chip.detail}
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          searchQuery: active ? "" : chip.searchQuery,
+                        }))
+                      }
+                      className={`rounded-full border px-3 py-1.5 font-semibold transition hover:-translate-y-0.5 ${
+                        active
+                          ? "border-[color:var(--gv-lime)]/40 bg-[color:var(--gv-lime)] text-white"
+                          : "border-[color:var(--gv-border)] bg-[color:var(--gv-dark)] text-[color:var(--gv-text)] hover:border-[color:var(--gv-lime)]/35 hover:bg-[color:var(--gv-brand-soft)]"
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -585,39 +653,8 @@ export default function ProductsPageClient({
             </div>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="rounded-[24px] border border-[color:var(--gv-border)] bg-[color:var(--gv-dark)]/70 px-4 py-4">
+          {activeChips.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-text-muted)]">
-                  Schnellwahl
-                </span>
-                {quickPickChips.map((chip) => {
-                  const active = (filters.searchQuery ?? "").trim().toLowerCase() === chip.searchQuery;
-                  return (
-                    <button
-                      key={chip.id}
-                      type="button"
-                      onClick={() =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          searchQuery: active ? "" : chip.searchQuery,
-                        }))
-                      }
-                      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                        active
-                          ? "border-[color:var(--gv-lime)]/40 bg-[color:var(--gv-lime)]/12 text-[color:var(--gv-lime)]"
-                          : "border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text)] hover:border-[color:var(--gv-lime)]/30"
-                      }`}
-                    >
-                      {chip.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {activeChips.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 {activeChips.map((chip) => (
                   <button
                     key={chip.key}
@@ -638,7 +675,6 @@ export default function ProductsPageClient({
                 </button>
               </div>
             ) : null}
-          </div>
 
           {(hasIssueIntent || hasQuietIntent || hasSizeIntent || hasVaultEasterEgg) && (
             <div className="grid gap-3 lg:grid-cols-2">
@@ -692,7 +728,13 @@ export default function ProductsPageClient({
         </div>
       ) : null}
 
-      <div onClick={handleSelectItem}>
+      <div
+        onClick={handleSelectItem}
+        aria-busy={loading}
+        className={`relative transition-opacity duration-200 ${
+          loading ? "pointer-events-none opacity-45" : "opacity-100"
+        }`}
+      >
         {layout === "grid" || isMobile ? (
           <DisplayProducts
             products={products}
@@ -729,18 +771,20 @@ export default function ProductsPageClient({
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="py-8 text-center text-sm font-medium text-[color:var(--gv-text-muted)]">
-          Produkte werden geladen...
-        </div>
-      ) : null}
-
       {!loading && total === 0 ? (
         <div className="space-y-6">
           <EmptyState
             eyebrow="Discovery"
-            title="Nichts im Vault gefunden."
-            description="Versuch es mit LED, Growzelt, Abluft, Bewässerung oder Erde."
+            title={
+              visibleSearchQuery
+                ? `Keine Treffer für „${visibleSearchQuery}“.`
+                : "Nichts im Katalog gefunden."
+            }
+            description={
+              visibleSearchQuery
+                ? "Prüfe die Schreibweise, nutze einen kürzeren Produktbegriff oder öffne eine der geführten Alternativen."
+                : "Versuch es mit LED, Growzelt, Abluft, Bewässerung oder Erde."
+            }
             actions={[
               {
                 label: "Alle Produkte ansehen",

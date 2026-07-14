@@ -7,12 +7,13 @@ import {
 } from "@/lib/productSearch";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { getCachedMainSearchSynonymMap } from "@/lib/searchTuning";
 import { buildStorefrontProductWhere } from "@/lib/storefronts";
 
 const CURRENCY_CODE = "EUR";
 const MAIN_STOREFRONT = "MAIN" as const;
 const MAX_RESULTS = 8;
-const MAX_DB_CANDIDATES = 40;
+const MAX_DB_CANDIDATES = 120;
 
 const toAmount = (cents: number) => (cents / 100).toFixed(2);
 
@@ -127,7 +128,8 @@ export async function GET(request: Request) {
     ]);
   }
 
-  const termGroups = buildProductSearchTermGroups(query);
+  const synonyms = await getCachedMainSearchSynonymMap();
+  const termGroups = buildProductSearchTermGroups(query, { synonyms });
   if (termGroups.length === 0) {
     return attachServerTiming(NextResponse.json({ results: [] }), [
       { name: "search", durationMs: getNow() - startedAt, description: "navbar-search" },
@@ -203,12 +205,13 @@ export async function GET(request: Request) {
           variantTitles: candidate.variants.map((variant) => variant.title),
           variantSkus: candidate.variants.map((variant) => variant.sku ?? ""),
           extra: [
-            candidate.growboxSize ?? "",
-            candidate.lightSize ?? "",
+            candidate.growboxSize ? `growbox ${candidate.growboxSize}` : "",
+            candidate.lightSize ? `licht ${candidate.lightSize}` : "",
             candidate.productGroup ?? "",
           ],
         },
         query,
+        { synonyms },
       );
       const availableForSale = candidate.variants.some(
         (variant) =>
@@ -233,7 +236,7 @@ export async function GET(request: Request) {
     })
     .slice(0, MAX_RESULTS);
 
-  const results = ranked.map(({ product }) => {
+  const results = ranked.map(({ product, availableForSale }) => {
     const prices = product.variants.map((variant) => variant.priceCents);
     const minPrice = prices.length > 0 ? Math.min(...prices) : null;
     const image = product.images[0] ?? null;
@@ -249,6 +252,19 @@ export async function GET(request: Request) {
         minPrice !== null
           ? { amount: toAmount(minPrice), currencyCode: CURRENCY_CODE }
           : null,
+      manufacturer: product.manufacturer ?? null,
+      category: product.mainCategory
+        ? {
+            title: product.mainCategory.name,
+            handle: product.mainCategory.handle,
+          }
+        : product.categories[0]
+          ? {
+              title: product.categories[0].category.name,
+              handle: product.categories[0].category.handle,
+            }
+          : null,
+      availableForSale,
     };
   });
 

@@ -11,6 +11,7 @@ import {
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutlineIcon } from "@heroicons/react/24/outline";
 import { useCart } from "@/components/CartProvider";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import type { Product } from "@/data/types";
 
 type VariantOption = { name: string; value: string };
@@ -340,14 +341,22 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
               <button
                 type="button"
                 disabled={!isAvailable || adding}
+                aria-busy={adding}
                 onClick={handleAddToCart}
-                className={`inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--smk-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                   isAvailable && !adding
                     ? "border border-[var(--smk-border)] bg-[linear-gradient(135deg,var(--smk-accent),var(--smk-accent-2))] text-[#1a140f] shadow-sm"
                     : "cursor-not-allowed border border-[var(--smk-border)] bg-[rgba(255,255,255,0.04)] text-[var(--smk-text-dim)]"
                 }`}
               >
-                {adding ? "Wird hinzugefügt…" : "In den Warenkorb"}
+                {adding ? (
+                  <>
+                    <LoadingSpinner size="sm" className="border-[#1a140f]/25 border-t-[#1a140f]" />
+                    Wird hinzugefügt…
+                  </>
+                ) : (
+                  "In den Warenkorb"
+                )}
               </button>
 
               <Link

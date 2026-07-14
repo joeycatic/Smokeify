@@ -215,14 +215,23 @@ const resolveCartItemsForRequest = async (userId?: string | null) => {
   }
 
   const userItems = await readUserCartItems(userId);
+  if (cookieItems.length === 0) {
+    return clampCartItemsToInventory(userItems);
+  }
   const merged = await clampCartItemsToInventory(mergeCartItems(userItems, cookieItems));
   await writeUserCartItems(userId, merged);
   await writeCookieCartItems([]);
   return merged;
 };
 
-const persistCartItems = async (items: CartItem[], userId?: string | null) => {
-  const clamped = await clampCartItemsToInventory(items);
+const persistCartItems = async (
+  items: CartItem[],
+  userId?: string | null,
+  inventoryAlreadyChecked = false,
+) => {
+  const clamped = inventoryAlreadyChecked
+    ? items
+    : await clampCartItemsToInventory(items);
   if (userId) {
     await writeUserCartItems(userId, clamped);
     await writeCookieCartItems([]);
@@ -404,7 +413,7 @@ export async function POST(req: Request) {
           : { variantId, quantity: nextQty }
       );
     }
-    const persisted = await persistCartItems(nextItems, userId);
+    const persisted = await persistCartItems(nextItems, userId, true);
     return NextResponse.json(await buildCart(persisted));
   }
 
@@ -465,7 +474,11 @@ export async function POST(req: Request) {
       });
     });
 
-    const persisted = await persistCartItems(Array.from(nextMap.values()), userId);
+    const persisted = await persistCartItems(
+      Array.from(nextMap.values()),
+      userId,
+      true,
+    );
     return NextResponse.json(await buildCart(persisted));
   }
 
@@ -500,7 +513,7 @@ export async function POST(req: Request) {
           : { variantId: target.variantId, quantity: nextQty }
       );
     }
-    const persisted = await persistCartItems(nextItems, userId);
+    const persisted = await persistCartItems(nextItems, userId, true);
     return NextResponse.json(await buildCart(persisted));
   }
 
@@ -511,17 +524,17 @@ export async function POST(req: Request) {
     const nextItems = items.filter(
       (item) => !lineIds.includes(getLineId(item.variantId, item.options))
     );
-    const persisted = await persistCartItems(nextItems, userId);
+    const persisted = await persistCartItems(nextItems, userId, true);
     return NextResponse.json(await buildCart(persisted));
   }
 
   if (action === "clear") {
-    const persisted = await persistCartItems([], userId);
+    const persisted = await persistCartItems([], userId, true);
     return NextResponse.json(await buildCart(persisted));
   }
 
   if (action === "merge") {
-    const persisted = await persistCartItems(items, userId);
+    const persisted = await persistCartItems(items, userId, true);
     return NextResponse.json(await buildCart(persisted));
   }
 

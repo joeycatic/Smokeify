@@ -3,6 +3,15 @@ import { unstable_cache } from "next/cache";
 import type { Product } from "@/data/types";
 import { getProductsByIds } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
+import {
+  buildProductSearchTermGroups,
+  normalizeProductSearchText,
+  type ProductSearchSynonymMap,
+} from "@/lib/productSearch";
+import {
+  getCachedMainSearchBoostRules,
+  getCachedMainSearchSynonymMap,
+} from "@/lib/searchTuning";
 
 const MAIN_STOREFRONT_SQL = Prisma.sql`ARRAY['MAIN']::"Storefront"[]`;
 
@@ -135,20 +144,44 @@ const buildManufacturerWhereSql = (manufacturers: string[]) => {
   return Prisma.sql`AND (${combinedConditions})`;
 };
 
-const buildSearchWhereSql = (searchQuery: string) => {
-  const normalized = searchQuery.trim();
-  if (!normalized) return Prisma.empty;
-  const pattern = `%${escapeLike(normalized)}%`;
+const joinSearchConditions = (
+  conditions: Prisma.Sql[],
+  operator: "AND" | "OR",
+) => {
+  const [first, ...rest] = conditions;
+  if (!first) return Prisma.sql`FALSE`;
+  return rest.reduce(
+    (combined, condition) =>
+      operator === "AND"
+        ? Prisma.sql`${combined} AND ${condition}`
+        : Prisma.sql`${combined} OR ${condition}`,
+    first,
+  );
+};
+
+const buildSearchTermMatchSql = (term: string) => {
+  const pattern = `%${escapeLike(term)}%`;
   return Prisma.sql`
-    AND (
+    (
       p.title ILIKE ${pattern} ESCAPE '\\'
+      OR p.handle ILIKE ${pattern} ESCAPE '\\'
+      OR COALESCE(p.manufacturer, '') ILIKE ${pattern} ESCAPE '\\'
+      OR COALESCE(p."shortDescription", '') ILIKE ${pattern} ESCAPE '\\'
       OR COALESCE(p.description, '') ILIKE ${pattern} ESCAPE '\\'
+      OR COALESCE(p."technicalDetails", '') ILIKE ${pattern} ESCAPE '\\'
+      OR COALESCE(p."growboxSize", '') ILIKE ${pattern} ESCAPE '\\'
+      OR COALESCE(p."lightSize", '') ILIKE ${pattern} ESCAPE '\\'
+      OR COALESCE(p."productGroup", '') ILIKE ${pattern} ESCAPE '\\'
+      OR array_to_string(p.tags, ' ') ILIKE ${pattern} ESCAPE '\\'
       OR EXISTS (
         SELECT 1
         FROM "ProductCollection" pcl
         JOIN "Collection" cl ON cl.id = pcl."collectionId"
         WHERE pcl."productId" = p.id
-          AND cl.name ILIKE ${pattern} ESCAPE '\\'
+          AND (
+            cl.name ILIKE ${pattern} ESCAPE '\\'
+            OR cl.handle ILIKE ${pattern} ESCAPE '\\'
+          )
       )
       OR EXISTS (
         SELECT 1
@@ -165,11 +198,109 @@ const buildSearchWhereSql = (searchQuery: string) => {
             OR COALESCE(cp.handle, '') ILIKE ${pattern} ESCAPE '\\'
           )
       )
+      OR EXISTS (
+        SELECT 1
+        FROM "Category" mc
+        LEFT JOIN "Category" mcp ON mcp.id = mc."parentId"
+        WHERE mc.id = p."mainCategoryId"
+          AND mc.storefronts @> ${MAIN_STOREFRONT_SQL}
+          AND (mcp.id IS NULL OR mcp.storefronts @> ${MAIN_STOREFRONT_SQL})
+          AND (
+            mc.name ILIKE ${pattern} ESCAPE '\\'
+            OR mc.handle ILIKE ${pattern} ESCAPE '\\'
+            OR COALESCE(mcp.name, '') ILIKE ${pattern} ESCAPE '\\'
+            OR COALESCE(mcp.handle, '') ILIKE ${pattern} ESCAPE '\\'
+          )
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM "Variant" sv
+        WHERE sv."productId" = p.id
+          AND (
+            sv.title ILIKE ${pattern} ESCAPE '\\'
+            OR COALESCE(sv.sku, '') ILIKE ${pattern} ESCAPE '\\'
+          )
+      )
     )
   `;
 };
 
-const buildOrderBySql = (sortBy: SortMode) => {
+const buildSearchWhereSql = (
+  searchQuery: string,
+  synonyms?: ProductSearchSynonymMap,
+) => {
+  const termGroups = buildProductSearchTermGroups(searchQuery, { synonyms });
+  if (termGroups.length === 0) return Prisma.empty;
+  const groupConditions = termGroups.map((group) =>
+    Prisma.sql`(${joinSearchConditions(group.map(buildSearchTermMatchSql), "OR")})`,
+  );
+  return Prisma.sql`AND ${joinSearchConditions(groupConditions, "AND")}`;
+};
+
+const buildSearchScoreSql = (
+  searchQuery: string,
+  synonyms?: ProductSearchSynonymMap,
+) => {
+  const normalizedQuery = searchQuery.trim();
+  const termGroups = buildProductSearchTermGroups(searchQuery, { synonyms });
+  if (!normalizedQuery || termGroups.length === 0) return Prisma.sql`0`;
+
+  const phrasePattern = `%${escapeLike(normalizedQuery)}%`;
+  const phraseScore = Prisma.sql`
+    CASE
+      WHEN LOWER(p.title) = LOWER(${normalizedQuery}) THEN 240
+      WHEN p.title ILIKE ${phrasePattern} ESCAPE '\\' THEN 180
+      WHEN p.handle ILIKE ${phrasePattern} ESCAPE '\\' THEN 160
+      WHEN COALESCE(p.manufacturer, '') ILIKE ${phrasePattern} ESCAPE '\\' THEN 120
+      ELSE 0
+    END
+  `;
+
+  return termGroups.reduce((score, group) => {
+    const titleConditions = group.map((term) => {
+      const pattern = `%${escapeLike(term)}%`;
+      return Prisma.sql`p.title ILIKE ${pattern} ESCAPE '\\'`;
+    });
+    const handleConditions = group.map((term) => {
+      const pattern = `%${escapeLike(term)}%`;
+      return Prisma.sql`p.handle ILIKE ${pattern} ESCAPE '\\'`;
+    });
+    const manufacturerConditions = group.map((term) => {
+      const pattern = `%${escapeLike(term)}%`;
+      return Prisma.sql`COALESCE(p.manufacturer, '') ILIKE ${pattern} ESCAPE '\\'`;
+    });
+    const dimensionConditions = group.flatMap((term) => {
+      const pattern = `%${escapeLike(term)}%`;
+      return [
+        Prisma.sql`COALESCE(p."growboxSize", '') ILIKE ${pattern} ESCAPE '\\'`,
+        Prisma.sql`COALESCE(p."lightSize", '') ILIKE ${pattern} ESCAPE '\\'`,
+      ];
+    });
+
+    return Prisma.sql`${score} + CASE
+      WHEN ${joinSearchConditions(titleConditions, "OR")} THEN 80
+      WHEN ${joinSearchConditions(handleConditions, "OR")} THEN 70
+      WHEN ${joinSearchConditions(manufacturerConditions, "OR")} THEN 55
+      WHEN ${joinSearchConditions(dimensionConditions, "OR")} THEN 45
+      ELSE 20
+    END`;
+  }, phraseScore);
+};
+
+const buildSearchBoostSql = (
+  searchQuery: string,
+  boostRules: Awaited<ReturnType<typeof getCachedMainSearchBoostRules>>,
+) => {
+  const normalizedQuery = normalizeProductSearchText(searchQuery);
+  const matchingRules = boostRules.filter((rule) => rule.query === normalizedQuery);
+  return matchingRules.reduce(
+    (score, rule) =>
+      Prisma.sql`${score} + CASE WHEN p.id = ${rule.productId} THEN ${rule.boostScore} ELSE 0 END`,
+    Prisma.sql`0`,
+  );
+};
+
+const buildOrderBySql = (sortBy: SortMode, hasSearchQuery: boolean) => {
   if (sortBy === "price_asc") {
     return Prisma.sql`
       ORDER BY available_for_sale DESC, min_price_cents ASC, title ASC, id ASC
@@ -183,6 +314,11 @@ const buildOrderBySql = (sortBy: SortMode) => {
   if (sortBy === "name_asc") {
     return Prisma.sql`
       ORDER BY available_for_sale DESC, title ASC, id ASC
+    `;
+  }
+  if (hasSearchQuery) {
+    return Prisma.sql`
+      ORDER BY available_for_sale DESC, search_boost DESC, search_score DESC, "bestsellerScore" DESC NULLS LAST, "updatedAt" DESC, id ASC
     `;
   }
   return Prisma.sql`
@@ -230,9 +366,12 @@ export async function queryProducts(
     limit = 24,
   } = params;
 
-  const [categoryMeta, priceBounds] = await Promise.all([
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const [categoryMeta, priceBounds, synonyms, boostRules] = await Promise.all([
     getCachedCategoryMeta(),
     getPriceBoundsCached(),
+    hasSearchQuery ? getCachedMainSearchSynonymMap() : Promise.resolve({}),
+    hasSearchQuery ? getCachedMainSearchBoostRules() : Promise.resolve([]),
   ]);
   const categoryParents = new Map(categoryMeta.categoryHierarchy.parents);
   const childrenByParent = new Map(
@@ -270,10 +409,12 @@ export async function queryProducts(
 
   const categoryWhereSql = buildCategoryWhereSql(mergedCategories);
   const manufacturerWhereSql = buildManufacturerWhereSql(mergedManufacturers);
-  const searchWhereSql = buildSearchWhereSql(searchQuery);
+  const searchWhereSql = buildSearchWhereSql(searchQuery, synonyms);
+  const searchScoreSql = buildSearchScoreSql(searchQuery, synonyms);
+  const searchBoostSql = buildSearchBoostSql(searchQuery, boostRules);
   const minPriceCents = Math.max(0, Math.round(safePriceMin * 100));
   const maxPriceCents = Math.max(minPriceCents, Math.round(safePriceMax * 100));
-  const orderBySql = buildOrderBySql(sortBy);
+  const orderBySql = buildOrderBySql(sortBy, hasSearchQuery);
 
   const filteredRowsSql = Prisma.sql`
     WITH filtered_products AS (
@@ -283,6 +424,8 @@ export async function queryProducts(
         p."bestsellerScore",
         p."updatedAt",
         price_bounds.min_price_cents,
+        ${searchScoreSql} AS search_score,
+        ${searchBoostSql} AS search_boost,
         EXISTS (
           SELECT 1
           FROM "Variant" v2

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   Bars3Icon,
@@ -12,6 +13,7 @@ import {
   ShoppingBagIcon,
   Squares2X2Icon,
   UserCircleIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useCart } from "./CartProvider";
 import { useNavbarCategories } from "@/components/NavbarCategoriesProvider";
@@ -99,6 +101,7 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
   const [searchStatus, setSearchStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
+  const [activeSearchIndex, setActiveSearchIndex] = useState(-1);
   const searchTrackedRef = useRef<string | null>(null);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [selectedRootCategoryId, setSelectedRootCategoryId] = useState<string | null>(null);
@@ -445,9 +448,13 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
       if (!rect) return;
       const viewportPadding = 12;
       const viewportWidth = window.innerWidth;
-      const width = Math.min(rect.width, viewportWidth - viewportPadding * 2);
+      const width = Math.min(
+        isMobile ? rect.width : 560,
+        viewportWidth - viewportPadding * 2,
+      );
+      const preferredLeft = isMobile ? rect.left : rect.right - width;
       const left = Math.min(
-        Math.max(rect.left, viewportPadding),
+        Math.max(preferredLeft, viewportPadding),
         viewportWidth - viewportPadding - width,
       );
       const next = {
@@ -598,6 +605,7 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
     if (!trimmed) {
       setSearchResults([]);
       setSearchStatus("idle");
+      setActiveSearchIndex(-1);
       searchTrackedRef.current = null;
       return;
     }
@@ -619,9 +627,13 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
             imageUrl: string | null;
             imageAlt: string | null;
             price: { amount: string; currencyCode: string } | null;
+            manufacturer: string | null;
+            category: { title: string; handle: string } | null;
+            availableForSale: boolean;
           }>;
         };
         setSearchResults(data.results ?? []);
+        setActiveSearchIndex(-1);
         setSearchStatus("idle");
         if (searchTrackedRef.current !== trimmed) {
           searchTrackedRef.current = trimmed;
@@ -630,6 +642,7 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
         setSearchResults([]);
+        setActiveSearchIndex(-1);
         setSearchStatus("error");
       }
     }, 250);
@@ -638,6 +651,81 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
       clearTimeout(timer);
     };
   }, [searchQuery]);
+
+  const trackSearchResultSelection = useCallback((item: NavbarSearchResult) => {
+    trackAnalyticsEvent("select_item", {
+      item_list_id: "search",
+      item_list_name: "search",
+      items: [
+        {
+          item_id: buildMerchantItemId(item.defaultVariantId ?? item.id),
+          item_name: item.title,
+          item_brand: item.manufacturer ?? undefined,
+          item_category: item.category?.title,
+          price: item.price ? Number(item.price.amount) : undefined,
+          quantity: 1,
+        },
+      ],
+    });
+  }, []);
+
+  const handleSearchSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const trimmed = searchQuery.trim();
+      const target = trimmed
+        ? `/products?searchQuery=${encodeURIComponent(trimmed)}`
+        : "/products";
+      setSearchOpen(false);
+      setActiveSearchIndex(-1);
+      window.location.assign(target);
+    },
+    [searchQuery],
+  );
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setSearchOpen(false);
+      setActiveSearchIndex(-1);
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSearchOpen(true);
+      if (searchResults.length > 0) {
+        setActiveSearchIndex((current) =>
+          Math.min(current + 1, Math.min(searchResults.length, 6) - 1),
+        );
+      }
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSearchOpen(true);
+      if (searchResults.length > 0) {
+        setActiveSearchIndex((current) => (current <= 0 ? -1 : current - 1));
+      }
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+
+    const activeResult =
+      activeSearchIndex >= 0 ? searchResults[activeSearchIndex] : null;
+    if (activeResult) {
+      event.preventDefault();
+      trackSearchResultSelection(activeResult);
+      router.push(`/products/${activeResult.handle}`);
+      setSearchOpen(false);
+      setActiveSearchIndex(-1);
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  };
 
   useEffect(() => {
     setProductsOpen(false);
@@ -1223,30 +1311,55 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
                   ref={searchRef}
                   className="relative z-[60] hidden w-[235px] md:block lg:mr-2 lg:w-[275px]"
                 >
-                  <div className="relative">
+                  <form
+                    action="/products"
+                    method="get"
+                    className="relative"
+                    onSubmit={handleSearchSubmit}
+                  >
                     <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-text-muted)]" />
                     <input
                       type="search"
+                      name="searchQuery"
                       value={searchQuery}
                       onChange={(event) => {
                         setSearchQuery(event.target.value);
+                        setActiveSearchIndex(-1);
                         if (!searchOpen) setSearchOpen(true);
                       }}
                       onFocus={() => setSearchOpen(true)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") {
-                          setSearchOpen(false);
-                          return;
-                        }
-                        if (event.key === "Enter" && searchResults[0]) {
-                          router.push(`/products/${searchResults[0].handle}`);
-                          setSearchOpen(false);
-                        }
-                      }}
+                      onKeyDown={handleSearchKeyDown}
                       placeholder={copy.searchProducts}
-                      className="gv-input h-11 w-full rounded-full pl-10 pr-4 text-sm shadow-none outline-none focus:border-[color:var(--gv-lime)]/45 focus:ring-2 focus:ring-[color:var(--gv-lime)]/10"
+                      role="combobox"
+                      aria-label={copy.searchProducts}
+                      aria-expanded={searchOpen}
+                      aria-controls="navbar-search-listbox"
+                      aria-autocomplete="list"
+                      aria-activedescendant={
+                        activeSearchIndex >= 0
+                          ? `navbar-search-option-${activeSearchIndex}`
+                          : undefined
+                      }
+                      className="gv-input h-11 w-full rounded-full pl-10 pr-11 text-sm shadow-none outline-none focus:border-[color:var(--gv-lime)]/45 focus:ring-2 focus:ring-[color:var(--gv-lime)]/10"
                     />
-                  </div>
+                    {searchQuery ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery("");
+                          setActiveSearchIndex(-1);
+                          setSearchOpen(true);
+                        }}
+                        aria-label={language === "en" ? "Clear search" : "Suche löschen"}
+                        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-[color:var(--gv-text-muted)] transition hover:bg-[color:var(--gv-surface)] hover:text-[color:var(--gv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/35"
+                      >
+                        <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    ) : null}
+                    <button type="submit" className="sr-only">
+                      {language === "en" ? "Show search results" : "Suchergebnisse anzeigen"}
+                    </button>
+                  </form>
                   {canPortal && (
                     <NavbarSearchResultsPopover
                       open={searchOpen}
@@ -1255,26 +1368,17 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
                       searchResults={searchResults}
                       searchPopupStyle={searchPopupStyle}
                       popupRef={searchPopupRef}
-                      onClose={() => setSearchOpen(false)}
+                      onClose={() => {
+                        setSearchOpen(false);
+                        setActiveSearchIndex(-1);
+                      }}
+                      activeIndex={activeSearchIndex}
+                      onActiveIndexChange={setActiveSearchIndex}
                       language={language}
                       onSelectResult={(item) => {
-                        trackAnalyticsEvent("select_item", {
-                          item_list_id: "search",
-                          item_list_name: "search",
-                          items: [
-                            {
-                              item_id: buildMerchantItemId(
-                                item.defaultVariantId ?? item.id,
-                              ),
-                              item_name: item.title,
-                              price: item.price
-                                ? Number(item.price.amount)
-                                : undefined,
-                              quantity: 1,
-                            },
-                          ],
-                        });
+                        trackSearchResultSelection(item);
                         setSearchOpen(false);
+                        setActiveSearchIndex(-1);
                       }}
                     />
                   )}
@@ -1370,30 +1474,55 @@ export function Navbar({ initialCategories, language: initialLanguage }: NavbarP
             className="relative z-[800] px-4 pb-1.5 sm:hidden"
             ref={mobileSearchRef}
           >
-            <div className="relative">
+            <form
+              action="/products"
+              method="get"
+              className="relative"
+              onSubmit={handleSearchSubmit}
+            >
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-text-muted)]" />
               <input
                 type="search"
+                name="searchQuery"
                 value={searchQuery}
                 onChange={(event) => {
                   setSearchQuery(event.target.value);
+                  setActiveSearchIndex(-1);
                   if (!searchOpen) setSearchOpen(true);
                 }}
                 onFocus={() => setSearchOpen(true)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    setSearchOpen(false);
-                    return;
-                  }
-                  if (event.key === "Enter" && searchResults[0]) {
-                    router.push(`/products/${searchResults[0].handle}`);
-                    setSearchOpen(false);
-                  }
-                }}
+                onKeyDown={handleSearchKeyDown}
                 placeholder={copy.searchProducts}
-                className="gv-input h-9 w-full rounded-full pl-9 pr-4 text-[13px] shadow-[0_12px_32px_rgba(0,0,0,0.2)] outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
+                role="combobox"
+                aria-label={copy.searchProducts}
+                aria-expanded={searchOpen}
+                aria-controls="navbar-search-listbox"
+                aria-autocomplete="list"
+                aria-activedescendant={
+                  activeSearchIndex >= 0
+                    ? `navbar-search-option-${activeSearchIndex}`
+                    : undefined
+                }
+                className="gv-input h-10 w-full rounded-full pl-9 pr-10 text-[13px] shadow-[0_12px_32px_rgba(0,0,0,0.12)] outline-none focus:border-[color:var(--gv-lime)]/60 focus:ring-2 focus:ring-[color:var(--gv-lime)]/15"
               />
-            </div>
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setActiveSearchIndex(-1);
+                    setSearchOpen(true);
+                  }}
+                  aria-label={language === "en" ? "Clear search" : "Suche löschen"}
+                  className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-[color:var(--gv-text-muted)] transition hover:bg-[color:var(--gv-surface)] hover:text-[color:var(--gv-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)]/35"
+                >
+                  <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : null}
+              <button type="submit" className="sr-only">
+                {language === "en" ? "Show search results" : "Suchergebnisse anzeigen"}
+              </button>
+            </form>
           </div>
         )}
         {showCategoryBar && (

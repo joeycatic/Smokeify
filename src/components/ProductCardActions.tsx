@@ -5,6 +5,7 @@ import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 import { ShoppingCartIcon } from "@heroicons/react/24/outline";
 import { useCart } from "@/components/CartProvider";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWishlist } from "@/hooks/useWishlist";
 
 type VariantOption = {
@@ -206,6 +207,7 @@ export default function ProductCardActions({
         <button
           type="button"
           disabled={!available || adding}
+          aria-busy={adding}
           onClick={async (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -237,22 +239,36 @@ export default function ProductCardActions({
                 addVariantToCart(variantId, label, options),
             });
           }}
-          aria-label="In den Warenkorb"
-          title="In den Warenkorb"
+          aria-label={adding ? "Produkt wird hinzugefügt" : "In den Warenkorb"}
+          title={adding ? "Wird hinzugefügt…" : "In den Warenkorb"}
           className={`add-to-cart-sweep inline-flex min-w-0 items-center justify-center ${cartGapClass} rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${
-            available && !adding
+            available
               ? "border-[color:var(--gv-lime)] bg-[color:var(--gv-lime)] text-white shadow-[0_14px_34px_rgba(31,95,63,0.16)] hover:-translate-y-0.5 hover:bg-[color:var(--gv-lime-dim)]"
               : "border-[color:var(--gv-border)] bg-[color:var(--gv-surface)] text-[color:var(--gv-text-muted)]"
-          } ${size === "lg" ? "px-5 py-3 text-sm" : "px-3.5 py-3 text-sm"} ${mobileFullWidthCart ? "w-full sm:w-auto" : ""} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)] focus-visible:ring-offset-2`}
+          } ${size === "lg" ? "px-5 py-3 text-sm" : "px-3.5 py-3 text-sm"} ${mobileFullWidthCart ? "w-full sm:w-auto" : ""} disabled:cursor-wait disabled:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-lime)] focus-visible:ring-offset-2`}
         >
-          <ShoppingCartIcon className={cartIconClass} />
-          {hideCartLabel ? (
+          {adding ? (
             <>
-              <span className="sr-only">In den Warenkorb</span>
-              <span className="hidden sm:inline">In den Warenkorb</span>
+              <LoadingSpinner
+                size="sm"
+                className="border-white/30 border-t-white"
+              />
+              <span className={hideCartLabel ? "sr-only sm:not-sr-only" : undefined}>
+                Wird hinzugefügt…
+              </span>
             </>
           ) : (
-            "In den Warenkorb"
+            <>
+              <ShoppingCartIcon className={cartIconClass} />
+              {hideCartLabel ? (
+                <>
+                  <span className="sr-only">In den Warenkorb</span>
+                  <span className="hidden sm:inline">In den Warenkorb</span>
+                </>
+              ) : (
+                "In den Warenkorb"
+              )}
+            </>
           )}
         </button>
       )}

@@ -119,21 +119,21 @@ export function CartDrawerSkeleton({ rows = 4 }: { rows?: number }) {
 
 export function SearchResultsSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5" aria-hidden="true">
       {Array.from({ length: rows }).map((_, index) => (
         <div
           key={`search-skeleton-${index}`}
-          className="flex items-center gap-3 rounded-xl border border-stone-200/70 bg-stone-50/70 px-2 py-2"
+          className="flex items-center gap-3 rounded-[20px] border border-[color:var(--gv-border)] bg-[color:var(--gv-surface)]/48 px-2.5 py-2.5"
         >
-          <div className="h-10 w-10 animate-pulse rounded-lg bg-stone-200" />
+          <div className="h-14 w-14 animate-pulse rounded-[16px] bg-[color:var(--gv-surface)]" />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-4 w-full max-w-[12rem] animate-pulse rounded bg-stone-200" />
-            <div className="h-3 w-20 animate-pulse rounded bg-stone-100" />
+            <div className="h-3 w-24 animate-pulse rounded-full bg-[color:var(--gv-surface)]" />
+            <div className="h-4 w-full max-w-[18rem] animate-pulse rounded bg-[color:var(--gv-surface)]" />
+            <div className="h-3 w-28 animate-pulse rounded-full bg-[color:var(--gv-surface)]/70" />
           </div>
-          <div className="h-4 w-4 animate-pulse rounded-full bg-stone-200" />
+          <div className="h-4 w-4 animate-pulse rounded-full bg-[color:var(--gv-surface)]" />
         </div>
       ))}
     </div>
   );
 }
-
